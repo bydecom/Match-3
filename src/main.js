@@ -18,62 +18,42 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-// --- LOGIC FULLSCREEN ĐƠN GIẢN VÀ HIỆU QUẢ ---
+// --- LOGIC FULLSCREEN MỚI VÀ ĐÁNG TIN CẬY ---
 
-// Hàm để vào fullscreen (chỉ hoạt động trên Android/Desktop)
 function enterFullscreen() {
   const element = document.documentElement;
   if (element.requestFullscreen) {
     element.requestFullscreen();
-  } else if (element.webkitRequestFullscreen) { // Safari
+  } else if (element.webkitRequestFullscreen) {
     element.webkitRequestFullscreen();
-  } else if (element.msRequestFullscreen) { // IE11
-    element.msRequestFullscreen();
   }
 }
 
-// Tối ưu cho iOS (không có API fullscreen thực sự)
-function optimizeForIOS() {
-  console.log('🍎 Tối ưu hóa cho iOS: cố gắng ẩn thanh địa chỉ...');
-  // Cuộn nhẹ để trình duyệt tự động ẩn thanh địa chỉ
-  window.scrollTo(0, 1);
-
-  // Kỹ thuật hiện đại hơn để chiếm toàn bộ chiều cao có sẵn
-  const setViewportHeight = () => {
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-    const app = document.getElementById('app');
-    if (app) {
-      app.style.height = 'calc(var(--vh, 1vh) * 100)';
-    }
-  };
-  setViewportHeight();
-  window.addEventListener('resize', setViewportHeight);
-}
-
 // Hàm khởi tạo chính
-function initializeFullscreen() {
+function initializeApp() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const fullscreenButton = document.getElementById('fullscreen-button');
+
+  if (!fullscreenButton) return;
 
   if (isIOS) {
-    // Trên iOS, chúng ta không thể tự vào fullscreen, chỉ có thể tối ưu
-    optimizeForIOS();
-    // Có thể thêm một nút bấm "Hướng dẫn" để chỉ người dùng cách thêm vào Màn hình chính
+    // Trên iOS, nút này chỉ để ẩn chính nó đi và tối ưu giao diện
+    fullscreenButton.textContent = "Bắt đầu"; // Có thể đổi text
+    fullscreenButton.addEventListener('click', () => {
+      console.log('🍎 iOS: Ẩn nút và tối ưu UI...');
+      window.scrollTo(0, 1); // Cố gắng ẩn thanh địa chỉ
+      fullscreenButton.style.display = 'none'; // Ẩn nút đi
+    }, { once: true });
   } else {
-    // Trên Android và Desktop, chúng ta chờ người dùng tương tác lần đầu
-    console.log('🎮 Sẵn sàng vào fullscreen khi người dùng tương tác...');
-
-    // Sử dụng "pointerdown" bao gồm cả click và touch
-    // { once: true } là chìa khóa: listener sẽ tự động bị gỡ bỏ sau lần chạy đầu tiên
-    document.addEventListener('pointerdown', () => {
-      console.log('👆 Người dùng đã tương tác! Đang yêu cầu fullscreen...');
+    // Trên Android và Desktop, nút này sẽ kích hoạt fullscreen
+    fullscreenButton.addEventListener('click', () => {
+      console.log('🤖 Android/Desktop: Yêu cầu fullscreen...');
       enterFullscreen();
+      fullscreenButton.style.display = 'none'; // Ẩn nút sau khi click
     }, { once: true });
   }
 }
 
-// Chạy hàm khởi tạo sau khi game đã sẵn sàng
-game.events.on('ready', () => {
-  console.log('🚀 Game đã sẵn sàng!');
-  initializeFullscreen();
-});
+// Chạy hàm khởi tạo khi DOM đã sẵn sàng
+// Không cần chờ game ready, vì nút bấm là HTML độc lập
+initializeApp();

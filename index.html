@@ -51,6 +51,20 @@
         touch-action: manipulation;
         pointer-events: auto;
       }
+      #fullscreen-button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 40px;
+        font-size: 24px;
+        color: white;
+        background-color: #4CAF50; /* Màu xanh lá cây */
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        z-index: 10; /* Đảm bảo nó nằm trên canvas game */
+      }
       
       /* Tối ưu cho iOS Safari */
       @supports (-webkit-touch-callout: none) {
@@ -79,6 +93,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <button id="fullscreen-button">BẮT ĐẦU</button> <!-- NÚT BẤM MỚI -->
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
