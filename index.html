@@ -6,38 +6,69 @@
     <title>Phaser 3 + Vite</title>
     <meta name="description" content="Phaser 3 starter with Vite + TypeScript" />
     <style>
+      :root {
+        --vh: 1vh;
+      }
+      
+      * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      
       body {
         margin: 0;
+        padding: 0;
         background: #0f0f13;
         overflow: hidden;
         position: fixed;
         width: 100%;
-        height: 100%;
+        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
         /* Tối ưu cho iOS */
         -webkit-overflow-scrolling: touch;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
         -webkit-tap-highlight-color: transparent;
+        /* Ngăn bounce scroll trên iOS */
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
       }
+      
       #app {
         width: 100%;
-        height: 100%;
-        /* Đảm bảo canvas chiếm toàn bộ màn hình trên iOS */
-        position: absolute;
+        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
+        overflow: hidden;
       }
+      
+      /* Tối ưu cho iOS Safari */
+      @supports (-webkit-touch-callout: none) {
+        body {
+          height: -webkit-fill-available;
+        }
+        #app {
+          height: -webkit-fill-available;
+        }
+      }
+      
       /* Ẩn thanh địa chỉ Safari trên iOS */
       @media screen and (max-width: 768px) {
         body {
           height: 100vh;
           height: -webkit-fill-available;
+          height: calc(var(--vh, 1vh) * 100);
         }
         #app {
           height: 100vh;
           height: -webkit-fill-available;
+          height: calc(var(--vh, 1vh) * 100);
         }
       }
     </style>

@@ -83,39 +83,129 @@ function enableFullscreenOnTouch() {
 function optimizeForIOS() {
   console.log('🍎 Tối ưu hóa cho iOS...')
   
-  // 1. Ẩn thanh địa chỉ Safari
-  window.scrollTo(0, 1)
+  // 1. Thiết lập viewport height để ẩn thanh địa chỉ
+  const setViewportHeight = () => {
+    const vh = window.innerHeight * 0.01
+    document.documentElement.style.setProperty('--vh', `${vh}px`)
+  }
   
-  // 2. Ngăn zoom
+  setViewportHeight()
+  window.addEventListener('resize', setViewportHeight)
+  window.addEventListener('orientationchange', setViewportHeight)
+  
+  // 2. Ẩn thanh địa chỉ Safari ngay lập tức
+  window.scrollTo(0, 1)
+  setTimeout(() => window.scrollTo(0, 0), 100)
+  
+  // 3. Ngăn zoom và scroll
   document.addEventListener('touchstart', (e) => {
     if (e.touches.length > 1) {
       e.preventDefault()
     }
   }, { passive: false })
   
-  // 3. Ngăn scroll
   document.addEventListener('touchmove', (e) => {
     e.preventDefault()
   }, { passive: false })
   
-  // 4. Ẩn thanh địa chỉ khi scroll
+  // 4. Kỹ thuật ẩn thanh địa chỉ mạnh mẽ hơn
+  let ticking = false
   let lastScrollTop = 0
-  window.addEventListener('scroll', () => {
+  
+  const hideAddressBar = () => {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-    if (scrollTop > lastScrollTop) {
+    
+    if (scrollTop > lastScrollTop && scrollTop > 10) {
       // Scrolling down - ẩn thanh địa chỉ
       document.body.style.position = 'fixed'
       document.body.style.top = '0'
       document.body.style.left = '0'
       document.body.style.right = '0'
       document.body.style.bottom = '0'
+      document.body.style.width = '100%'
+      document.body.style.height = '100%'
+      document.body.style.overflow = 'hidden'
+    } else if (scrollTop < lastScrollTop) {
+      // Scrolling up - có thể hiện lại thanh địa chỉ
+      document.body.style.position = 'static'
+      document.body.style.top = 'auto'
+      document.body.style.left = 'auto'
+      document.body.style.right = 'auto'
+      document.body.style.bottom = 'auto'
+      document.body.style.width = 'auto'
+      document.body.style.height = 'auto'
+      document.body.style.overflow = 'auto'
     }
+    
     lastScrollTop = scrollTop
+    ticking = false
+  }
+  
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(hideAddressBar)
+      ticking = true
+    }
   })
   
-  // 5. Thông báo cho user
+  // 5. Thêm CSS động để tối ưu
+  const style = document.createElement('style')
+  style.textContent = `
+    body {
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      -webkit-overflow-scrolling: touch;
+    }
+    #app {
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
+      width: 100%;
+    }
+  `
+  document.head.appendChild(style)
+  
+  // 6. Thông báo cho user (không dùng alert để tránh chặn)
   setTimeout(() => {
-    alert('🍎 Trên iOS: Vuốt lên từ dưới màn hình để ẩn thanh địa chỉ Safari và có trải nghiệm tốt nhất!')
+    const notification = document.createElement('div')
+    notification.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        z-index: 10000;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        max-width: 90%;
+      ">
+        <div style="font-size: 24px; margin-bottom: 10px;">🍎</div>
+        <div style="margin-bottom: 15px;">Vuốt lên từ dưới màn hình để ẩn thanh địa chỉ Safari</div>
+        <button onclick="this.parentElement.parentElement.remove()" style="
+          background: #007AFF;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          font-size: 16px;
+          cursor: pointer;
+        ">Đóng</button>
+      </div>
+    `
+    document.body.appendChild(notification)
+    
+    // Tự động ẩn sau 5 giây
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.remove()
+      }
+    }, 5000)
   }, 1000)
 }
 
