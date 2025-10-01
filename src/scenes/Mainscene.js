@@ -5,11 +5,11 @@ export class MainScene extends Phaser.Scene {
     super('MainScene')
   }
 
-  preload(): void {
+  preload() {
     // preload assets here if needed
   }
 
-  create(): void {
+  create() {
     const { width, height } = this.scale
 
     this.add.text(width / 2, height / 2, 'Phaser 3 + Vite', {
@@ -25,4 +25,3 @@ export class MainScene extends Phaser.Scene {
     }).setOrigin(0.5)
   }
 }
-

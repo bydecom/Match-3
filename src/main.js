@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { MainScene } from './scenes/MainScene'
 
-const config: Phaser.Types.Core.GameConfig = {
+const config = {
   type: Phaser.AUTO,
   parent: 'app',
   backgroundColor: '#1b1e27',
@@ -38,7 +38,7 @@ function enableFullscreenOnTouch() {
   
   let hasRequestedFullscreen = false
   
-  const handleTouch = async (e: Event) => {
+  const handleTouch = async (e) => {
     console.log('👆 Touch event detected:', e.type)
     
     if (hasRequestedFullscreen) {
@@ -127,11 +127,11 @@ async function requestFullscreenAndroid() {
     if (document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen()
       console.log('✅ Fullscreen thành công!')
-    } else if ((document.documentElement as any).webkitRequestFullscreen) {
-      await (document.documentElement as any).webkitRequestFullscreen()
+    } else if ((document.documentElement).webkitRequestFullscreen) {
+      await (document.documentElement).webkitRequestFullscreen()
       console.log('✅ Fullscreen thành công (webkit)!')
-    } else if ((document.documentElement as any).msRequestFullscreen) {
-      await (document.documentElement as any).msRequestFullscreen()
+    } else if ((document.documentElement).msRequestFullscreen) {
+      await (document.documentElement).msRequestFullscreen()
       console.log('✅ Fullscreen thành công (ms)!')
     } else {
       console.log('❌ Fullscreen API không được hỗ trợ')
