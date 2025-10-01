@@ -1,10 +1,11 @@
 
 ---
 
-# 💎 Match-3 Game Engine "Jungle Gems" (Kiến trúc Nâng cao)
+# 💎 Match-3 Game Engine "Jungle Gems"
 
 Dự án này là một bộ khung (engine) hoàn chỉnh để xây dựng một game Match-3 chuyên nghiệp, có chiều sâu, sử dụng **Phaser 3** và **Vite**. Kiến trúc của dự án được xây dựng dựa trên các nguyên tắc thiết kế phần mềm hiện đại, đảm bảo tính linh hoạt, dễ bảo trì và mở rộng cho các tính năng phức tạp trong tương lai.
 
+<img width="1151" height="2048" alt="image" src="https://github.com/user-attachments/assets/179cf084-f840-477d-b6cd-3f6830cbd28d" />
 
 
 ## Mục lục
