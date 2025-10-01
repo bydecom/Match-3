@@ -1,7 +1,7 @@
 // src/main.js
 import Phaser from 'phaser';
 // Sửa lại tên file cho đúng chuẩn: MainScene.js    
-import { MainScene } from './scenes/MainScene'; 
+import { MainScene } from './scenes/Mainscene'; 
 
 const config = {
   type: Phaser.AUTO,
