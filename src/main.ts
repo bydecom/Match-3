@@ -21,15 +21,18 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config)
 
-// Kiểm tra mobile và thêm debug
+// Kiểm tra device
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+const isAndroid = /Android/.test(navigator.userAgent)
+
 console.log('🔍 Device Info:')
 console.log('- User Agent:', navigator.userAgent)
 console.log('- Is Mobile:', isMobile)
-console.log('- Screen size:', window.screen.width + 'x' + window.screen.height)
-console.log('- Viewport size:', window.innerWidth + 'x' + window.innerHeight)
+console.log('- Is iOS:', isIOS)
+console.log('- Is Android:', isAndroid)
 
-// Tự động chuyển sang fullscreen khi chạm vào màn hình
+// Xử lý fullscreen cho iOS và Android
 function enableFullscreenOnTouch() {
   console.log('🎮 Khởi tạo fullscreen listener...')
   
@@ -44,28 +47,19 @@ function enableFullscreenOnTouch() {
     }
     
     hasRequestedFullscreen = true
-    console.log('🚀 Đang cố gắng chuyển sang fullscreen...')
     
-    try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen()
-        console.log('✅ Fullscreen thành công!')
-      } else if ((document.documentElement as any).webkitRequestFullscreen) {
-        await (document.documentElement as any).webkitRequestFullscreen()
-        console.log('✅ Fullscreen thành công (webkit)!')
-      } else if ((document.documentElement as any).msRequestFullscreen) {
-        await (document.documentElement as any).msRequestFullscreen()
-        console.log('✅ Fullscreen thành công (ms)!')
-      } else {
-        console.log('❌ Fullscreen API không được hỗ trợ')
-      }
-    } catch (error) {
-      console.log('❌ Lỗi fullscreen:', error)
-      hasRequestedFullscreen = false // Cho phép thử lại
+    if (isIOS) {
+      // iOS không hỗ trợ requestFullscreen, sử dụng các kỹ thuật khác
+      console.log('🍎 iOS detected - sử dụng kỹ thuật tối ưu cho iOS')
+      optimizeForIOS()
+    } else if (isAndroid) {
+      // Android sử dụng requestFullscreen
+      console.log('🤖 Android detected - sử dụng requestFullscreen')
+      await requestFullscreenAndroid()
     }
   }
   
-  // Thêm nhiều loại event để đảm bảo hoạt động
+  // Thêm event listeners
   document.addEventListener('touchstart', handleTouch, { passive: true })
   document.addEventListener('touchend', handleTouch, { passive: true })
   document.addEventListener('click', handleTouch)
@@ -75,7 +69,6 @@ function enableFullscreenOnTouch() {
   if (gameCanvas) {
     gameCanvas.addEventListener('touchstart', handleTouch, { passive: true })
     gameCanvas.addEventListener('click', handleTouch)
-    console.log('🎯 Đã thêm event listener cho canvas')
   }
   
   // Thêm event cho container
@@ -83,7 +76,68 @@ function enableFullscreenOnTouch() {
   if (appDiv) {
     appDiv.addEventListener('touchstart', handleTouch, { passive: true })
     appDiv.addEventListener('click', handleTouch)
-    console.log('🎯 Đã thêm event listener cho app container')
+  }
+}
+
+// Tối ưu cho iOS
+function optimizeForIOS() {
+  console.log('🍎 Tối ưu hóa cho iOS...')
+  
+  // 1. Ẩn thanh địa chỉ Safari
+  window.scrollTo(0, 1)
+  
+  // 2. Ngăn zoom
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) {
+      e.preventDefault()
+    }
+  }, { passive: false })
+  
+  // 3. Ngăn scroll
+  document.addEventListener('touchmove', (e) => {
+    e.preventDefault()
+  }, { passive: false })
+  
+  // 4. Ẩn thanh địa chỉ khi scroll
+  let lastScrollTop = 0
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+    if (scrollTop > lastScrollTop) {
+      // Scrolling down - ẩn thanh địa chỉ
+      document.body.style.position = 'fixed'
+      document.body.style.top = '0'
+      document.body.style.left = '0'
+      document.body.style.right = '0'
+      document.body.style.bottom = '0'
+    }
+    lastScrollTop = scrollTop
+  })
+  
+  // 5. Thông báo cho user
+  setTimeout(() => {
+    alert('🍎 Trên iOS: Vuốt lên từ dưới màn hình để ẩn thanh địa chỉ Safari và có trải nghiệm tốt nhất!')
+  }, 1000)
+}
+
+// Request fullscreen cho Android
+async function requestFullscreenAndroid() {
+  console.log('🤖 Đang cố gắng chuyển sang fullscreen trên Android...')
+  
+  try {
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen()
+      console.log('✅ Fullscreen thành công!')
+    } else if ((document.documentElement as any).webkitRequestFullscreen) {
+      await (document.documentElement as any).webkitRequestFullscreen()
+      console.log('✅ Fullscreen thành công (webkit)!')
+    } else if ((document.documentElement as any).msRequestFullscreen) {
+      await (document.documentElement as any).msRequestFullscreen()
+      console.log('✅ Fullscreen thành công (ms)!')
+    } else {
+      console.log('❌ Fullscreen API không được hỗ trợ')
+    }
+  } catch (error) {
+    console.log('❌ Lỗi fullscreen:', error)
   }
 }
 
@@ -96,14 +150,16 @@ game.events.once('ready', () => {
   enableFullscreenOnTouch()
 })
 
-// Xử lý khi thoát fullscreen
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
-    console.log('📱 Đã thoát fullscreen')
-  } else {
-    console.log('📱 Đã vào fullscreen')
-  }
-})
+// Xử lý khi thoát fullscreen (chỉ cho Android)
+if (isAndroid) {
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      console.log('📱 Đã thoát fullscreen')
+    } else {
+      console.log('📱 Đã vào fullscreen')
+    }
+  })
+}
 
 // Thêm listener cho orientation change
 window.addEventListener('orientationchange', () => {

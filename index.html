@@ -13,10 +13,32 @@
         position: fixed;
         width: 100%;
         height: 100%;
+        /* Tối ưu cho iOS */
+        -webkit-overflow-scrolling: touch;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
       }
       #app {
         width: 100%;
         height: 100%;
+        /* Đảm bảo canvas chiếm toàn bộ màn hình trên iOS */
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+      /* Ẩn thanh địa chỉ Safari trên iOS */
+      @media screen and (max-width: 768px) {
+        body {
+          height: 100vh;
+          height: -webkit-fill-available;
+        }
+        #app {
+          height: 100vh;
+          height: -webkit-fill-available;
+        }
       }
     </style>
   </head>
