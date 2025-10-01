@@ -39,7 +39,7 @@ function enableFullscreenOnTouch() {
   let hasRequestedFullscreen = false
   
   const handleTouch = async (e) => {
-    console.log('👆 Touch event detected:', e.type)
+    console.log('👆 Touch event detected:', e.type, 'Target:', e.target)
     
     if (hasRequestedFullscreen) {
       console.log('⚠️ Đã request fullscreen rồi, bỏ qua')
@@ -59,24 +59,42 @@ function enableFullscreenOnTouch() {
     }
   }
   
-  // Thêm event listeners
-  document.addEventListener('touchstart', handleTouch, { passive: true })
-  document.addEventListener('touchend', handleTouch, { passive: true })
-  document.addEventListener('click', handleTouch)
-  
-  // Thêm event cho canvas game
-  const gameCanvas = document.querySelector('canvas')
-  if (gameCanvas) {
-    gameCanvas.addEventListener('touchstart', handleTouch, { passive: true })
-    gameCanvas.addEventListener('click', handleTouch)
+  // Thêm event listeners với nhiều cách khác nhau
+  const addTouchListeners = () => {
+    // Document level
+    document.addEventListener('touchstart', handleTouch, { passive: true, capture: true })
+    document.addEventListener('touchend', handleTouch, { passive: true, capture: true })
+    document.addEventListener('click', handleTouch, { capture: true })
+    
+    // Body level
+    document.body.addEventListener('touchstart', handleTouch, { passive: true })
+    document.body.addEventListener('touchend', handleTouch, { passive: true })
+    document.body.addEventListener('click', handleTouch)
+    
+    // App container
+    const appDiv = document.getElementById('app')
+    if (appDiv) {
+      appDiv.addEventListener('touchstart', handleTouch, { passive: true })
+      appDiv.addEventListener('touchend', handleTouch, { passive: true })
+      appDiv.addEventListener('click', handleTouch)
+    }
+    
+    // Canvas game (khi có)
+    const gameCanvas = document.querySelector('canvas')
+    if (gameCanvas) {
+      gameCanvas.addEventListener('touchstart', handleTouch, { passive: true })
+      gameCanvas.addEventListener('touchend', handleTouch, { passive: true })
+      gameCanvas.addEventListener('click', handleTouch)
+    }
   }
   
-  // Thêm event cho container
-  const appDiv = document.getElementById('app')
-  if (appDiv) {
-    appDiv.addEventListener('touchstart', handleTouch, { passive: true })
-    appDiv.addEventListener('click', handleTouch)
-  }
+  // Thêm listeners ngay lập tức
+  addTouchListeners()
+  
+  // Thêm lại khi DOM thay đổi
+  setTimeout(addTouchListeners, 100)
+  setTimeout(addTouchListeners, 500)
+  setTimeout(addTouchListeners, 1000)
 }
 
 // Tối ưu cho iOS
@@ -148,21 +166,24 @@ function optimizeForIOS() {
     }
   })
   
-  // 5. Thêm CSS động để tối ưu
+  // 5. Thêm CSS động để tối ưu (không chặn touch events)
   const style = document.createElement('style')
   style.textContent = `
     body {
       height: 100vh;
       height: calc(var(--vh, 1vh) * 100);
       overflow: hidden;
-      position: fixed;
       width: 100%;
       -webkit-overflow-scrolling: touch;
+      touch-action: manipulation;
+      pointer-events: auto;
     }
     #app {
       height: 100vh;
       height: calc(var(--vh, 1vh) * 100);
       width: 100%;
+      touch-action: manipulation;
+      pointer-events: auto;
     }
   `
   document.head.appendChild(style)
