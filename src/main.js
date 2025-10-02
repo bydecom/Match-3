@@ -1,8 +1,11 @@
 // src/main.js
 import Phaser from 'phaser';
-// Sửa lại tên file cho đúng chuẩn: MainScene.js    
-import { MainScene } from './scenes/Mainscene'; 
+import { BootScene } from './scenes/BootScene';
+import { PreloaderScene } from './scenes/PreloaderScene';
+// Vẫn import MainScene để sẵn sàng cho sau này
+import { MainScene } from './scenes/MainScene';
 
+// --- BƯỚC 1: ĐỊNH NGHĨA CONFIG ---
 const config = {
   type: Phaser.AUTO,
   parent: 'app',
@@ -10,50 +13,53 @@ const config = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 480,
-    height: 800,
+    width: 576,
+    height: 1024,
   },
-  scene: [MainScene]
+  // --- THAY ĐỔI QUAN TRỌNG NHẤT Ở ĐÂY ---
+  // Tạm thời chỉ cho game biết đến 2 scene này.
+  // Bằng cách này, sau khi PreloaderScene xong, nó sẽ không có scene nào để tự động chuyển đến.
+  scene: [BootScene, PreloaderScene] 
 };
 
-const game = new Phaser.Game(config);
-
-// --- LOGIC FULLSCREEN MỚI VÀ ĐÁNG TIN CẬY ---
-
-function enterFullscreen() {
-  const element = document.documentElement;
-  if (element.requestFullscreen) {
-    element.requestFullscreen();
-  } else if (element.webkitRequestFullscreen) {
-    element.webkitRequestFullscreen();
-  }
-}
-
-// Hàm khởi tạo chính
+// --- BƯỚC 2: HÀM KHỞI TẠO APP VÀ GAME ---
 function initializeApp() {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const fullscreenButton = document.getElementById('fullscreen-button');
 
-  if (!fullscreenButton) return;
-
-  if (isIOS) {
-    // Trên iOS, nút này chỉ để ẩn chính nó đi và tối ưu giao diện
-    fullscreenButton.textContent = "Bắt đầu"; // Có thể đổi text
-    fullscreenButton.addEventListener('click', () => {
-      console.log('🍎 iOS: Ẩn nút và tối ưu UI...');
-      window.scrollTo(0, 1); // Cố gắng ẩn thanh địa chỉ
-      fullscreenButton.style.display = 'none'; // Ẩn nút đi
-    }, { once: true });
-  } else {
-    // Trên Android và Desktop, nút này sẽ kích hoạt fullscreen
-    fullscreenButton.addEventListener('click', () => {
-      console.log('🤖 Android/Desktop: Yêu cầu fullscreen...');
-      enterFullscreen();
-      fullscreenButton.style.display = 'none'; // Ẩn nút sau khi click
-    }, { once: true });
+  const enterFullscreen = () => {
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      element.webkitRequestFullscreen();
+    }
   }
+
+  fullscreenButton.addEventListener('click', () => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (!isIOS) {
+      enterFullscreen();
+    }
+    fullscreenButton.style.display = 'none';
+
+    // Gán đối tượng game vừa được tạo vào một biến hằng số tên là 'game'
+    const game = new Phaser.Game(config);
+
+    // Thêm listener để xử lý lỗi mất scene khi thoát fullscreen
+    document.addEventListener('fullscreenchange', () => {
+      setTimeout(() => {
+        // Lấy scene đang hoạt động
+        const currentScenes = game.scene.getScenes(true);
+        if (currentScenes && currentScenes.length > 0) {
+            // Khởi động lại scene đầu tiên đang hoạt động
+            // Trong trường hợp của bạn, đó sẽ là PreloaderScene
+            currentScenes[0].scene.restart();
+        }
+    }, 100);
+    });
+
+  }, { once: true });
 }
 
-// Chạy hàm khởi tạo khi DOM đã sẵn sàng
-// Không cần chờ game ready, vì nút bấm là HTML độc lập
+// Chạy hàm khởi tạo
 initializeApp();
