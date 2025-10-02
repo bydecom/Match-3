@@ -73,12 +73,12 @@ Dự án tuân thủ 4 nguyên tắc thiết kế chính:
 │       └── levels/             # File JSON định nghĩa màn chơi
 ├── src/
 │   ├── scenes/                 # Các màn hình chính của game
-│   │   ├── BootScene.js        # (Màn hình 4) Tải asset cho Preloader
-│   │   ├── PreloaderScene.js   # (Màn hình 4) Tải tất cả asset của game & hiển thị loading bar
-│   │   ├── MapScene.js         # (Màn hình 3) Hiển thị bản đồ thế giới, chọn level
-│   │   ├── GameScene.js        # (Màn hình 1) Chỉ chứa logic gameplay, bàn cờ
-│   │   ├── UIScene.js          # (Màn hình 1) Hiển thị UI trên GameScene (điểm, lượt đi...)
-│   │   ├── LeaderboardScene.js # (Màn hình 2) Hiển thị bảng xếp hạng
+│   │   ├── BootScene.js        #  Tải asset cho Preloader
+│   │   ├── PreloaderScene.js   #  Tải tất cả asset của game & hiển thị loading bar
+│   │   ├── MapScene.js         #  Hiển thị bản đồ thế giới, chọn level
+│   │   ├── GameScene.js        #  Chỉ chứa logic gameplay, bàn cờ
+│   │   ├── UIScene.js          #  Hiển thị UI trên GameScene (điểm, lượt đi...)
+│   │   ├── LeaderboardScene.js #  Hiển thị bảng xếp hạng
 │   │   └── popups/             # Các scene nhỏ hoạt động như popup
 │   │       ├── SettingsPopup.js
 │   │       ├── WinPopup.js

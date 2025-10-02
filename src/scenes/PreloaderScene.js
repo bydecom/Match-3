@@ -116,9 +116,17 @@ export class PreloaderScene extends Phaser.Scene {
 
 
     startNextScene() {
-        console.log("Bắt đầu chuyển sang MainScene...");
+        console.log("PreloaderScene quyết định chuyển cảnh. Dọn dẹp listener ngay lập tức.");
+        
+        // --- ĐIỂM SỬA QUAN TRỌNG NHẤT ---
+        // Dọn dẹp TẤT CẢ listener ngay tại thời điểm quyết định chuyển cảnh.
+        // Đây là "điểm không thể quay đầu". Scene không nên lắng nghe bất cứ thứ gì nữa.
+        this.cleanUpListeners();
+
+        // Bây giờ mới bắt đầu hiệu ứng chuyển cảnh một cách an toàn
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
+            console.log("Fade out xong, chính thức bắt đầu MainScene.");
             this.scene.start('MainScene');
         });
     }
