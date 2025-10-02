@@ -37,7 +37,7 @@ export class PreloaderScene extends Phaser.Scene {
 
         Promise.all([minTimePromise, loadCompletePromise]).then(() => {
             if (!this.scene.isActive()) {
-                console.log("Promise đã hoàn thành, nhưng scene không còn hoạt động. Hủy bỏ chuyển scene.");
+                console.log("Promise hoàn thành, nhưng scene không còn hoạt động. Bỏ qua.");
                 return;
             }
 
@@ -112,6 +112,15 @@ export class PreloaderScene extends Phaser.Scene {
     cleanUpListeners() {
         this.scale.off('resize', this.handleResize, this);
         this.sys.game.renderer.off('contextrestored', this.handleContextRestored, this);
+    }
+
+
+    startNextScene() {
+        console.log("Bắt đầu chuyển sang MainScene...");
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.scene.start('MainScene');
+        });
     }
 
     resizeBackground(gameWidth, gameHeight) {
