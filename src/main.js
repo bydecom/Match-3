@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { PreloaderScene } from './scenes/PreloaderScene';
-import { MainScene } from './scenes/MainScene';
+import { MainScene } from './scenes/Mainscene';
 
 const config = {
   type: Phaser.AUTO,
