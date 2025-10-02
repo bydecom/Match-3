@@ -14,7 +14,7 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene] 
+  scene: [BootScene, PreloaderScene, MainScene] 
 };
 
 function initializeApp() {
