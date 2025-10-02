@@ -46,17 +46,17 @@ function initializeApp() {
     const game = new Phaser.Game(config);
 
     // Thêm listener để xử lý lỗi mất scene khi thoát fullscreen
-    document.addEventListener('fullscreenchange', () => {
-      setTimeout(() => {
-        // Lấy scene đang hoạt động
-        const currentScenes = game.scene.getScenes(true);
-        if (currentScenes && currentScenes.length > 0) {
-            // Khởi động lại scene đầu tiên đang hoạt động
-            // Trong trường hợp của bạn, đó sẽ là PreloaderScene
-            currentScenes[0].scene.restart();
-        }
-    }, 100);
-    });
+    // document.addEventListener('fullscreenchange', () => {
+    //   setTimeout(() => {
+    //     // Lấy scene đang hoạt động
+    //     const currentScenes = game.scene.getScenes(true);
+    //     if (currentScenes && currentScenes.length > 0) {
+    //         // Khởi động lại scene đầu tiên đang hoạt động
+    //         // Trong trường hợp của bạn, đó sẽ là PreloaderScene
+    //         currentScenes[0].scene.restart();
+    //     }
+    // }, 100);
+    // });
 
   }, { once: true });
 }
