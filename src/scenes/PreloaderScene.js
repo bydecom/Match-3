@@ -89,6 +89,25 @@ export class PreloaderScene extends Phaser.Scene {
     loadAssets() {
         console.log("Bắt đầu ra lệnh tải assets...");
         this.load.image(`level_background`, 'assets/screen/level.png');
+        this.load.image(`map1_background`, 'assets/images/map/map1-background.png');
+        this.load.image(`playground1_border`, 'assets/images/map/playground-border.png');
+        this.load.image(`playground1_background`, 'assets/images/map/playground.png');
+        this.load.image(`cell`, 'assets/images/map/cell.png');
+        
+        // Load gem images
+        this.load.image(`gem_red`, 'assets/images/gameplay/gems/red.png');
+        this.load.image(`gem_green`, 'assets/images/gameplay/gems/green.png');
+        this.load.image(`gem_blue`, 'assets/images/gameplay/gems/blue.png');
+        this.load.image(`gem_purple`, 'assets/images/gameplay/gems/purple.png');
+        this.load.image(`gem_yellow`, 'assets/images/gameplay/gems/yellow.png');
+        this.load.image(`gem_orange`, 'assets/images/gameplay/gems/orange.png');
+        
+        // Load power-up images
+        this.load.image(`gem_bomb`, 'assets/images/gameplay/gems/bomb.png');
+        this.load.image(`gem_color_bomb`, 'assets/images/gameplay/gems/color_bomb.png');
+        
+        // Load level data
+        this.load.json('level_1', 'assets/levels/level_1.json');
     }
 
 
@@ -126,8 +145,8 @@ export class PreloaderScene extends Phaser.Scene {
         // Bây giờ mới bắt đầu hiệu ứng chuyển cảnh một cách an toàn
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
-            console.log("Fade out xong, chính thức bắt đầu MainScene.");
-            this.scene.start('MainScene');
+            console.log("Fade out xong, chính thức bắt đầu MapScene.");
+            this.scene.start('MapScene');
         });
     }
 

@@ -2,7 +2,8 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { PreloaderScene } from './scenes/PreloaderScene';
-import { MainScene } from './scenes/Mainscene';
+import { MapScene } from './scenes/MapScene';
+import { GameScene } from './scenes/GameScene';
 
 const config = {
   type: Phaser.AUTO,
@@ -14,7 +15,7 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene, MainScene] 
+  scene: [BootScene, PreloaderScene, MapScene, GameScene] 
 };
 
 function initializeApp() {
