@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { Board } from '../objects/Board'
 import { SCENE_KEYS, BOOSTER_TYPES } from '../utils/constants'
+import { BoosterVFXManager } from '../objects/vfx/BoosterVFXManager'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -9,6 +10,9 @@ export class GameScene extends Phaser.Scene {
     this.levelData = null
     this.activeBooster = null
     this.firstSwapGem = null
+    this.boosterVFXManager = null
+    this.isPointerDown = false
+    this.lastHoveredCell = { row: -1, col: -1 }
   }
 
   create(data) {
@@ -59,13 +63,25 @@ export class GameScene extends Phaser.Scene {
 
     // Tạo Board và load level (Board sẽ tự tạo cell backgrounds)
     this.createBoard(playgroundX, playgroundY, playgroundSize)
+    // Khởi tạo VFX manager cho booster
+    this.boosterVFXManager = new BoosterVFXManager(this, this.board)
     // Khởi chạy UIScene overlay
     if (!this.scene.isActive('UIScene')) this.scene.launch('UIScene')
 
     // Sự kiện booster từ UIScene
     this.game.events.on('boosterSelected', this.onBoosterSelected, this)
     this.game.events.on('boosterActivated', this.onBoosterActivated, this)
-    this.input.on('gameobjectdown', this.onBoardClick, this)
+    // Bật hệ thống pointer để hỗ trợ VFX và booster
+    this.input.off('gameobjectdown', this.onBoardClick, this)
+    this.input.on('pointerdown', this.onPointerDown, this)
+    this.input.on('pointermove', this.onPointerMove, this)
+    this.input.on('pointerup', this.onPointerUp, this)
+    // Lưới an toàn khi board bận: xóa preview ngay
+    this.game.events.on('boardBusy', (isBusy) => {
+      if (isBusy && this.boosterVFXManager) {
+        this.boosterVFXManager.clearPreview()
+      }
+    }, this)
 
     // Thêm nút quay lại MapScene (tạm thời)
     const backButton = this.add.rectangle(100, 50, 120, 40, 0xe74c3c)
@@ -171,6 +187,16 @@ export class GameScene extends Phaser.Scene {
   onBoosterSelected(boosterType) {
     this.activeBooster = boosterType
     this.firstSwapGem = null
+    if (boosterType === BOOSTER_TYPES.SHUFFLE && this.boosterVFXManager) {
+      this.boosterVFXManager.showShuffleConfirmation()
+    }
+  }
+
+  // === THÊM HÀM DỌN DẸP BOOSTER TRUNG TÂM ===
+  clearActiveBooster() {
+    this.activeBooster = null
+    this.firstSwapGem = null
+    this.boosterVFXManager?.clearEffects()
   }
 
   onBoosterActivated(boosterType) {
@@ -206,6 +232,91 @@ export class GameScene extends Phaser.Scene {
         }
         break
       }
+    }
+  }
+
+  // === Pointer-based input for boosters with VFX ===
+  getObjectUnderPointer(pointer) {
+    const objects = this.input.hitTestPointer(pointer)
+    // Ưu tiên đối tượng có data row/col
+    return objects.find(o => typeof o.getData === 'function' && (o.getData('row') !== undefined && o.getData('col') !== undefined))
+  }
+
+  onPointerDown(pointer) {
+    this.isPointerDown = true
+    if (!this.activeBooster || !this.board || this.board.boardBusy) return
+    if (this.activeBooster === BOOSTER_TYPES.ROCKET) {
+      this.onPointerMove(pointer)
+    }
+  }
+
+  onPointerMove(pointer) {
+    if (!this.isPointerDown) return
+    if (this.activeBooster !== BOOSTER_TYPES.ROCKET) return
+    if (!this.board || this.board.boardBusy) return
+    const gameObjects = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main)
+    const targetObject = gameObjects.find(obj => typeof obj.getData === 'function' && (obj.getData('isGem') || obj.getData('isCell')))
+    if (targetObject) {
+      const row = targetObject.getData('row')
+      const col = targetObject.getData('col')
+      if (this.lastHoveredCell.row !== row || this.lastHoveredCell.col !== col) {
+        this.lastHoveredCell = { row, col }
+        this.boosterVFXManager?.showRocketPreview(row, col)
+      }
+    } else {
+      this.boosterVFXManager?.clearPreview()
+      this.lastHoveredCell = { row: -1, col: -1 }
+    }
+  }
+
+  onPointerUp(pointer) {
+    this.isPointerDown = false
+    if (!this.board || this.board.boardBusy) return
+    const gameObjects = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main)
+    const clickedObject = gameObjects.find(obj => typeof obj.getData === 'function' && (obj.getData('isGem') || obj.getData('isCell')))
+    const row = clickedObject?.getData('row')
+    const col = clickedObject?.getData('col')
+    if (this.activeBooster === BOOSTER_TYPES.ROCKET && this.boosterVFXManager) {
+      this.boosterVFXManager.clearPreview()
+    }
+    if (!this.activeBooster) return
+    if (this.activeBooster === BOOSTER_TYPES.HAMMER) {
+      if (row !== undefined && col !== undefined) {
+        const current = this.activeBooster
+        this.activeBooster = null
+        this.boosterVFXManager?.playHammerEffect(row, col, () => {
+          this.board.useHammer(row, col)
+          this.clearActiveBooster()
+        })
+      }
+      return
+    }
+    if (this.activeBooster === BOOSTER_TYPES.SWAP) {
+      if (row === undefined || col === undefined) return
+      const clickedGem = this.board.grid[row][col]
+      if (!clickedGem || clickedGem.type !== 'gem') return
+      if (!this.firstSwapGem) {
+        this.firstSwapGem = clickedGem
+        this.boosterVFXManager?.showSwapPreview(row, col)
+      } else {
+        if (this.firstSwapGem !== clickedGem) {
+          this.board.useSwap(this.firstSwapGem, clickedGem)
+          this.clearActiveBooster()
+        }
+      }
+      return
+    }
+    if (this.activeBooster === BOOSTER_TYPES.ROCKET) {
+      if (row !== undefined && col !== undefined) {
+        this.board.useRocket(row, col)
+        this.clearActiveBooster()
+      }
+      return
+    }
+    if (this.activeBooster === BOOSTER_TYPES.SHUFFLE) {
+      this.board.useShuffle()
+      this.clearActiveBooster()
+      return
     }
   }
 

@@ -60,7 +60,7 @@ export class BoardState {
     gem2.sprite.setData({ row: gem1Row, col: gem1Col })
   }
 
-  swapGems(gem1, gem2) {
+  swapGems(gem1, gem2, options = {}) {
     if (this.boardBusy) return
     this.boardBusy = true
     this.scene.input.enabled = false
@@ -85,12 +85,41 @@ export class BoardState {
       ease: 'Power2',
       onComplete: () => {
         this.updateGridAfterSwap(gem1, gem2)
-        this.decideActionAfterSwap(gem1, gem2, swapPosition)
+        this.decideActionAfterSwap(gem1, gem2, swapPosition, options)
       }
     })
   }
 
-  decideActionAfterSwap(gem1, gem2, swapPosition) {
+  // Hoán đổi trả lại khi không có match/power-up được kích hoạt
+  swapBack(gem1, gem2) {
+    const gem1Sprite = gem1.sprite
+    const gem2Sprite = gem2.sprite
+    const gem1CurrentX = gem1Sprite.x
+    const gem1CurrentY = gem1Sprite.y
+    const gem2CurrentX = gem2Sprite.x
+    const gem2CurrentY = gem2Sprite.y
+    // Đưa sprite quay về vị trí ban đầu (đang là vị trí của sprite còn lại)
+    this.scene.tweens.add({ targets: gem1Sprite, x: gem2CurrentX, y: gem2CurrentY, duration: 250, ease: 'Power2' })
+    this.scene.tweens.add({
+      targets: gem2Sprite,
+      x: gem1CurrentX,
+      y: gem1CurrentY,
+      duration: 250,
+      ease: 'Power2',
+      onComplete: () => {
+        // Cập nhật lại grid về trạng thái trước swap
+        this.updateGridAfterSwap(gem1, gem2)
+        // Mở khóa ngay, KHÔNG tính là kết thúc lượt
+        this.boardBusy = false
+        this.scene.input.enabled = true
+        if (this.scene && this.scene.game && this.scene.game.events) {
+          this.scene.game.events.emit('boardBusy', false)
+        }
+      }
+    })
+  }
+
+  decideActionAfterSwap(gem1, gem2, swapPosition, options = {}) {
     let powerupToActivate = null
     let otherGem = null
     // Sau khi cập nhật grid, xác định lại object tại vị trí mới
@@ -100,7 +129,7 @@ export class BoardState {
     else if (this.isPowerup(gem2AtNewPos)) { powerupToActivate = gem2AtNewPos; otherGem = gem1AtNewPos }
     else { otherGem = gem1AtNewPos }
     const matchGroups = this.findAllMatches()
-    if (matchGroups.length === 0 && !powerupToActivate) {
+    if (matchGroups.length === 0 && !powerupToActivate && !options.isBooster) {
       this.swapBack(gem1, gem2)
       return
     }
@@ -168,34 +197,21 @@ export class BoardState {
           powerupCreationPos = swapPosition;
         }
       }
-      
-      // ƯU TIÊN 2: Nếu là COMBO (không có swapPosition), tìm ĐIỂM GIAO NHAU (cho chữ T/L).
-      if (!powerupCreationPos && group.length >= 4) { // Chỉ xét khi group đủ lớn
+
+      // ƯU TIÊN 2: Nếu là COMBO (không có swapPosition), tìm ĐIỂM GIAO NHAU (khuỷu tay).
+      if (!powerupCreationPos && group.length >= 4) {
         let intersectionGem = null;
-        
-        // Tìm viên gem có cả hàng xóm ngang và dọc CÙNG NẰM TRONG GROUP
         for (const gem of group) {
           const row = gem.sprite.getData('row');
           const col = gem.sprite.getData('col');
-          
-          // Lấy các hàng xóm từ chính group đó, không cần truy cập grid
-          const hasLeftNeighbor = group.find(g => g.sprite.getData('row') === row && g.sprite.getData('col') === col - 1);
-          const hasRightNeighbor = group.find(g => g.sprite.getData('row') === row && g.sprite.getData('col') === col + 1);
-          const hasUpNeighbor = group.find(g => g.sprite.getData('row') === row - 1 && g.sprite.getData('col') === col);
-          const hasDownNeighbor = group.find(g => g.sprite.getData('row') === row + 1 && g.sprite.getData('col') === col);
-          
-          if ((hasLeftNeighbor && hasRightNeighbor) && (hasUpNeighbor || hasDownNeighbor)) {
-            intersectionGem = gem;
-            break; 
-          }
-          if ((hasUpNeighbor && hasDownNeighbor) && (hasLeftNeighbor || hasRightNeighbor)) {
+          const hasHorizontalNeighbor = group.find(g => g.sprite.getData('row') === row && Math.abs(g.sprite.getData('col') - col) === 1);
+          const hasVerticalNeighbor = group.find(g => Math.abs(g.sprite.getData('row') - row) === 1 && g.sprite.getData('col') === col);
+          if (hasHorizontalNeighbor && hasVerticalNeighbor) {
             intersectionGem = gem;
             break;
           }
         }
-
         if (intersectionGem) {
-          // Nếu tìm thấy điểm giao, đó chính là vị trí tạo power-up
           powerupCreationPos = {
             row: intersectionGem.sprite.getData('row'),
             col: intersectionGem.sprite.getData('col')
@@ -206,15 +222,13 @@ export class BoardState {
       // ƯU TIÊN 3: Nếu không có cả hai ở trên (chỉ là ĐƯỜNG THẲNG), mới lấy vị trí giữa.
       if (!powerupCreationPos && group.length >= 4) {
         if (group.length === 4) {
-          // Match 4: Chọn ngẫu nhiên 1 trong 2 viên ở giữa
           const middleIndex = Phaser.Math.RND.pick([1, 2]);
           const middleGem = group[middleIndex];
           powerupCreationPos = {
             row: middleGem.sprite.getData('row'),
             col: middleGem.sprite.getData('col')
           };
-        } else { // Match 5+ thẳng
-          // Match 5: Chọn chính xác viên ở giữa
+        } else {
           const middleGem = group[Math.floor(group.length / 2)];
           powerupCreationPos = {
             row: middleGem.sprite.getData('row'),
@@ -228,7 +242,6 @@ export class BoardState {
         if (group.length === 4) {
           powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
         } else if (group.length >= 5) {
-          // Tạm thời vẫn coi tất cả match 5+ là Color Bomb
           powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
         }
       }
@@ -237,7 +250,7 @@ export class BoardState {
       group.forEach(gem => gemsToRemove.add(gem));
     });
 
-    // Phá blocker liên quan đến match (stone cạnh, rope trên vị trí match)
+    // Phần phá blocker giữ nguyên
     const blockersToDamage = new Set()
     gemsToRemove.forEach(gem => {
       const r = gem.sprite.getData('row')

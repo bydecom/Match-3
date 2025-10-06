@@ -224,23 +224,8 @@ export class BoardPowerups {
 
   useSwap(gem1, gem2) {
     if (this.boardBusy) return
-    this.boardBusy = true
-    this.scene.input.enabled = false
-    if (this.scene && this.scene.game && this.scene.game.events) {
-      this.scene.game.events.emit('boardBusy', true)
-    }
-    this.updateGridAfterSwap(gem1, gem2)
-    const gem1Sprite = gem1.sprite
-    const gem2Sprite = gem2.sprite
-    this.scene.tweens.add({ targets: gem1Sprite, x: gem2Sprite.x, y: gem2Sprite.y, duration: 300, ease: 'Power2' })
-    this.scene.tweens.add({
-      targets: gem2Sprite,
-      x: gem1Sprite.x,
-      y: gem1Sprite.y,
-      duration: 300,
-      ease: 'Power2',
-      onComplete: () => { this.checkForNewMatches() }
-    })
+    // Gọi swapGems với cờ isBooster để không swap-back khi không có match
+    this.swapGems(gem1, gem2, { isBooster: true })
   }
 
   useShuffle() {

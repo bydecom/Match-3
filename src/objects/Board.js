@@ -27,6 +27,25 @@ export class Board {
     this.initGrid()
     this.selectionFrame = this.createSelectionFrame()
   }
+  // Lấy tọa độ trung tâm của một cell
+  getCellPosition(row, col) {
+    return {
+      x: this.offsetX + col * this.cellSize + this.cellSize / 2,
+      y: this.offsetY + row * this.cellSize + this.cellSize / 2
+    }
+  }
+
+  // Kích thước board (width, height)
+  getBoardDimensions() {
+    const gridSize = 9
+    return { width: gridSize * this.cellSize, height: gridSize * this.cellSize }
+  }
+
+  // Kiểm tra cell hợp lệ
+  isValidCell(row, col) {
+    const gridSize = 9
+    return row >= 0 && row < gridSize && col >= 0 && col < gridSize
+  }
 
   loadLevel(levelData) {
     this.levelData = levelData
@@ -45,7 +64,9 @@ export class Board {
         if (cellValue === null) {
           this.grid[row][col] = null
         } else if (cellValue === 0) {
-          this.grid[row][col] = { type: 'empty' }
+          // Random thông minh để tránh tạo match sẵn khi khởi tạo
+          const randomGemType = this.getRandomGemTypeWithoutMatch(row, col)
+          this.createGem(row, col, randomGemType)
         } else if (cellValue >= 1) {
           this.createGem(row, col, this.getGemTypeByNumber(cellValue))
         }

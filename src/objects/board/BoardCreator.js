@@ -1,4 +1,5 @@
 // src/objects/board/BoardCreator.js
+import Phaser from 'phaser'
 import { GEM_TYPES, BLOCKER_TYPES, GRID_SIZE } from '../../utils/constants'
 import { StoneBlocker } from '../blockers/StoneBlocker'
 import { RopeBlocker } from '../blockers/RopeBlocker'
@@ -107,6 +108,40 @@ export class BoardCreator {
     blocker.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9)
     this.blockerGrid[row][col] = blocker
     return blocker
+  }
+
+  // === HÀM MỚI ĐỂ RANDOM THÔNG MINH ===
+  getRandomGemTypeWithoutMatch(row, col) {
+    const availableGems = this.levelData?.availableGems || Object.values(GEM_TYPES)
+    let possibleGemTypes = [...availableGems]
+
+    // 1) Kiểm tra 2 ô bên trái
+    if (
+      col >= 2 &&
+      this.grid[row][col - 1] &&
+      this.grid[row][col - 2] &&
+      this.grid[row][col - 1].value === this.grid[row][col - 2].value
+    ) {
+      const forbiddenType = this.grid[row][col - 1].value
+      possibleGemTypes = possibleGemTypes.filter(type => type !== forbiddenType)
+    }
+
+    // 2) Kiểm tra 2 ô bên trên
+    if (
+      row >= 2 &&
+      this.grid[row - 1][col] &&
+      this.grid[row - 2][col] &&
+      this.grid[row - 1][col].value === this.grid[row - 2][col].value
+    ) {
+      const forbiddenType = this.grid[row - 1][col].value
+      possibleGemTypes = possibleGemTypes.filter(type => type !== forbiddenType)
+    }
+
+    if (possibleGemTypes.length === 0) {
+      possibleGemTypes = availableGems
+    }
+
+    return Phaser.Math.RND.pick(possibleGemTypes)
   }
 }
 
