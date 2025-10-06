@@ -83,6 +83,12 @@ export class GameScene extends Phaser.Scene {
       }
     }, this)
 
+    // Lắng nghe sự kiện hủy chọn từ UIScene
+    this.game.events.on('boosterSelectionCleared', () => {
+      // Khi UI báo hủy, GameScene cũng phải hủy theo
+      this.clearActiveBooster()
+    }, this)
+
     // Thêm nút quay lại MapScene (tạm thời)
     const backButton = this.add.rectangle(100, 50, 120, 40, 0xe74c3c)
       .setInteractive()
@@ -185,8 +191,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   onBoosterSelected(boosterType) {
+    // 1. Dọn dẹp hiệu ứng của booster cũ (nếu có)
+    this.boosterVFXManager?.clearCurrentVFX()
+
+    // 2. Cập nhật trạng thái cho booster mới
     this.activeBooster = boosterType
     this.firstSwapGem = null
+
+    // 3. Hiển thị hiệu ứng ban đầu cho booster mới (nếu cần)
     if (boosterType === BOOSTER_TYPES.SHUFFLE && this.boosterVFXManager) {
       this.boosterVFXManager.showShuffleConfirmation()
     }
@@ -194,16 +206,18 @@ export class GameScene extends Phaser.Scene {
 
   // === THÊM HÀM DỌN DẸP BOOSTER TRUNG TÂM ===
   clearActiveBooster() {
-    this.activeBooster = null
-    this.firstSwapGem = null
-    this.boosterVFXManager?.clearEffects()
+    if (this.activeBooster) {
+      console.log(`Clearing active booster: ${this.activeBooster}`)
+      this.activeBooster = null
+      this.firstSwapGem = null
+      // Gọi hàm dọn dẹp VFX chuyên dụng để tránh vòng lặp sự kiện
+      this.boosterVFXManager?.clearCurrentVFX()
+    }
   }
 
   onBoosterActivated(boosterType) {
     if (!this.board || this.board.boardBusy) return
-    if (boosterType === BOOSTER_TYPES.SHUFFLE) {
-      this.board.useShuffle()
-    }
+    // Logic Shuffle đã chuyển sang onPointerUp
   }
 
   onBoardClick(pointer, gameObject) {
@@ -314,8 +328,12 @@ export class GameScene extends Phaser.Scene {
       return
     }
     if (this.activeBooster === BOOSTER_TYPES.SHUFFLE) {
-      this.board.useShuffle()
-      this.clearActiveBooster()
+      // Chỉ kích hoạt nếu click vào trong board
+      if (clickedObject) {
+        this.board.useShuffle()
+        this.clearActiveBooster()
+      }
+      // Nếu click ra ngoài, không làm gì để cho phép thử lại
       return
     }
   }

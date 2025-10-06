@@ -9,10 +9,16 @@ export class BoosterVFXManager {
     this.vfxObjects = []
   }
 
-  // Dọn dẹp tất cả hiệu ứng và hủy lựa chọn booster
-  clearEffects() {
+  // Chỉ dọn dẹp các đối tượng hình ảnh mà không phát sự kiện
+  // Dùng khi chuyển đổi giữa các booster
+  clearCurrentVFX() {
     this.vfxObjects.forEach(obj => { if (obj && obj.destroy) obj.destroy() })
     this.vfxObjects = []
+  }
+
+  // Dọn dẹp tất cả hiệu ứng VÀ báo cho hệ thống hủy chọn
+  clearEffects() {
+    this.clearCurrentVFX() // Tái sử dụng hàm trên
     this.scene.game.events.emit('boosterSelectionCleared')
   }
 

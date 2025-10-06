@@ -5,6 +5,8 @@ import { BOOSTER_TYPES } from '../utils/constants';
 export class UIScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UIScene' });
+    this.selectedBoosterType = null; // Biến trạng thái booster đang chọn
+    this.boosterIcons = [];
   }
 
   create() {
@@ -36,22 +38,33 @@ export class UIScene extends Phaser.Scene {
       
       const icon = this.add.image(xPos, yPos, buttonInfo.key)
           .setInteractive()
-          .setOrigin(0.5); // Căn giữa icon tại tọa độ (x, y)
+          .setOrigin(0.5)
+          .setScale(buttonInfo.scale);
 
-      // Áp dụng trực tiếp tỷ lệ scale từ dữ liệu
-      icon.setScale(buttonInfo.scale);
+      // Lưu loại booster vào icon để dễ truy cập
+      icon.setData('boosterType', buttonInfo.type);
+      icon.setData('originalScale', buttonInfo.scale);
 
-      // Lưu để bật/tắt tương tác khi board bận
       this.boosterIcons.push(icon);
 
-      // Gán sự kiện click (giữ nguyên logic của bạn)
+      // Logic click mới: chọn/hủy chọn booster
       icon.on('pointerdown', () => {
-        console.log(`Booster clicked: ${buttonInfo.type}`);
-        if (buttonInfo.type === BOOSTER_TYPES.SHUFFLE) {
-          this.game.events.emit('boosterActivated', buttonInfo.type);
-        } else {
-          this.game.events.emit('boosterSelected', buttonInfo.type);
+        const clickedType = icon.getData('boosterType');
+        console.log(`Booster clicked: ${clickedType}`);
+
+        // Nếu click vào booster đang được chọn -> Hủy chọn
+        if (this.selectedBoosterType === clickedType) {
+          this.selectedBoosterType = null;
+          this.game.events.emit('boosterSelectionCleared');
+        } 
+        // Nếu click vào booster mới -> Chọn nó
+        else {
+          this.selectedBoosterType = clickedType;
+          this.game.events.emit('boosterSelected', clickedType);
         }
+
+        // Cập nhật giao diện của TẤT CẢ các icon
+        this.updateBoosterIconsVisuals();
       });
     });
 
@@ -63,6 +76,59 @@ export class UIScene extends Phaser.Scene {
         if (enable) icon.setInteractive();
         icon.setAlpha(enable ? 1 : 0.6);
       });
+    });
+    
+    // Lắng nghe để đồng bộ hóa khi GameScene hủy booster
+    this.game.events.on('boosterSelectionCleared', () => {
+      this.selectedBoosterType = null;
+      this.updateBoosterIconsVisuals();
+    });
+  }
+
+  // Hàm cập nhật giao diện các icon booster
+  updateBoosterIconsVisuals() {
+    // Nếu không có booster nào được chọn, tất cả icon sáng bình thường
+    if (!this.selectedBoosterType) {
+      this.boosterIcons.forEach(icon => {
+        icon.setAlpha(1.0)
+        icon.clearTint()
+        this.tweens.add({
+          targets: icon,
+          scale: icon.getData('originalScale'),
+          duration: 100,
+          ease: 'Quad.easeOut'
+        })
+      })
+      return
+    }
+
+    this.boosterIcons.forEach(icon => {
+      const iconType = icon.getData('boosterType');
+      
+      // Nếu icon này là icon đang được chọn
+      if (iconType === this.selectedBoosterType) {
+        icon.setAlpha(1.0); // Sáng rõ
+        icon.setTint(0xffffff); // Thêm tint trắng để nổi bật
+        // Thêm hiệu ứng "pop" nhỏ
+        this.tweens.add({ 
+          targets: icon, 
+          scale: icon.getData('originalScale') * 1.1, 
+          duration: 100, 
+          ease: 'Quad.easeOut' 
+        });
+      } 
+      // Nếu là các icon khác
+      else {
+        icon.setAlpha(0.6); // Mờ đi
+        icon.clearTint();   // Bỏ tint
+        // Quay về scale gốc
+        this.tweens.add({ 
+          targets: icon, 
+          scale: icon.getData('originalScale'), 
+          duration: 100, 
+          ease: 'Quad.easeOut' 
+        });
+      }
     });
   }
 }
