@@ -139,69 +139,88 @@ export class BoardState {
     const powerupsToCreate = [];
 
     matchGroups.forEach(group => {
-        let powerupCreationPos = null;
+      let powerupCreationPos = null;
 
-        // ƯU TIÊN 1: Vị trí swap luôn được ưu tiên (sau khi đã cập nhật grid)
-        if (swapPosition) {
-            const gemAtSwapPos = this.grid[swapPosition.row]?.[swapPosition.col];
-            if (gemAtSwapPos && group.includes(gemAtSwapPos)) {
-                powerupCreationPos = swapPosition;
-            }
+      // --- QUY TẮC ƯU TIÊN VỊ TRÍ TẠO POWER-UP ---
+
+      // ƯU TIÊN 1: Vị trí do người chơi SWAP vào.
+      if (swapPosition) {
+        const gemAtSwapPos = this.grid[swapPosition.row]?.[swapPosition.col];
+        if (gemAtSwapPos && group.includes(gemAtSwapPos)) {
+          powerupCreationPos = swapPosition;
         }
+      }
+      
+      // ƯU TIÊN 2: Nếu là COMBO (không có swapPosition), tìm ĐIỂM GIAO NHAU (cho chữ T/L).
+      if (!powerupCreationPos && group.length >= 4) { // Chỉ xét khi group đủ lớn
+        let intersectionGem = null;
         
-        // ƯU TIÊN 2: Nếu không phải do swap, tìm điểm giao (intersection)
-        if (!powerupCreationPos && group.length >= 4) {
-            let intersectionGem = null;
-            
-            // Tìm viên gem có cả hàng xóm ngang và dọc cùng màu
-            for (const gem of group) {
-                const row = gem.sprite.getData('row');
-                const col = gem.sprite.getData('col');
-                
-                const left = this.grid[row]?.[col - 1];
-                const right = this.grid[row]?.[col + 1];
-                const up = this.grid[row - 1]?.[col];
-                const down = this.grid[row + 1]?.[col];
-                
-                const hasHorizontalNeighbor = left && right && left.value === gem.value && right.value === gem.value;
-                const hasVerticalNeighbor = up && down && up.value === gem.value && down.value === gem.value;
-                
-                if (hasHorizontalNeighbor && hasVerticalNeighbor) {
-                    intersectionGem = gem;
-                    break; // Tìm thấy điểm giao rồi, dừng lại
-                }
-            }
-
-            if (intersectionGem) {
-                // Nếu tìm thấy điểm giao, đó chính là vị trí tạo power-up
-                powerupCreationPos = {
-                    row: intersectionGem.sprite.getData('row'),
-                    col: intersectionGem.sprite.getData('col')
-                };
-            } else {
-                // Nếu không có điểm giao (chỉ là đường thẳng), mới lấy vị trí giữa
-                const middleGem = group[Math.floor(group.length / 2)];
-                powerupCreationPos = {
-                    row: middleGem.sprite.getData('row'),
-                    col: middleGem.sprite.getData('col')
-                };
-            }
+        // Tìm viên gem có cả hàng xóm ngang và dọc CÙNG NẰM TRONG GROUP
+        for (const gem of group) {
+          const row = gem.sprite.getData('row');
+          const col = gem.sprite.getData('col');
+          
+          // Lấy các hàng xóm từ chính group đó, không cần truy cập grid
+          const hasLeftNeighbor = group.find(g => g.sprite.getData('row') === row && g.sprite.getData('col') === col - 1);
+          const hasRightNeighbor = group.find(g => g.sprite.getData('row') === row && g.sprite.getData('col') === col + 1);
+          const hasUpNeighbor = group.find(g => g.sprite.getData('row') === row - 1 && g.sprite.getData('col') === col);
+          const hasDownNeighbor = group.find(g => g.sprite.getData('row') === row + 1 && g.sprite.getData('col') === col);
+          
+          if ((hasLeftNeighbor && hasRightNeighbor) && (hasUpNeighbor || hasDownNeighbor)) {
+            intersectionGem = gem;
+            break; 
+          }
+          if ((hasUpNeighbor && hasDownNeighbor) && (hasLeftNeighbor || hasRightNeighbor)) {
+            intersectionGem = gem;
+            break;
+          }
         }
 
-        // Quyết định loại power-up cho cụm này
-        if (powerupCreationPos) {
-            if (group.length === 4) {
-                powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
-            } else if (group.length >= 5) {
-                powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
-            }
+        if (intersectionGem) {
+          // Nếu tìm thấy điểm giao, đó chính là vị trí tạo power-up
+          powerupCreationPos = {
+            row: intersectionGem.sprite.getData('row'),
+            col: intersectionGem.sprite.getData('col')
+          };
         }
+      }
 
-        group.forEach(gem => gemsToRemove.add(gem));
+      // ƯU TIÊN 3: Nếu không có cả hai ở trên (chỉ là ĐƯỜNG THẲNG), mới lấy vị trí giữa.
+      if (!powerupCreationPos && group.length >= 4) {
+        if (group.length === 4) {
+          // Match 4: Chọn ngẫu nhiên 1 trong 2 viên ở giữa
+          const middleIndex = Phaser.Math.RND.pick([1, 2]);
+          const middleGem = group[middleIndex];
+          powerupCreationPos = {
+            row: middleGem.sprite.getData('row'),
+            col: middleGem.sprite.getData('col')
+          };
+        } else { // Match 5+ thẳng
+          // Match 5: Chọn chính xác viên ở giữa
+          const middleGem = group[Math.floor(group.length / 2)];
+          powerupCreationPos = {
+            row: middleGem.sprite.getData('row'),
+            col: middleGem.sprite.getData('col')
+          };
+        }
+      }
+
+      // --- QUYẾT ĐỊNH LOẠI POWER-UP DỰA TRÊN VỊ TRÍ ĐÃ TÌM ĐƯỢC ---
+      if (powerupCreationPos) {
+        if (group.length === 4) {
+          powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
+        } else if (group.length >= 5) {
+          // Tạm thời vẫn coi tất cả match 5+ là Color Bomb
+          powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
+        }
+      }
+
+      // Thêm tất cả gem trong cụm này vào danh sách xóa
+      group.forEach(gem => gemsToRemove.add(gem));
     });
 
     return { gemsRemoved: gemsToRemove, powerupsCreated: powerupsToCreate };
-}
+  }
 
   removeGemSprites(gemsToRemove) {
     gemsToRemove.forEach(gemObject => {
