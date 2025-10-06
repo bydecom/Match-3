@@ -1,5 +1,7 @@
 // src/objects/board/BoardCreator.js
 import { GEM_TYPES, BLOCKER_TYPES, GRID_SIZE } from '../../utils/constants'
+import { StoneBlocker } from '../blockers/StoneBlocker'
+import { RopeBlocker } from '../blockers/RopeBlocker'
 
 export class BoardCreator {
   createSelectionFrame() {
@@ -86,6 +88,25 @@ export class BoardCreator {
       [BLOCKER_TYPES.VINE]: 0x228B22
     }
     return colors[blockerType] || 0x8B4513
+  }
+
+  // === Blocker OOP versions ===
+  createStoneBlocker(row, col, health = 2) {
+    const x = this.offsetX + col * this.cellSize + this.cellSize / 2
+    const y = this.offsetY + row * this.cellSize + this.cellSize / 2
+    const blocker = new StoneBlocker(this.scene, x, y, row, col, health)
+    blocker.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9)
+    this.blockerGrid[row][col] = blocker
+    return blocker
+  }
+
+  createRopeBlocker(row, col) {
+    const x = this.offsetX + col * this.cellSize + this.cellSize / 2
+    const y = this.offsetY + row * this.cellSize + this.cellSize / 2
+    const blocker = new RopeBlocker(this.scene, x, y, row, col)
+    blocker.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9)
+    this.blockerGrid[row][col] = blocker
+    return blocker
   }
 }
 

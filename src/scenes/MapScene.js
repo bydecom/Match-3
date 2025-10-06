@@ -18,31 +18,31 @@ export class MapScene extends Phaser.Scene {
       color: '#ffffff'
     }).setOrigin(0.5)
 
-    // Tạo button Map 1
-    const map1Button = this.add.rectangle(width / 2, height / 2, 200, 80, 0x3498db)
-      .setInteractive()
-      .setStrokeStyle(2, 0x2980b9)
-
-    // Thêm text cho button
-    const buttonText = this.add.text(width / 2, height / 2, 'Map 1', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontSize: '24px',
-      color: '#ffffff'
-    }).setOrigin(0.5)
-
-    // Hiệu ứng hover
-    map1Button.on('pointerover', () => {
-      map1Button.setFillStyle(0x5dade2)
-    })
-
-    map1Button.on('pointerout', () => {
-      map1Button.setFillStyle(0x3498db)
-    })
-
-    // Sự kiện click
-    map1Button.on('pointerdown', () => {
-      console.log('Chọn Map 1 - Chuyển đến GameScene')
-      this.scene.start('GameScene')
+    // Tạo 5 nút map
+    const levels = [
+      { id: 1, label: 'Màn 1: Chào sân' },
+      { id: 2, label: 'Màn 2: Đá' },
+      { id: 3, label: 'Màn 3: Dây leo' },
+      { id: 4, label: 'Màn 4: Lỗ hổng + Đá' },
+      { id: 5, label: 'Màn 5: Dây leo lây lan' }
+    ]
+    const startY = height / 2 - 120
+    levels.forEach((lv, idx) => {
+      const y = startY + idx * 90
+      const btn = this.add.rectangle(width / 2, y, 320, 64, 0x3498db)
+        .setInteractive()
+        .setStrokeStyle(2, 0x2980b9)
+      const txt = this.add.text(width / 2, y, `${lv.label}`, {
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '22px',
+        color: '#ffffff'
+      }).setOrigin(0.5)
+      btn.on('pointerover', () => btn.setFillStyle(0x5dade2))
+      btn.on('pointerout', () => btn.setFillStyle(0x3498db))
+      btn.on('pointerdown', () => {
+        console.log(`Chọn Map ${lv.id} - Chuyển đến GameScene`)
+        this.scene.start('GameScene', { levelId: lv.id })
+      })
     })
   }
 }

@@ -1,7 +1,22 @@
 // src/objects/board/BoardInput.js
 export class BoardInput {
+  isCellBlockedForMovement(row, col) {
+    const blocker = this.blockerGrid?.[row]?.[col]
+    if (!blocker) return false
+    // stone và rope đều chặn di chuyển (swap/chọn)
+    return blocker.type === 'stone' || blocker.type === 'rope'
+  }
+
   handleGemClick(row, col) {
-    if (!this.scene.input.enabled) return
+    if (this.boardBusy) return
+    // Không cho chọn hoặc swap vào ô bị block (stone/rope)
+    if (this.isCellBlockedForMovement(row, col)) {
+      if (this.selectedGem) {
+        this.selectionFrame.setVisible(false)
+        this.selectedGem = null
+      }
+      return
+    }
     const clickedGemObject = this.grid[row][col]
     if (!clickedGemObject || clickedGemObject.type !== 'gem') {
       if (this.selectedGem) {
@@ -29,17 +44,29 @@ export class BoardInput {
     } else {
       this.selectionFrame.setVisible(false)
       if (this.areNeighbors(this.selectedGem, clickedGemObject)) {
+        // Kiểm tra block tại cả hai ô trước khi swap
+        const selRow = this.selectedGem.sprite.getData('row')
+        const selCol = this.selectedGem.sprite.getData('col')
+        if (this.isCellBlockedForMovement(selRow, selCol) || this.isCellBlockedForMovement(row, col)) {
+          this.selectedGem = null
+          return
+        }
         console.log('Gems are neighbors, swapping...')
         this.swapGems(this.selectedGem, clickedGemObject)
       } else {
         console.log('Gems are not neighbors, selecting new gem')
-        this.selectedGem = clickedGemObject
-        const gemSprite = clickedGemObject.sprite
-        this.selectionFrame.setPosition(
-          gemSprite.x - this.cellSize / 2,
-          gemSprite.y - this.cellSize / 2
-        )
-        this.selectionFrame.setVisible(true)
+        // Không cho chuyển selection sang một ô bị block
+        if (this.isCellBlockedForMovement(row, col)) {
+          this.selectedGem = null
+        } else {
+          this.selectedGem = clickedGemObject
+          const gemSprite = clickedGemObject.sprite
+          this.selectionFrame.setPosition(
+            gemSprite.x - this.cellSize / 2,
+            gemSprite.y - this.cellSize / 2
+          )
+          this.selectionFrame.setVisible(true)
+        }
       }
     }
     this.scene.events.emit('gemSelected', { row, col, type: clickedGemObject.value })

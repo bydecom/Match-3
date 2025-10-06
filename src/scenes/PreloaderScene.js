@@ -105,9 +105,22 @@ export class PreloaderScene extends Phaser.Scene {
         // Load power-up images
         this.load.image(`gem_bomb`, 'assets/images/gameplay/gems/bomb.png');
         this.load.image(`gem_color_bomb`, 'assets/images/gameplay/gems/color_bomb.png');
+        // Load blocker images (stone levels + rope)
+        this.load.image(`blocker_stone_1`, 'assets/images/gameplay/blockers/blocker_stone_2.png');
+        this.load.image(`blocker_stone_2`, 'assets/images/gameplay/blockers/blocker_stone_1.png');
+        this.load.image(`blocker_rope`, 'assets/images/gameplay/blockers/blocker_rope.png');
+        // Load booster icons (UI)
+        this.load.image('booster_hammer', 'assets/images/ui/booster_hammer.png');
+        this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
+        this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
+        this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
         
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
+        this.load.json('level_2', 'assets/levels/level_2.json');
+        this.load.json('level_3', 'assets/levels/level_3.json');
+        this.load.json('level_4', 'assets/levels/level_4.json');
+        this.load.json('level_5', 'assets/levels/level_5.json');
     }
 
 

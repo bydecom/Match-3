@@ -4,10 +4,13 @@ import { GEM_TYPES, GRID_SIZE } from '../../utils/constants'
 export class BoardState {
   initGrid() {
     this.grid = []
+    this.blockerGrid = []
     for (let row = 0; row < GRID_SIZE; row++) {
       this.grid[row] = []
+      this.blockerGrid[row] = []
       for (let col = 0; col < GRID_SIZE; col++) {
         this.grid[row][col] = null
+        this.blockerGrid[row][col] = null
       }
     }
   }
@@ -17,6 +20,15 @@ export class BoardState {
     this.gems = []
     this.blockers.forEach(blocker => { if (blocker && blocker.destroy) blocker.destroy() })
     this.blockers = []
+    // Hủy các blocker OOP trong blockerGrid nếu còn
+    if (this.blockerGrid) {
+      for (let r = 0; r < this.blockerGrid.length; r++) {
+        for (let c = 0; c < this.blockerGrid[r].length; c++) {
+          const b = this.blockerGrid[r][c]
+          if (b && b.destroy) b.destroy()
+        }
+      }
+    }
     this.scene.children.list.forEach(child => {
       if (child.getData && child.getData('isCell')) child.destroy()
     })
@@ -49,7 +61,13 @@ export class BoardState {
   }
 
   swapGems(gem1, gem2) {
+    if (this.boardBusy) return
+    this.boardBusy = true
     this.scene.input.enabled = false
+    // Báo cho UI biết board đang bận xử lý
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', true)
+    }
     this.selectedGem = null
     this.selectionFrame.setVisible(false)
     const gem1Sprite = gem1.sprite
@@ -119,7 +137,7 @@ export class BoardState {
       this.createPowerupsAfterWiggle(powerupsToCreate)
       this.applyGravityAndRefill()
     } else {
-      this.scene.input.enabled = true
+      this.endOfTurn()
     }
   }
 
@@ -219,6 +237,29 @@ export class BoardState {
       group.forEach(gem => gemsToRemove.add(gem));
     });
 
+    // Phá blocker liên quan đến match (stone cạnh, rope trên vị trí match)
+    const blockersToDamage = new Set()
+    gemsToRemove.forEach(gem => {
+      const r = gem.sprite.getData('row')
+      const c = gem.sprite.getData('col')
+      const neighbors = [ { r: r-1, c }, { r: r+1, c }, { r, c: c-1 }, { r, c: c+1 } ]
+      neighbors.forEach(n => {
+        if (n.r >= 0 && n.r < GRID_SIZE && n.c >= 0 && n.c < GRID_SIZE) {
+          const blocker = this.blockerGrid[n.r]?.[n.c]
+          if (blocker && (blocker.type === 'stone' || blocker.type === 'rope')) blockersToDamage.add(blocker)
+        }
+      })
+      const ropeOnGem = this.blockerGrid[r]?.[c]
+      if (ropeOnGem && ropeOnGem.type === 'rope') blockersToDamage.add(ropeOnGem)
+    })
+    blockersToDamage.forEach(blocker => {
+      const destroyed = blocker.takeDamage()
+      if (destroyed) {
+        this.blockerGrid[blocker.row][blocker.col] = null
+        if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+      }
+    })
+
     return { gemsRemoved: gemsToRemove, powerupsCreated: powerupsToCreate };
   }
 
@@ -282,6 +323,12 @@ export class BoardState {
       let emptySlots = 0
       for (let row = GRID_SIZE - 1; row >= 0; row--) {
         const currentCell = this.grid[row][col]
+        const blockerAtCell = this.blockerGrid[row][col]
+        // Đá chặn rơi: reset khoảng trống, không cho vượt qua
+        if (blockerAtCell && blockerAtCell.type === 'stone') {
+          emptySlots = 0
+          continue
+        }
         if (currentCell === null) {
           emptySlots++
         } else if (emptySlots > 0) {
@@ -306,6 +353,11 @@ export class BoardState {
     for (let col = 0; col < GRID_SIZE; col++) {
       let emptyCount = 0
       for (let row = 0; row < GRID_SIZE; row++) {
+        const hasStone = this.blockerGrid[row][col] && this.blockerGrid[row][col].type === 'stone'
+        if (hasStone) {
+          emptyCount = 0
+          continue
+        }
         if (this.grid[row][col] === null) {
           emptyCount++
           const availableGems = this.levelData.availableGems || Object.values(GEM_TYPES)
@@ -340,7 +392,33 @@ export class BoardState {
       console.log('Found new matches after refill, processing...')
       this.startActionChain(newMatchGroups, null, null, null)
     } else {
-      this.scene.input.enabled = true
+      this.endOfTurn()
+    }
+  }
+
+  endOfTurn() {
+    // Nếu trong lượt không phá rope nào, cho MỖI rope lây lan 1 lần (theo snapshot)
+    if (!this.ropeDestroyedThisTurn) {
+      const ropesSnapshot = []
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const b = this.blockerGrid[r]?.[c]
+          if (b && b.type === 'rope' && b.spread) ropesSnapshot.push(b)
+        }
+      }
+      // Đặt kế hoạch spawn để tránh trùng; cho phép trùng chỉ khi không còn lựa chọn khác
+      const plannedSpawns = new Set()
+      ropesSnapshot.forEach(rope => {
+        rope.spread(this, plannedSpawns)
+      })
+    }
+    // Reset cờ cho lượt tiếp theo và bật input
+    this.ropeDestroyedThisTurn = false
+    this.boardBusy = false
+    this.scene.input.enabled = true
+    // Báo cho UI biết board đã rảnh
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', false)
     }
   }
 

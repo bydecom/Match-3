@@ -26,3 +26,10 @@ export const BLOCKER_TYPES = {
 
 export const GRID_SIZE = 9
 export const CELL_SIZE = 60 // Kích thước mặc định của cell
+
+export const BOOSTER_TYPES = {
+  HAMMER: 'hammer',
+  SWAP: 'swap',
+  ROCKET: 'rocket',
+  SHUFFLE: 'shuffle',
+}

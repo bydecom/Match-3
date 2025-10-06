@@ -1,359 +1,198 @@
 # 📊 Phân Tích Code & Cấu Trúc Dự Án Match-3 Game
 
-## 🎯 Tổng Quan Dự Án
+## 🎯 Tổng Quan Hiện Tại
 
-**Tên dự án:** Match-3 Game Engine "Jungle Gems"  
 **Framework:** Phaser 3 + Vite  
 **Ngôn ngữ:** JavaScript (ES6+)  
-**Kiến trúc:** Event-Driven, Data-Driven, OOP  
-**Trạng thái:** 🚀 **GAME CÓ THỂ CHƠI ĐƯỢC** - Logic Match-3 hoàn chỉnh
+**Kiến trúc:** OOP + Event-Driven + Data-Driven (level JSON)  
+**Trạng thái:** 🚀 Chơi được; match-3 đầy đủ (match, swap, gravity, refill, chain), power-ups (Bomb/Color Bomb, combo), booster (Hammer/Swap/Rocket/Shuffle), blocker (Đá, Dây leo) đã tích hợp theo OOP
 
 ---
 
-## 📁 Cấu Trúc Thư Mục Hiện Tại
+## 📁 Cấu Trúc Thư Mục
 
 ```
-Match-3/
-├── public/
-│   └── assets/
-│       ├── images/
-│       │   ├── gameplay/gems/     # 6 loại gem + 2 power-ups
-│       │   │   ├── red.png, green.png, blue.png, purple.png, yellow.png, orange.png
-│       │   │   ├── bomb.png, color_bomb.png
-│       │   │   └── powerups/      # Các power-up khác (binh.png, cayneu.png, etc.)
-│       │   ├── map/               # Background và khung chơi
-│       │   │   ├── map1-background.png
-│       │   │   ├── playground.png
-│       │   │   ├── playground-border.png
-│       │   │   └── cell.png
-│       │   └── screen/            # Các màn hình UI
-│       │       ├── dashboard.png, gameplay.png, level.png, loading.png
-│       └── levels/                # File JSON định nghĩa level
-│           └── level_1.json
-├── src/
-│   ├── scenes/                    # Các màn hình game
-│   │   ├── BootScene.js          # ✅ Hoàn thành - Load asset cơ bản
-│   │   ├── PreloaderScene.js     # ✅ Hoàn thành - Load tất cả assets + power-ups
-│   │   ├── MapScene.js           # ✅ Hoàn thành - Màn chọn map đơn giản
-│   │   ├── GameScene.js          # ✅ Hoàn thành - Màn chơi chính với Board
-│   │   ├── UIScene.js            # ⏳ Chưa triển khai
-│   │   ├── LeaderboardScene.js   # ⏳ Chưa triển khai
-│   │   └── popups/               # Các popup
-│   │       ├── LosePopup.js      # ⏳ Chưa triển khai
-│   │       ├── WinPopup.js       # ⏳ Chưa triển khai
-│   │       └── SettingsPopup.js  # ⏳ Chưa triển khai
-│   ├── objects/                   # Các đối tượng game
-│   │   ├── Board.js              # ✅ HOÀN THÀNH - Logic Match-3 đầy đủ
-│   │   ├── gems/                 # Các loại gem
-│   │   │   ├── Gem.js            # ⏳ Chưa triển khai
-│   │   │   └── PowerupGem.js     # ⏳ Chưa triển khai
-│   │   └── blockers/             # Các loại blocker
-│   │       ├── StoneBlocker.js   # ⏳ Chưa triển khai
-│   │       └── VineBlocker.js    # ⏳ Chưa triển khai
-│   ├── managers/                  # Các hệ thống quản lý
-│   │   ├── PlayerDataManager.js  # ⏳ Chưa triển khai
-│   │   ├── SoundManager.js       # ⏳ Chưa triển khai
-│   │   ├── SceneManager.js       # ⏳ Chưa triển khai
-│   │   └── APIManager.js         # ⏳ Chưa triển khai
-│   ├── ui/                       # Component UI tái sử dụng
-│   │   ├── Button.js             # ⏳ Chưa triển khai
-│   │   ├── LevelNode.js          # ⏳ Chưa triển khai
-│   │   ├── PlayerEntry.js        # ⏳ Chưa triển khai
-│   │   ├── ObjectiveItem.js      # ⏳ Chưa triển khai
-│   │   └── ProgressBar.js        # ⏳ Chưa triển khai
-│   ├── utils/                    # Tiện ích và hằng số
-│   │   ├── constants.js          # ✅ Hoàn thành - Hằng số game + Power-ups
-│   │   └── helpers.js            # ⏳ Chưa triển khai
-│   └── main.js                   # ✅ Hoàn thành - Entry point
-└── dist/                         # Build output
+src/
+├── main.js
+├── scenes/
+│   ├── BootScene.js
+│   ├── PreloaderScene.js
+│   ├── MapScene.js
+│   ├── GameScene.js
+│   ├── MainScene.js                # Demo scene (không dùng trong flow chính)
+│   ├── UIScene.js                  # Overlay booster UI (đã dùng trong GameScene)
+│   ├── LeaderboardScene.js         # (trống)
+│   └── popups/ (Lose/Win/Settings) # (chưa dùng)
+├── objects/
+│   ├── Board.js                    # Lõi gameplay, mixin 5 module
+│   ├── board/
+│   │   ├── BoardCreator.js
+│   │   ├── BoardInput.js
+│   │   ├── BoardMatcher.js
+│   │   ├── BoardPowerups.js
+│   │   └── BoardState.js
+│   ├── gems/ (Gem.js, PowerupGem.js) # (trống)
+│   └── blockers/ (StoneBlocker.js, RopeBlocker.js, BaseBlocker.js) # ĐÃ dùng qua `blockerGrid`
+├── managers/ (APIManager, PlayerDataManager, SceneManager, SoundManager) # (trống)
+└── utils/
+    ├── constants.js
+    └── helpers.js
 ```
 
----
-
-## 🔄 Luồng Hoạt Động Hiện Tại
-
-### 1. **Khởi động Game**
-```
-BootScene → PreloaderScene → MapScene → GameScene
-```
-
-### 2. **Chi tiết từng Scene**
-
-#### **BootScene.js**
-- **Chức năng:** Load asset cơ bản cho PreloaderScene
-- **Assets:** `loading_background.png`
-- **Chuyển tiếp:** → PreloaderScene
-
-#### **PreloaderScene.js**
-- **Chức năng:** Load tất cả assets của game
-- **Assets loaded:**
-  - Background: `map1_background.png`, `playground1_background.png`, `playground1_border.png`
-  - UI: `cell.png`
-  - Gems: `gem_red.png`, `gem_green.png`, `gem_blue.png`, `gem_purple.png`, `gem_yellow.png`, `gem_orange.png`
-  - Data: `level_1.json`
-- **Chuyển tiếp:** → MapScene
-
-#### **MapScene.js**
-- **Chức năng:** Màn chọn map đơn giản
-- **UI:** 1 button "Map 1"
-- **Chuyển tiếp:** → GameScene
-
-#### **GameScene.js**
-- **Chức năng:** Màn chơi chính
-- **Thành phần:**
-  - Background toàn màn hình
-  - Khung chơi với viền
-  - Board 9x9 với gems
-- **Chuyển tiếp:** ← MapScene (nút Quay lại)
+Tài nguyên (asset) được đặt trong `public/assets`, được load bởi `PreloaderScene`.
 
 ---
 
-## 🎮 Hệ Thống Board & Gameplay
+## 🔄 Luồng Khởi Động & Chuyển Cảnh
 
-### **Board.js - Quản lý bàn cờ & Logic Match-3**
-
-#### **Thuộc tính chính:**
-```javascript
-- offsetX, offsetY: Vị trí bàn cờ
-- cellSize: Kích thước mỗi cell
-- grid: Mảng 2D 9x9 lưu trạng thái
-- gems: Mảng chứa tất cả gem sprites
-- blockers: Mảng chứa tất cả blocker sprites
-- levelData: Dữ liệu level từ JSON
-- selectedGem: Gem đang được chọn
-- selectionFrame: Khung chọn gem (Graphics)
+```
+main.js → BootScene → PreloaderScene → MapScene → GameScene
 ```
 
-#### **Phương thức chính:**
-```javascript
-// Tạo và quản lý đối tượng
-- createAllCells(): Tạo 81 cell background
-- loadLevel(levelData): Load level từ JSON
-- createGem(row, col, gemType): Tạo gem sprite
-- createBlocker(row, col, blockerType): Tạo blocker sprite
-- clearBoard(): Xóa tất cả đối tượng
+### `src/main.js`
+- Cấu hình `Phaser.Game` (scale FIT, 576x1024), parent `#app`.
+- Khởi tạo game sau khi người dùng click nút `#fullscreen-button` (cố gắng vào fullscreen, ẩn nút).
+- Scene thứ tự: `BootScene`, `PreloaderScene`, `MapScene`, `GameScene`, `UIScene` (UIScene chạy overlay song song với GameScene).
 
-// Logic Match-3
-- handleGemClick(row, col): Xử lý click gem
-- areNeighbors(gem1, gem2): Kiểm tra gem kề nhau
-- swapGems(gem1, gem2): Hoán đổi 2 gem
-- findAllMatches(): Tìm tất cả match trên bàn cờ
-- processMatchGroups(): Xử lý các nhóm match
-- applyGravityAndRefill(): Áp dụng trọng lực và điền gem mới
-- checkForNewMatches(): Kiểm tra match sau khi refill
+### `src/scenes/BootScene.js`
+- preload(): load ảnh nền loading `loading_background`.
+- create(): chuyển ngay sang `PreloaderScene`.
 
-// Power-ups
-- activatePowerup(powerup, other): Kích hoạt power-up
-- activatePowerupCombo(powerup1, powerup2): Kích hoạt combo power-up
-- activateBomb(bomb, exploded): Kích hoạt bom
-- activateColorBomb(colorBomb, target): Kích hoạt color bomb
-- transformIntoPowerup(gem, powerupType): Biến gem thành power-up
+### `src/scenes/PreloaderScene.js`
+- Màn hình loading (ảnh nền + text %), tiến trình hiển thị tối thiểu 5s (đồng bộ cả thời gian và sự kiện load).
+- Tải tài nguyên:
+  - UI/Map: `level_background`, `map1_background`, `playground1_background`, `playground1_border`, `cell`.
+  - Gems: `gem_red`, `gem_green`, `gem_blue`, `gem_purple`, `gem_yellow`, `gem_orange`.
+  - Power-ups: `gem_bomb`, `gem_color_bomb`.
+  - Blockers: `blocker_stone_1`, `blocker_stone_2`, `blocker_rope`.
+  - Booster icons: `booster_hammer`, `booster_swap`, `booster_rocket`, `booster_shuffle`.
+  - Level JSON: `level_1` → `level_5`.
+- Trước khi chuyển cảnh: dọn tất cả listener (điểm không thể quay đầu), fade out rồi `start('MapScene')`.
+- Xử lý `contextrestored` và `resize` bằng cách dọn listener và quay `BootScene` để an toàn.
 
-// Input handling
-- handleInput(inputData): Xử lý input từ GameScene
-```
+### `src/scenes/MapScene.js`
+- Vẽ nền đơn giản, danh sách 5 nút map: "Màn 1..5". Click chọn map sẽ `start('GameScene', { levelId })`.
 
-#### **Thứ tự render:**
-1. **Cell backgrounds** (depth 1)
-2. **Gems** (depth 2) 
-3. **Blockers** (depth 2)
-4. **Selection frame** (depth 5)
-5. **UI elements** (depth 10+)
+### `src/scenes/GameScene.js`
+- Hiển thị `map1_background` (depth 0), nền playground và border (depth 3).
+- Tạo `Board` ở giữa khung chơi, load level theo `levelId` (mặc định 1) từ cache.
+- Khởi chạy `UIScene` dạng overlay nếu chưa chạy; nút "Quay lại" về `MapScene` (UI depth 10+).
+- Lắng nghe event booster từ `UIScene` qua `game.events` (`boosterSelected`/`boosterActivated`) và click trên board (`gameobjectdown`).
+- Hàm chính: `createBoard`, `loadLevelData`, `setupBoardEvents`, `onBoosterSelected/Activated`, `onBoardClick`, `handleInput`, `loadLevelFromJSON`.
 
 ---
 
-## 📊 Hệ Thống Dữ Liệu
+## 🎮 Lõi Gameplay: `objects/Board.js` + Mixins
 
-### **Level JSON Structure (level_1.json)**
-```json
-{
-  "levelId": 1,
-  "moves": 25,
-  "objectives": [
-    { "target": "gem", "type": "red", "count": 20 },
-    { "target": "gem", "type": "green", "count": 15 }
-  ],
-  "gridLayout": [
-    [1, 2, 3, 4, 1, 2, 3, 4, 1],
-    // ... 9x9 array
-  ],
-  "availableGems": ["red", "green", "blue", "purple"]
-}
-```
+`Board` là lớp trung tâm, được lắp (mixin) từ 5 module: `BoardCreator`, `BoardInput`, `BoardMatcher`, `BoardPowerups`, `BoardState` thông qua `applyMixins`.
 
-### **Grid Layout Mapping:**
-- **1-6:** Gem types (red, green, blue, purple, yellow, orange)
-- **7+:** Blocker types (stone, vine, etc.)
-- **0:** Empty cell (sẽ được điền gem ngẫu nhiên)
-- **null:** Lỗ hổng (không thuộc bàn chơi)
+### Thuộc tính chính
+- `scene`, `offsetX`, `offsetY`, `cellSize`.
+- `grid` 9x9 (mảng 2D), `blockerGrid` 9x9 (OOP blocker), `gems` (sprite), `blockers` (legacy sprite), `levelData`.
+- `selectedGem`, `selectionFrame` (graphics highlight, depth 5), `ropeDestroyedThisTurn` (cờ cho cơ chế lây lan dây leo).
 
-### **Power-up System:**
-- **BOMB:** Tạo từ match 4 gem (vụ nổ 3x3)
-- **COLOR_BOMB:** Tạo từ match 5+ gem (xóa tất cả gem cùng màu)
-- **Combo Power-ups:** Kết hợp 2 power-up tạo hiệu ứng đặc biệt
+### Hàm công khai quan trọng
+- `loadLevel(levelData)`: xóa board, vẽ cell nền, đi qua `gridLayout` để tạo gem/blocker/ô trống, sau cùng `fillEmptyCells()`.
+- `handleInput(inputData)`: router input từ scene (`gem_click`, `blocker_click`).
 
----
+### `board/BoardCreator.js`
+- `createSelectionFrame()`: khung chọn (graphics) depth 5, ẩn mặc định.
+- `createAllCells()`: vẽ 81 ô nền `cell` (depth 1), setData đánh dấu.
+- `getGemTypeByNumber(n)`, `getBlockerTypeByNumber(n)`.
+- `createGem/At(...)`: tạo sprite gem `gem_<type>`, interactive, depth 2, lưu vào `grid` và `gems`.
+- `createStoneBlocker(row, col, health=2)`, `createRopeBlocker(row, col)`: khởi tạo OOP blocker (`StoneBlocker`, `RopeBlocker`) và ghi vào `blockerGrid`.
+- (Legacy) `createBlocker(...)` còn giữ cho rectangle mock, nhưng gameplay dùng OOP blockers.
 
-## 🎨 Hệ Thống Assets
+### `board/BoardInput.js`
+- Chặn chọn/swap vào ô có blocker (đá/rope) qua `isCellBlockedForMovement`.
+- `handleGemClick(...)`: chọn/bỏ chọn; nếu kề nhau thì `swapGems`; luôn emit `gemSelected`.
+- `areNeighbors(...)`: khoảng cách Manhattan = 1.
+- `handleBlockerClick(...)`: emit `blockerSelected`.
 
-### **Gems (6 loại + 2 power-ups)**
-- `gem_red.png` - Gem đỏ
-- `gem_green.png` - Gem xanh lá
-- `gem_blue.png` - Gem xanh dương
-- `gem_purple.png` - Gem tím
-- `gem_yellow.png` - Gem vàng
-- `gem_orange.png` - Gem cam
-- `gem_bomb.png` - Power-up Bomb
-- `gem_color_bomb.png` - Power-up Color Bomb
+### `board/BoardMatcher.js`
+- `findAllMatches()`: quét hàng/cột, gom cụm ≥3, hợp nhất chữ T/L (bỏ qua power-ups).
 
-### **UI Elements**
-- `cell.png` - Background cho mỗi cell
-- `playground.png` - Nền khung chơi
-- `playground-border.png` - Viền khung chơi
-- `map1-background.png` - Background toàn màn hình
+### `board/BoardPowerups.js`
+- `isPowerup`, `transformIntoPowerup`.
+- Kích hoạt power-up/combos: Bomb+Bomb, Color+Color, Color+Bomb (biến nhiều gem thành Bomb rồi nổ chain).
+- Tác động blocker: mọi vụ nổ/bị Color Bomb sẽ gọi `damageBlockerAt` cho ô liên quan.
+- Booster đã tích hợp trên Board: `useHammer`, `useRocket`, `useSwap`, `useShuffle` (đồng bộ trạng thái input/UI qua `boardBusy`).
+- `getGemsInArea(r,c,radius)` tiện ích gom gem theo vùng.
 
----
+### `board/BoardState.js`
+- `initGrid()`: tạo `grid` và `blockerGrid` 9x9 rỗng.
+- `clearBoard()`: hủy gem/blocker sprite/OOP, xóa ô nền, reset chọn.
+- `fillEmptyCells()`: điền ngẫu nhiên theo `availableGems`.
+- `updateGridAfterSwap`, `swapGems` (khóa input + báo UI), `decideActionAfterSwap`.
+- `startActionChain(...)`: hợp nhất kết quả match và power-up; wiggle → tạo power-up → xóa → gravity → refill.
+- `processMatchGroups(...)`: quy tắc ưu tiên vị trí tạo power-up (vị trí swap > điểm giao T/L > vị trí giữa) và loại (4→Bomb, ≥5→Color Bomb). Đồng thời gây sát thương blocker cạnh/đè lên.
+- `addWiggleEffect`, `removeGemSprites`.
+- `applyGravityAndRefill()`: đá chặn rơi; refill từ trên với tween; hẹn `checkForNewMatches` theo rơi dài nhất.
+- `checkForNewMatches()`: tiếp tục chain nếu còn, ngược lại `endOfTurn()`.
+- `endOfTurn()`: nếu không phá rope trong lượt, cho mọi rope lây lan một lần (dùng snapshot + plannedSpawns); reset cờ, bật input, báo UI `boardBusy=false`.
+- `getPowerupActivationSet(...)`: tập hợp ô bị ảnh hưởng cho các biến thể power-up/combo.
 
-## 🔧 Hệ Thống Event-Driven
-
-### **Events hiện tại:**
-```javascript
-// Từ Board → GameScene
-- 'gemSelected': { row, col, type }
-- 'blockerSelected': { row, col, type }
-
-// Từ GameScene → Board
-- handleInput(inputData)
-```
-
-### **Input Types:**
-```javascript
-- 'gem_click': { type, row, col, gemType }
-- 'blocker_click': { type, row, col, blockerType }
-```
+### Thứ tự render (depth)
+1. Ô nền `cell` (1)
+2. Gem và Blocker (2)
+3. Viền khung chơi (3)
+4. Khung chọn (5)
+5. UI overlay, nút điều hướng (10+)
 
 ---
 
-## ✅ Trạng Thái Triển Khai
+## 🧩 Utils
 
-### **Đã hoàn thành:**
-- ✅ Cấu trúc cơ bản của game
-- ✅ Hệ thống load assets (bao gồm power-ups)
-- ✅ Màn hình chọn map
-- ✅ Màn chơi với Board 9x9
-- ✅ Hệ thống gem với ảnh thực tế
-- ✅ Load level từ JSON
-- ✅ Thứ tự render đúng (Background → Cell → Gem → UI)
-- ✅ Event-driven communication
-- ✅ **Logic Match-3 hoàn chỉnh:**
-  - ✅ Tìm match 3+ gem cùng màu (ngang + dọc)
-  - ✅ Swap gem kề nhau
-  - ✅ Xóa gem khi match
-  - ✅ Áp dụng trọng lực (gem rơi xuống)
-  - ✅ Refill gem mới từ trên xuống
-  - ✅ Kiểm tra match mới sau refill
-  - ✅ Chain reaction (match liên tiếp)
-- ✅ **Hệ thống Power-ups:**
-  - ✅ Bomb (match 4 gem) - vụ nổ 3x3
-  - ✅ Color Bomb (match 5+ gem) - xóa tất cả gem cùng màu
-  - ✅ Combo power-ups (Bomb+Bomb, Color+Color, Bomb+Color)
-  - ✅ Chain reaction power-ups
-- ✅ **Input handling:**
-  - ✅ Click để chọn gem
-  - ✅ Click gem kề nhau để swap
-  - ✅ Khung chọn gem (selection frame)
-  - ✅ Disable input khi đang xử lý
+### `utils/constants.js`
+- `SCENE_KEYS`, `GEM_TYPES`, `BLOCKER_TYPES` (`stone`, `vine`), `GRID_SIZE = 9`, `CELL_SIZE = 60`.
+- `BOOSTER_TYPES`: `hammer`, `swap`, `rocket`, `shuffle`.
 
-### **Chưa triển khai:**
-- ⏳ Hệ thống blocker (có cấu trúc nhưng chưa có logic)
-- ⏳ UI Scene (điểm số, lượt đi, objectives)
-- ⏳ Sound system
-- ⏳ Player data management
-- ⏳ Win/Lose conditions
-- ⏳ Animation và effects nâng cao
-- ⏳ Drag & drop để swap gem
-- ⏳ Touch support cho mobile
+### `utils/helpers.js`
+- `applyMixins(derivedCtor, constructors)`: copy descriptor các method từ prototype các baseCtor vào derivedCtor.prototype.
 
 ---
 
-## 🚀 Bước Tiếp Theo Đề Xuất
+## 📦 Managers, UI, Gems, Blockers
 
-### **Ưu tiên cao:**
-1. **UI Scene & Game State**
-   - Hiển thị điểm số, lượt đi, objectives
-   - Progress bar cho mục tiêu level
-   - Hiển thị power-ups có sẵn
-   - Win/Lose conditions
-
-2. **Hệ thống Blocker**
-   - Logic phá stone blocker (cần match 2 lần)
-   - Logic phá vine blocker (cần match 1 lần)
-   - Animation khi phá blocker
-
-3. **Input cải tiến**
-   - Drag & drop để swap gem
-   - Touch support cho mobile
-   - Visual feedback khi drag
-
-### **Ưu tiên trung bình:**
-4. **Sound & Music**
-   - Sound effects cho match, swap, power-up
-   - Background music
-   - SoundManager system
-
-5. **Animation & Effects**
-   - Particle effects khi match
-   - Smooth animation cho gem rơi
-   - Screen shake khi power-up
-
-6. **Player Data & Progression**
-   - Lưu điểm số cao nhất
-   - Unlock level mới
-   - Achievement system
-
-### **Ưu tiên thấp:**
-7. **Advanced Features**
-   - More power-up types
-   - Special level mechanics
-   - Daily challenges
-   - Leaderboard online
+- `managers/*`: hiện trống.
+- `scenes/UIScene.js`: ĐÃ dùng. Hiển thị 4 booster (hammer/swap/rocket/shuffle) tại vị trí cố định theo phần trăm màn hình; lắng nghe `boardBusy` để khóa/mở tương tác.
+- `LeaderboardScene.js`: trống.
+- `objects/gems/*`: trống (sử dụng image trực tiếp trong `BoardCreator`).
+- `objects/blockers/*`: ĐÃ tích hợp OOP (`StoneBlocker`, `RopeBlocker`, `BaseBlocker`), render bằng texture, có máu/hành vi (đá chặn rơi; rope lây lan cuối lượt nếu không bị phá).
 
 ---
 
-## 📝 Ghi Chú Kỹ Thuật
+## 🗂️ Dữ Liệu Level & Asset
 
-### **Điểm mạnh:**
-- ✅ Kiến trúc rõ ràng, dễ mở rộng
-- ✅ Event-driven giảm coupling
-- ✅ Data-driven cho level design
-- ✅ Code được tổ chức tốt theo module
-- ✅ Logic Match-3 được implement đầy đủ và chính xác
-- ✅ Power-up system linh hoạt và mở rộng được
-- ✅ Chain reaction hoạt động mượt mà
-- ✅ Input handling an toàn (disable khi đang xử lý)
+### Level JSON (`public/assets/levels/level_1..5.json`)
+- Được load cache `level_1` → `level_5` trong `PreloaderScene`.
+- Trường chính:
+  - `gridLayout` (9x9): `null` (lỗ), `0` (trống để fill), `1..n` (gem theo `GEM_TYPES`).
+  - `blockerLayout` (tuỳ chọn 9x9): `1`=rope, `2|3`=stone (thiết kế hiện tại quy về đá 2 máu).
+  - `availableGems`: danh sách gem cho refill/shuffle.
 
-### **Cần cải thiện:**
-- ⚠️ Thêm error handling cho edge cases
-- ⚠️ Tối ưu performance cho bàn cờ lớn
-- ⚠️ Thêm unit tests cho logic phức tạp
-- ⚠️ Documentation cho API methods
-- ⚠️ Memory management cho gem sprites
-
-### **Performance hiện tại:**
-- ✅ Sử dụng depth layers hiệu quả
-- ✅ Tween animations mượt mà
-- ✅ Grid logic được tối ưu
-- ⚠️ Có thể cần object pooling cho gem khi scale up
-- ⚠️ Texture atlas sẽ giúp giảm draw calls
-
-### **Code Quality:**
-- ✅ Code được comment rõ ràng bằng tiếng Việt
-- ✅ Logic được chia nhỏ thành các method riêng biệt
-- ✅ Constants được quản lý tập trung
-- ✅ Error logging đầy đủ
+### Asset
+- Nguồn tại `public/assets/images/...` và `public/assets/levels`.
+- Key texture trùng tên với code: `gem_*`, `blocker_*`, `booster_*`, `map1_background`, `playground1_*`, `cell`.
 
 ---
 
-*Cập nhật lần cuối: 2024-01-XX*
-*Phiên bản: 2.0.0 - Game có thể chơi được*
+## ✅ Trạng Thái Tính Năng
+
+- Đã có: tạo board, chọn/swap, tìm match, xóa, gravity, refill, chain reaction; power-ups (Bomb/Color Bomb) + combos; booster (Hammer/Swap/Rocket/Shuffle); blocker (Đá chặn rơi, Dây leo lây lan) với sát thương từ match/power-up.
+- Chưa có: UI điểm/số lượt/mục tiêu, âm thanh, quản lý người chơi, điều kiện thắng/thua, drag & drop, hiệu ứng/animation nâng cao, thiết kế level/điều kiện phức tạp hơn, leaderboard.
+
+---
+
+## 🔧 Gợi Ý Phát Triển Tiếp
+
+- Thêm `UIScene` hiển thị moves/score/objectives, overlay trên `GameScene`.
+- Hoàn thiện `managers/*` (âm thanh, dữ liệu người chơi, API).
+- Kéo/thả để swap, hỗ trợ mobile.
+- Tối ưu hiệu năng: object pooling cho gem, texture atlas.
+- Mở rộng power-up và hiệu ứng (particles, screen shake).
+
+---
+
+*Cập nhật theo mã nguồn hiện tại*
 

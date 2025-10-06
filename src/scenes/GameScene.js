@@ -1,15 +1,17 @@
 import Phaser from 'phaser'
 import { Board } from '../objects/Board'
-import { SCENE_KEYS } from '../utils/constants'
+import { SCENE_KEYS, BOOSTER_TYPES } from '../utils/constants'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' })
     this.board = null
     this.levelData = null
+    this.activeBooster = null
+    this.firstSwapGem = null
   }
 
-  create() {
+  create(data) {
     const { width, height } = this.scale
 
     // Debug: Kiểm tra xem ảnh có được load không
@@ -33,7 +35,7 @@ export class GameScene extends Phaser.Scene {
     // Tạo khung chơi ở giữa màn hình
     const playgroundSize = Math.min(width, height) * 0.9 // 90% kích thước màn hình
     const playgroundX = width / 2
-    const playgroundY = height / 2 + height / 8  // Di chuyển xuống 1/4 chiều dài map
+    const playgroundY = height / 2 + height / 8 - height/48  // Di chuyển xuống 1/4 chiều dài map
 
     // Hiển thị nền khung chơi (playground1_background)
     if (this.textures.exists('playground1_background')) {
@@ -57,6 +59,13 @@ export class GameScene extends Phaser.Scene {
 
     // Tạo Board và load level (Board sẽ tự tạo cell backgrounds)
     this.createBoard(playgroundX, playgroundY, playgroundSize)
+    // Khởi chạy UIScene overlay
+    if (!this.scene.isActive('UIScene')) this.scene.launch('UIScene')
+
+    // Sự kiện booster từ UIScene
+    this.game.events.on('boosterSelected', this.onBoosterSelected, this)
+    this.game.events.on('boosterActivated', this.onBoosterActivated, this)
+    this.input.on('gameobjectdown', this.onBoardClick, this)
 
     // Thêm nút quay lại MapScene (tạm thời)
     const backButton = this.add.rectangle(100, 50, 120, 40, 0xe74c3c)
@@ -72,6 +81,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(11) // Text nằm trên nút bấm
 
     backButton.on('pointerdown', () => {
+      if (this.scene.isActive('UIScene')) this.scene.stop('UIScene')
       this.scene.start('MapScene')
     })
 
@@ -138,7 +148,8 @@ export class GameScene extends Phaser.Scene {
 
   loadLevelData() {
     // Load level data từ cache (đã load trong PreloaderScene)
-    this.levelData = this.cache.json.get('level_1')
+    const selectedLevelId = this.scene.settings?.data?.levelId || 1
+    this.levelData = this.cache.json.get(`level_${selectedLevelId}`)
     
     if (!this.levelData) {
       console.error('Level data not found in cache!')
@@ -155,6 +166,47 @@ export class GameScene extends Phaser.Scene {
     // Lắng nghe sự kiện từ Board
     this.events.on('gemSelected', this.onGemSelected, this)
     this.events.on('blockerSelected', this.onBlockerSelected, this)
+  }
+
+  onBoosterSelected(boosterType) {
+    this.activeBooster = boosterType
+    this.firstSwapGem = null
+  }
+
+  onBoosterActivated(boosterType) {
+    if (!this.board || this.board.boardBusy) return
+    if (boosterType === BOOSTER_TYPES.SHUFFLE) {
+      this.board.useShuffle()
+    }
+  }
+
+  onBoardClick(pointer, gameObject) {
+    if (!this.activeBooster || !this.board || this.board.boardBusy) return
+    const row = gameObject?.getData('row')
+    const col = gameObject?.getData('col')
+    if (row === undefined || col === undefined) return
+    switch (this.activeBooster) {
+      case BOOSTER_TYPES.HAMMER:
+        this.board.useHammer(row, col)
+        this.activeBooster = null
+        break
+      case BOOSTER_TYPES.ROCKET:
+        this.board.useRocket(row, col)
+        this.activeBooster = null
+        break
+      case BOOSTER_TYPES.SWAP: {
+        const clickedGem = this.board.grid[row][col]
+        if (!clickedGem) return
+        if (!this.firstSwapGem) {
+          this.firstSwapGem = clickedGem
+        } else {
+          this.board.useSwap(this.firstSwapGem, clickedGem)
+          this.firstSwapGem = null
+          this.activeBooster = null
+        }
+        break
+      }
+    }
   }
 
   onGemSelected(data) {

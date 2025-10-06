@@ -15,10 +15,13 @@ export class Board {
 
     // Khởi tạo state
     this.grid = []
+    this.blockerGrid = []
     this.gems = []
     this.blockers = []
     this.levelData = null
     this.selectedGem = null
+    this.ropeDestroyedThisTurn = false
+    this.boardBusy = false
 
     // Lắp ráp trạng thái ban đầu
     this.initGrid()
@@ -35,6 +38,7 @@ export class Board {
     this.clearBoard()
     this.createAllCells()
 
+    // Load gem layout
     for (let row = 0; row < levelData.gridLayout.length; row++) {
       for (let col = 0; col < levelData.gridLayout[row].length; col++) {
         const cellValue = levelData.gridLayout[row][col]
@@ -42,10 +46,23 @@ export class Board {
           this.grid[row][col] = null
         } else if (cellValue === 0) {
           this.grid[row][col] = { type: 'empty' }
-        } else if (cellValue >= 1 && cellValue <= 6) {
+        } else if (cellValue >= 1) {
           this.createGem(row, col, this.getGemTypeByNumber(cellValue))
-        } else if (cellValue >= 7) {
-          this.createBlocker(row, col, this.getBlockerTypeByNumber(cellValue))
+        }
+      }
+    }
+
+    // Load blocker layout (nếu có)
+    if (levelData.blockerLayout) {
+      for (let row = 0; row < levelData.blockerLayout.length; row++) {
+        for (let col = 0; col < levelData.blockerLayout[row].length; col++) {
+          const blockerValue = levelData.blockerLayout[row][col]
+          if (blockerValue === 1) {
+            this.createRopeBlocker(row, col)
+          } else if (blockerValue === 2 || blockerValue === 3) {
+            // Thiết kế mới: tất cả stone có 2 máu
+            this.createStoneBlocker(row, col, 2)
+          }
         }
       }
     }

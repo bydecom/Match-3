@@ -52,7 +52,12 @@ export class BoardPowerups {
   }
 
   activatePowerup(powerupGem, otherGem) {
+    if (this.boardBusy) return
+    this.boardBusy = true
     this.scene.input.enabled = false
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', true)
+    }
     const powerupType = powerupGem.value
     const otherType = otherGem.value
     if (powerupType === GEM_TYPES.COLOR_BOMB || otherType === GEM_TYPES.COLOR_BOMB) {
@@ -81,6 +86,18 @@ export class BoardPowerups {
     const bombRow = bombObject.sprite.getData('row')
     const bombCol = bombObject.sprite.getData('col')
     const gemsInExplosion = this.getGemsInArea(bombRow, bombCol, 1)
+    // Gây sát thương cho blocker (stone/rope) trong vùng nổ 3x3
+    const neighborCells = []
+    for (let r = bombRow - 1; r <= bombRow + 1; r++) {
+      for (let c = bombCol - 1; c <= bombCol + 1; c++) {
+        neighborCells.push({ r, c })
+      }
+    }
+    neighborCells.forEach(({ r, c }) => {
+      if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+        this.damageBlockerAt(r, c)
+      }
+    })
     const chainReactionBombs = gemsInExplosion.filter(gem => gem.value === GEM_TYPES.BOMB && !alreadyExploded.has(gem))
     chainReactionBombs.forEach(nextBomb => {
       this.activateBomb(nextBomb, alreadyExploded)
@@ -89,7 +106,13 @@ export class BoardPowerups {
   }
 
   activateColorBomb(colorBombObject, swappedObject) {
-    this.scene.input.enabled = false
+    if (!this.boardBusy) {
+      this.boardBusy = true
+      this.scene.input.enabled = false
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('boardBusy', true)
+      }
+    }
     const gemsToRemove = new Set()
     const swappedObjectType = swappedObject.value
     if (swappedObjectType === GEM_TYPES.COLOR_BOMB) {
@@ -98,6 +121,8 @@ export class BoardPowerups {
           if (this.grid[r][c] && this.grid[r][c].type === 'gem') {
             gemsToRemove.add(this.grid[r][c])
           }
+          // Color bomb (đôi) cũng trừ 1 máu mọi blocker
+          this.damageBlockerAt(r, c)
         }
       }
     } else if (swappedObjectType === GEM_TYPES.BOMB) {
@@ -134,6 +159,8 @@ export class BoardPowerups {
           const gem = this.grid[r][c]
           if (gem && gem.type === 'gem' && (gem.value === targetColor || gem === swappedObject)) {
             gemsToRemove.add(gem)
+            // Color bomb (đơn) trừ 1 máu blocker ngay tại các ô bị ảnh hưởng
+            this.damageBlockerAt(r, c)
           }
         }
       }
@@ -144,6 +171,118 @@ export class BoardPowerups {
         this.applyGravityAndRefill()
       })
     })
+  }
+
+  // --- BOOSTERS ---
+  useHammer(row, col) {
+    if (this.boardBusy) return
+    this.boardBusy = true
+    this.scene.input.enabled = false
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', true)
+    }
+    const gemsToRemove = new Set()
+    // Damage blocker trước
+    this.damageBlockerAt(row, col)
+    // Xóa gem nếu có
+    const gem = this.grid[row][col]
+    if (gem) gemsToRemove.add(gem)
+    if (gemsToRemove.size > 0) {
+      this.addWiggleEffect(Array.from(gemsToRemove), () => {
+        this.removeGemSprites(gemsToRemove)
+        this.scene.time.delayedCall(300, () => this.applyGravityAndRefill())
+      })
+    } else {
+      // Không có gì để xóa: kết thúc lượt ngay
+      this.endOfTurn()
+    }
+  }
+
+  useRocket(row, col) {
+    if (this.boardBusy) return
+    this.boardBusy = true
+    this.scene.input.enabled = false
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', true)
+    }
+    const gemsToRemove = new Set()
+    for (let r = 0; r < GRID_SIZE; r++) {
+      this.damageBlockerAt(r, col)
+      const g = this.grid[r][col]
+      if (g) gemsToRemove.add(g)
+    }
+    if (gemsToRemove.size > 0) {
+      this.addWiggleEffect(Array.from(gemsToRemove), () => {
+        this.removeGemSprites(gemsToRemove)
+        this.scene.time.delayedCall(300, () => this.applyGravityAndRefill())
+      })
+    } else {
+      // Không có gì để xóa: kết thúc lượt ngay
+      this.endOfTurn()
+    }
+  }
+
+  useSwap(gem1, gem2) {
+    if (this.boardBusy) return
+    this.boardBusy = true
+    this.scene.input.enabled = false
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', true)
+    }
+    this.updateGridAfterSwap(gem1, gem2)
+    const gem1Sprite = gem1.sprite
+    const gem2Sprite = gem2.sprite
+    this.scene.tweens.add({ targets: gem1Sprite, x: gem2Sprite.x, y: gem2Sprite.y, duration: 300, ease: 'Power2' })
+    this.scene.tweens.add({
+      targets: gem2Sprite,
+      x: gem1Sprite.x,
+      y: gem1Sprite.y,
+      duration: 300,
+      ease: 'Power2',
+      onComplete: () => { this.checkForNewMatches() }
+    })
+  }
+
+  useShuffle() {
+    if (this.boardBusy) return
+    this.boardBusy = true
+    this.scene.input.enabled = false
+    const allGems = []
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (this.grid[r][c] && this.grid[r][c].type === 'gem') {
+          allGems.push(this.grid[r][c])
+        }
+      }
+    }
+    Phaser.Utils.Array.Shuffle(allGems)
+    let idx = 0
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (this.grid[r][c] && this.grid[r][c].type === 'gem') {
+          const g = allGems[idx++]
+          this.grid[r][c] = g
+          g.sprite.setData({ row: r, col: c })
+          this.scene.tweens.add({
+            targets: g.sprite,
+            x: this.offsetX + c * this.cellSize + this.cellSize / 2,
+            y: this.offsetY + r * this.cellSize + this.cellSize / 2,
+            duration: 500,
+            ease: 'Power2'
+          })
+        }
+      }
+    }
+    this.scene.time.delayedCall(600, () => this.checkForNewMatches())
+  }
+  damageBlockerAt(row, col) {
+    const blocker = this.blockerGrid?.[row]?.[col]
+    if (!blocker) return
+    const destroyed = blocker.takeDamage()
+    if (destroyed) {
+      this.blockerGrid[row][col] = null
+      if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+    }
   }
 
   getGemsInArea(centerRow, centerCol, radius) {
