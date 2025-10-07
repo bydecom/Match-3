@@ -129,20 +129,42 @@ playHammerEffect(row, col, onComplete) {
   }
 
   // === SHUFFLE ===
+  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
   showShuffleConfirmation() {
     this.clearPreview()
     const { width, height } = this.board.getBoardDimensions()
+    
+    // 1. TẠO ĐỐI TƯỢNG GRAPHICS ĐỂ VẼ VIỀN
     const border = this.scene.add.graphics().setDepth(10)
-    border.lineStyle(8, 0xFFD700, 1)
-    border.strokeRect(this.board.offsetX, this.board.offsetY, width, height)
-    this.scene.tweens.add({ targets: border, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 })
-    const text = this.scene.add.text(
-      this.scene.scale.width / 2,
-      this.board.offsetY - 40,
-      'Tap board to confirm Shuffle',
-      { fontSize: '24px', color: '#fff', backgroundColor: '#000', padding: { x: 10, y: 5 } }
-    ).setOrigin(0.5).setDepth(10)
-    this.vfxObjects.push(border, text)
+    
+    // 2. TÙY CHỈNH CÁC THÔNG SỐ CỦA VIỀN
+    const lineThickness = 8        // Độ dày của đường viền
+    const lineColor = 0xFFD700     // Màu vàng
+    const cornerRadius = 20        // << BÁN KÍNH BO GÓC (quan trọng nhất)
+
+    // 3. VẼ HÌNH CHỮ NHẬT BO GÓC
+    border.lineStyle(lineThickness, lineColor, 1)
+    border.strokeRoundedRect(
+      this.board.offsetX, 
+      this.board.offsetY, 
+      width, 
+      height, 
+      cornerRadius
+    )
+
+    // 4. THÊM HIỆU ỨNG NHẤP NHÁY
+    this.scene.tweens.add({
+      targets: border,
+      alpha: { from: 1, to: 0.3 }, // Nhấp nháy rõ hơn
+      duration: 500,
+      yoyo: true,
+      repeat: -1
+    })
+
+    // 5. LƯU ĐỐI TƯỢNG ĐỂ CÓ THỂ XÓA SAU
+    this.vfxObjects.push(border)
+
+    // Dòng code tạo Text đã bị xóa bỏ.
   }
 
   // << THÊM HÀM MỚI NÀY VÀO CLASS >>
