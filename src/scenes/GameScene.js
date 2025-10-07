@@ -14,6 +14,8 @@ export class GameScene extends Phaser.Scene {
     this.boosterVFXManager = null
     this.isPointerDown = false
     this.lastHoveredCell = { row: -1, col: -1 }
+    this.timer = null
+    this.currentTime = 0
   }
 
   create(data) {
@@ -122,6 +124,8 @@ export class GameScene extends Phaser.Scene {
     backButton.on('pointerout', () => {
       backButton.setFillStyle(0xe74c3c)
     })
+    // Khởi động timer UI nếu có cấu hình
+    this.startTimer()
   }
 
   createGameGrid(centerX, centerY, playgroundSize) {
@@ -259,6 +263,29 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  startTimer() {
+    if (!this.levelData || !this.levelData.starTimes) return
+    this.currentTime = this.levelData.starTimes.startTime
+    this.timer = this.time.addEvent({ delay: 1000, callback: this.updateTimer, callbackScope: this, loop: true })
+    // Chỉ emit nếu có UIScene quan tâm (tránh emit thừa cho level không có starTimes)
+    this.game.events.emit('updateTimer', this.currentTime)
+  }
+
+  updateTimer() {
+    this.currentTime = Math.max(0, this.currentTime - 1)
+    this.game.events.emit('updateTimer', this.currentTime)
+    if (this.currentTime <= 0) {
+      this.timer.remove()
+      console.log('Hết giờ!')
+      // TODO: xử lý thua game
+    }
+  }
+
+  shutdown() {
+    if (this.timer) this.timer.remove()
+    this.game.events.off('updateTimer')
+  }
+
   onBoosterActivated(boosterType) {
     if (!this.board || this.board.boardBusy) return
     // Logic Shuffle đã chuyển sang onPointerUp
@@ -334,85 +361,74 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // << THAY THẾ TOÀN BỘ HÀM onPointerUp BẰNG HÀM NÀY >>
+  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
   onPointerUp(pointer) {
     this.isPointerDown = false
 
-    // Cổng kiểm soát chính: Nếu không có booster nào được chọn, hoặc board ĐÃ bận, không làm gì cả
-    if (!this.activeBooster || this.board.boardBusy) {
-      // Nếu board không bận nhưng click không trúng booster, thì đó là click thường
-      if (!this.activeBooster && !this.board.boardBusy) {
-        // TODO: Logic swap gem thông thường có thể được xử lý ở đây nếu muốn
-      }
-      return
-    }
+    if (this.board.boardBusy) return
 
     const listToCheck = this.children.list.concat(this.gemLayer.list)
     const gameObjects = this.input.manager.hitTest(pointer, listToCheck, this.cameras.main)
     const clickedObject = gameObjects.find(obj => obj.getData('isGem') || obj.getData('isCell'))
+
+    // Nếu không có booster nào đang được chọn, không làm gì cả
+    if (!this.activeBooster) return
+
+    // --- LOGIC MỚI CHO SWAP BOOSTER ---
+    if (this.activeBooster === BOOSTER_TYPES.SWAP) {
+      if (!clickedObject) return
+      const row = clickedObject.getData('row')
+      const col = clickedObject.getData('col')
+      const clickedGem = this.board.grid[row]?.[col]
+      if (!clickedGem || clickedGem.type !== 'gem') return
+
+      if (!this.firstSwapGem) {
+        // Click đầu tiên: lưu lại và preview
+        this.firstSwapGem = clickedGem
+        this.boosterVFXManager?.showSwapPreview(row, col)
+      } else {
+        // Click thứ hai
+        if (this.firstSwapGem !== clickedGem) {
+          this.game.events.emit('boardBusy', true)
+          this.board.useSwap(this.firstSwapGem, clickedGem)
+        }
+        // Dọn dẹp sau click thứ hai (dù có swap hay không)
+        this.clearActiveBooster()
+      }
+      return
+    }
+    // --- KẾT THÚC LOGIC SWAP ---
+
+    // Logic cho các booster khác (Hammer, Rocket, Shuffle) - kích hoạt ngay sau 1 click
+    const boosterToUse = this.activeBooster
+    this.clearActiveBooster()
+
     const row = clickedObject?.getData('row')
     const col = clickedObject?.getData('col')
 
-    // Lưu lại booster đang active để xử lý, sau đó hủy ngay để tránh click đúp
-    const boosterToUse = this.activeBooster
-    this.clearActiveBooster() // Hủy chọn booster và dọn dẹp VFX cũ
-
-    // === CẤU TRÚC NHẤT QUÁN CHO TẤT CẢ BOOSTER ===
     switch (boosterToUse) {
       case BOOSTER_TYPES.HAMMER:
         if (row !== undefined) {
-          // QUY TẮC 1: Khóa ngay
           this.game.events.emit('boardBusy', true)
-          
           this.boosterVFXManager.playHammerEffect(row, col, () => {
             this.board.useHammer(row, col)
-            // Board sẽ tự mở khóa khi endOfTurn
           })
         }
         break
 
       case BOOSTER_TYPES.ROCKET:
         if (row !== undefined) {
-          // QUY TẮC 1: Khóa ngay
           this.game.events.emit('boardBusy', true)
-          
           this.boosterVFXManager.playRocketEffect(col, () => {
             this.board.useRocket(row, col)
-            // Board sẽ tự mở khóa khi endOfTurn
           })
-        }
-        break
-        
-      case BOOSTER_TYPES.SWAP:
-        // Swap có 2 bước, xử lý hơi khác một chút
-        if (row === undefined) break
-        const clickedGem = this.board.grid[row][col]
-        if (!clickedGem || clickedGem.type !== 'gem') break
-
-        if (!this.firstSwapGem) {
-          // Lần click đầu tiên: Chỉ chọn, không khóa
-          this.activeBooster = boosterToUse // Đặt lại booster đang active
-          this.firstSwapGem = clickedGem
-          this.boosterVFXManager.showSwapPreview(row, col)
-        } else {
-          // Lần click thứ hai: Kích hoạt và khóa
-          if (this.firstSwapGem !== clickedGem) {
-            // QUY TẮC 1: Khóa ngay
-            this.game.events.emit('boardBusy', true)
-            
-            this.board.useSwap(this.firstSwapGem, clickedGem)
-            // Board sẽ tự mở khóa khi endOfTurn
-          }
         }
         break
 
       case BOOSTER_TYPES.SHUFFLE:
         if (clickedObject) {
-          // QUY TẮC 1: Khóa ngay
           this.game.events.emit('boardBusy', true)
-          
           this.board.useShuffle()
-          // Board sẽ tự mở khóa khi endOfTurn
         }
         break
     }

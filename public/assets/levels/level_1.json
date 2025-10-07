@@ -1,6 +1,12 @@
 {
   "levelId": 1,
   "moves": 30,
+  "starTimes": {
+    "startTime": 120,
+    "threeStars": 90,
+    "twoStars": 60,
+    "oneStar": 30
+  },
   "objectives": [
     { "target": "gem", "type": "red", "count": 25 },
     { "target": "gem", "type": "blue", "count": 25 }

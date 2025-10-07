@@ -1,6 +1,7 @@
 // src/scenes/UIScene.js
 import Phaser from 'phaser';
 import { BOOSTER_TYPES } from '../utils/constants';
+import { ProgressBar } from '../ui/ProgressBar';
 
 export class UIScene extends Phaser.Scene {
   constructor() {
@@ -9,10 +10,37 @@ export class UIScene extends Phaser.Scene {
     // << XÓA BIẾN isBoardBusy Ở ĐÂY, UIScene không cần tự theo dõi nữa >>
     // this.isBoardBusy = false; 
     this.boosterIcons = [];
+    this.progressBar = null;
   }
 
   create() {
     const { width, height } = this.scale;
+
+    // === SỬ DỤNG DỮ LIỆU BẠN CUNG CẤP ===
+    const gameScene = this.scene.get('GameScene');
+    const levelData = gameScene?.levelData;
+    if (levelData && levelData.starTimes) {
+      // 2) Kích thước thực tế trên màn hình
+      const barWidth = 295; // dùng chiều rộng mong muốn cố định theo yêu cầu
+      const barHeight = 119*0.20;
+      // 3) Vị trí theo debug: căn giữa theo chiều ngang, y theo phần trăm
+      const barX = 139; // căn giữa
+      const barY = 322; // vị trí Y cố định
+
+      // 4) Tạo progress bar với thông số chính xác
+      // Truyền CHỈ width; ProgressBar sẽ tự tính height theo tỉ lệ texture
+      this.progressBar = new ProgressBar(this, barX, barY, barWidth, barHeight, levelData.starTimes);
+    }
+    else {
+      // Không có cấu hình thời gian: tránh đăng ký cập nhật thanh tiến trình
+      this.progressBar = null;
+    }
+
+    // Đăng ký listener qua handler tách riêng để dễ off khi shutdown
+    // Chỉ đăng ký nếu có progressBar (tức là có starTimes)
+    if (levelData && levelData.starTimes) {
+      this.game.events.on('updateTimer', this.handleUpdateTimer, this)
+    }
 
     // --- DANH SÁCH CÁC NÚT VỚI VỊ TRÍ VÀ SCALE CỤ THỂ ---
     // Dữ liệu được lấy trực tiếp từ các hình ảnh bạn đã cung cấp.
@@ -67,30 +95,48 @@ export class UIScene extends Phaser.Scene {
     });
 
     // << SỬA LẠI LISTENER NÀY >>
-    this.game.events.on('boardBusy', (isBusy) => {
-      if (isBusy) {
-        this.selectedBoosterType = null; // Khi board bận, hủy luôn lựa chọn booster
-        this.disableAllBoosters();
-      } else {
-        // Chờ 100ms như bạn yêu cầu
-        this.time.delayedCall(100, () => {
-          this.enableAllBoosters();
-        });
-      }
-    });
+    this.game.events.on('boardBusy', this.handleBoardBusy, this)
     
     // Lắng nghe để đồng bộ hóa khi GameScene hủy booster
-    this.game.events.on('boosterSelectionCleared', () => {
-      this.selectedBoosterType = null;
-      this.updateBoosterIconsVisuals();
-    });
+    this.game.events.on('boosterSelectionCleared', this.handleBoosterCleared, this)
     
     // << THÊM LISTENER MỚI NÀY VÀO CUỐI HÀM create() >>
-    this.game.events.on('screenShake', (shakeData) => {
-      // UIScene tự rung camera của chính nó
-      this.cameras.main.shake(shakeData.duration, shakeData.intensity);
-    }, this);
+    this.game.events.on('screenShake', this.handleScreenShake, this)
     // << KẾT THÚC THÊM MỚI >>
+  }
+
+  handleUpdateTimer(currentTime) {
+    if (this.progressBar) {
+      this.progressBar.setValue(currentTime)
+    }
+  }
+
+  handleBoardBusy(isBusy) {
+    if (isBusy) {
+      this.selectedBoosterType = null
+      this.disableAllBoosters()
+    } else {
+      this.time.delayedCall(100, () => {
+        this.enableAllBoosters()
+      })
+    }
+  }
+
+  handleBoosterCleared() {
+    this.selectedBoosterType = null
+    this.updateBoosterIconsVisuals()
+  }
+
+  handleScreenShake(shakeData) {
+    this.cameras.main.shake(shakeData.duration, shakeData.intensity)
+  }
+
+  shutdown() {
+    console.log('UIScene is shutting down, removing global listeners...')
+    this.game.events.off('updateTimer', this.handleUpdateTimer, this)
+    this.game.events.off('boardBusy', this.handleBoardBusy, this)
+    this.game.events.off('boosterSelectionCleared', this.handleBoosterCleared, this)
+    this.game.events.off('screenShake', this.handleScreenShake, this)
   }
 
   // << CÁC HÀM NÀY ĐÃ ĐÚNG, GIỮ NGUYÊN >>

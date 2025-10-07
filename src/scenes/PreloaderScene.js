@@ -114,6 +114,11 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
         this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
         this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
+        // Load UI Progress Bar assets
+        this.load.image('progress_bar_background', 'assets/images/ui/progress_bar_background.png');
+        this.load.image('progress_bar_fill', 'assets/images/ui/progress_bar_fill.png');
+        this.load.image('star_off', 'assets/images/ui/star_off.png');
+        this.load.image('star_on', 'assets/images/ui/star_on.png');
         
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
