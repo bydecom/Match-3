@@ -90,6 +90,12 @@ export class GameScene extends Phaser.Scene {
       this.clearActiveBooster()
     }, this)
 
+    // << THÊM LISTENER MỚI NÀY VÀO >>
+    this.game.events.on('screenShake', (shakeData) => {
+      this.cameras.main.shake(shakeData.duration, shakeData.intensity)
+    }, this)
+    // << KẾT THÚC THÊM MỚI >>
+
     // Thêm nút quay lại MapScene (tạm thời)
     const backButton = this.add.rectangle(100, 50, 120, 40, 0xe74c3c)
       .setInteractive()
@@ -306,7 +312,14 @@ export class GameScene extends Phaser.Scene {
     if (!this.isPointerDown) return
     if (this.activeBooster !== BOOSTER_TYPES.ROCKET) return
     if (!this.board || this.board.boardBusy) return
-    const gameObjects = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main)
+
+    // === BẮT ĐẦU SỬA LỖI ===
+    // Danh sách các đối tượng cần kiểm tra: bao gồm con của Scene và con của gemLayer
+    const listToCheck = this.children.list.concat(this.gemLayer.list)
+
+    const gameObjects = this.input.manager.hitTest(pointer, listToCheck, this.cameras.main)
+    // === KẾT THÚC SỬA LỖI ===
+
     const targetObject = gameObjects.find(obj => typeof obj.getData === 'function' && (obj.getData('isGem') || obj.getData('isCell')))
     if (targetObject) {
       const row = targetObject.getData('row')
@@ -324,7 +337,12 @@ export class GameScene extends Phaser.Scene {
   onPointerUp(pointer) {
     this.isPointerDown = false
     if (!this.board || this.board.boardBusy) return
-    const gameObjects = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main)
+
+    // === BẮT ĐẦU SỬA LỖI ===
+    const listToCheck = this.children.list.concat(this.gemLayer.list)
+    const gameObjects = this.input.manager.hitTest(pointer, listToCheck, this.cameras.main)
+    // === KẾT THÚC SỬA LỖI ===
+
     const clickedObject = gameObjects.find(obj => typeof obj.getData === 'function' && (obj.getData('isGem') || obj.getData('isCell')))
     const row = clickedObject?.getData('row')
     const col = clickedObject?.getData('col')
@@ -360,8 +378,15 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.activeBooster === BOOSTER_TYPES.ROCKET) {
       if (row !== undefined && col !== undefined) {
-        this.board.useRocket(row, col)
-        this.clearActiveBooster()
+        // Khóa input ngay lập tức
+        this.activeBooster = null
+        
+        // Chơi hiệu ứng trước
+        this.boosterVFXManager?.playRocketEffect(col, () => {
+          // SAU KHI hiệu ứng kết thúc, mới thực thi logic
+          this.board.useRocket(row, col)
+          this.clearActiveBooster() // Dọn dẹp booster
+        })
       }
       return
     }

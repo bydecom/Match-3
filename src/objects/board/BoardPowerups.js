@@ -261,36 +261,44 @@ export class BoardPowerups {
     })
   }
 
+  // << THAY THẾ TOÀN BỘ HÀM useRocket CŨ BẰNG HÀM NÀY >>
   useRocket(row, col) {
     if (this.boardBusy) return
-    this.boardBusy = true
-    this.scene.input.enabled = false
-    if (this.scene && this.scene.game && this.scene.game.events) {
-      this.scene.game.events.emit('boardBusy', true)
-    }
+
+    // Logic khóa board và gọi VFX sẽ được chuyển sang GameScene
+    // Ở đây, chúng ta chỉ tập trung vào việc thu thập gem cần xóa.
+    
     const gemsToRemove = new Set()
-    
-    // Quét toàn bộ cột
-    for (let r = 0; r < GRID_SIZE; r++) {
-      const destroyedGem = this.damageCell(r, col)
-      if (destroyedGem) gemsToRemove.add(destroyedGem)
+    const affectedColumns = [col]
+
+    // Thêm cột bên trái nếu hợp lệ
+    if (col > 0) {
+      affectedColumns.push(col - 1)
     }
-    
-    // Quét toàn bộ hàng
-    for (let c = 0; c < GRID_SIZE; c++) {
-      if (c === col) continue // Tránh damage ô trung tâm 2 lần
-      const destroyedGem = this.damageCell(row, c)
-      if (destroyedGem) gemsToRemove.add(destroyedGem)
+    // Thêm cột bên phải nếu hợp lệ
+    if (col < GRID_SIZE - 1) {
+      affectedColumns.push(col + 1)
     }
-    
+
+    // Quét qua các cột bị ảnh hưởng
+    affectedColumns.forEach(c => {
+      // Quét toàn bộ hàng trong mỗi cột
+      for (let r = 0; r < GRID_SIZE; r++) {
+        const destroyedGem = this.damageCell(r, c)
+        if (destroyedGem) {
+          gemsToRemove.add(destroyedGem)
+        }
+      }
+    })
+
+    // Bắt đầu chuỗi hành động SAU KHI VFX kết thúc
+    // Logic này sẽ được gọi từ callback trong GameScene
     if (gemsToRemove.size > 0) {
-      this.addWiggleEffect(Array.from(gemsToRemove), () => {
-        this.removeGemSprites(gemsToRemove)
-        this.scene.time.delayedCall(300, () => this.applyGravityAndRefill())
-      })
+      this.removeGemSprites(gemsToRemove)
+      this.scene.time.delayedCall(100, () => this.applyGravityAndRefill())
     } else {
-      // Không có gì để xóa: kết thúc lượt ngay
-      this.endOfTurn()
+      // Nếu chỉ phá blocker, vẫn cần refill
+      this.scene.time.delayedCall(100, () => this.applyGravityAndRefill())
     }
   }
 

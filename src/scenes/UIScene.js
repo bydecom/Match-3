@@ -83,6 +83,13 @@ export class UIScene extends Phaser.Scene {
       this.selectedBoosterType = null;
       this.updateBoosterIconsVisuals();
     });
+    
+    // << THÊM LISTENER MỚI NÀY VÀO CUỐI HÀM create() >>
+    this.game.events.on('screenShake', (shakeData) => {
+      // UIScene tự rung camera của chính nó
+      this.cameras.main.shake(shakeData.duration, shakeData.intensity);
+    }, this);
+    // << KẾT THÚC THÊM MỚI >>
   }
 
   // Hàm cập nhật giao diện các icon booster

@@ -25,7 +25,7 @@ export class PowerupVFXManager {
         // Đặt depth cao để bomb đè lên trên các gem khác
         bombSprite.setDepth(10);
         // Rung camera một chút để tạo cảm giác mạnh
-        this.scene.cameras.main.shake(100, 0.005);
+        this.scene.game.events.emit('screenShake', { duration: 100, intensity: 0.005 });
       },
       onComplete: () => {
         // Trả lại depth ban đầu
@@ -69,7 +69,7 @@ export class PowerupVFXManager {
       targets: colorBombSprite,
       onStart: () => {
         colorBombSprite.setDepth(10);
-        this.scene.cameras.main.shake(150, 0.003);
+        this.scene.game.events.emit('screenShake', { duration: 150, intensity: 0.003 });
       },
       tweens: [
         {
@@ -178,7 +178,7 @@ export class PowerupVFXManager {
       ease: 'Quad.easeOut',
       onStart: () => {
         selectedSprite.setDepth(10)
-        this.scene.cameras.main.shake(300, 0.015) // Rung mạnh và lâu hơn
+        this.scene.game.events.emit('screenShake', { duration: 300, intensity: 0.015 }) // Rung mạnh và lâu hơn
       },
       onComplete: () => {
         // Tạo hiệu ứng sóng lan tỏa từ trung tâm của quả bom được chọn
