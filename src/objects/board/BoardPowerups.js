@@ -216,9 +216,10 @@ export class BoardPowerups {
     // 1. KHÓA BOARD NGAY LẬP TỨC
     this.boardBusy = true
     this.scene.input.enabled = false
-    if (this.scene && this.scene.game && this.scene.game.events) {
-      this.scene.game.events.emit('boardBusy', true)
-    }
+    // << XÓA DÒNG NÀY >>
+    // if (this.scene && this.scene.game && this.scene.game.events) {
+    //   this.scene.game.events.emit('boardBusy', true)
+    // }
 
     const gemToRemove = this.grid[row]?.[col]
     const blockerToRemove = this.blockerGrid[row]?.[col]
@@ -265,6 +266,10 @@ export class BoardPowerups {
   useRocket(row, col) {
     if (this.boardBusy) return
 
+    // 1. KHÓA BOARD NGAY LẬP TỨC
+    this.boardBusy = true
+    this.scene.input.enabled = false
+    // << XÓA DÒNG NÀY >>
     // Logic khóa board và gọi VFX sẽ được chuyển sang GameScene
     // Ở đây, chúng ta chỉ tập trung vào việc thu thập gem cần xóa.
     
@@ -312,6 +317,8 @@ export class BoardPowerups {
     if (this.boardBusy) return
     this.boardBusy = true
     this.scene.input.enabled = false
+    // << XÓA DÒNG NÀY >>
+    // Board không cần phát boardBusy(true) nữa vì GameScene đã làm
     const allGems = []
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {

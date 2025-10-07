@@ -138,9 +138,9 @@ playHammerEffect(row, col, onComplete) {
     const border = this.scene.add.graphics().setDepth(10)
     
     // 2. TÙY CHỈNH CÁC THÔNG SỐ CỦA VIỀN
-    const lineThickness = 8        // Độ dày của đường viền
+    const lineThickness = 5        // Độ dày của đường viền
     const lineColor = 0xFFD700     // Màu vàng
-    const cornerRadius = 20        // << BÁN KÍNH BO GÓC (quan trọng nhất)
+    const cornerRadius = 10        // << BÁN KÍNH BO GÓC (quan trọng nhất)
 
     // 3. VẼ HÌNH CHỮ NHẬT BO GÓC
     border.lineStyle(lineThickness, lineColor, 1)

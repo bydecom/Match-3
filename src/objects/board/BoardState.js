@@ -354,19 +354,28 @@ export class BoardState {
     return { gemsRemoved: finalGemsToRemove, powerupsCreated: powerupsToCreate };
   }
 
+  // << THAY THẾ HÀM removeGemSprites BẰNG PHIÊN BẢN AN TOÀN NÀY >>
   removeGemSprites(gemsToRemove) {
     gemsToRemove.forEach(gemObject => {
+      // === BƯỚC KIỂM TRA AN TOÀN QUAN TRỌNG ===
+      // Chỉ xử lý nếu gemObject là một đối tượng hợp lệ VÀ có thuộc tính sprite
       if (gemObject && gemObject.sprite) {
         const row = gemObject.sprite.getData('row')
         const col = gemObject.sprite.getData('col')
-        if (this.grid[row][col] === gemObject) {
+        
+        // Xóa tham chiếu trong grid
+        if (this.grid[row] && this.grid[row][col] === gemObject) {
           this.grid[row][col] = null
         }
+
+        // Tạo animation biến mất
         this.scene.tweens.add({
           targets: gemObject.sprite,
           scale: 0,
+          alpha: 0, // Thêm cả alpha để đảm bảo biến mất hoàn toàn
           duration: 200,
           onComplete: () => {
+            // Hủy sprite sau khi animation kết thúc
             gemObject.sprite.destroy()
           }
         })
