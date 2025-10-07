@@ -114,6 +114,8 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
         this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
         this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
+        // Nút cài đặt
+        this.load.image('setting_button', 'assets/images/ui/setting_button.png');
         // Load UI Progress Bar assets
         this.load.image('progress_bar_background', 'assets/images/ui/progress_bar_background.png');
         this.load.image('progress_bar_fill', 'assets/images/ui/progress_bar_fill.png');

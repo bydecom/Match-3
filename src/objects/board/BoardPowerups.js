@@ -2,6 +2,9 @@
 import { GEM_TYPES, GRID_SIZE } from '../../utils/constants'
 
 export class BoardPowerups {
+  // ... (Các hàm isPowerup, transformIntoPowerup, activatePowerupCombo, activatePowerup, etc. không thay đổi)
+  // ... (Bạn có thể giữ nguyên tất cả các hàm từ đầu file cho đến hàm damageCell)
+
   isPowerup(gemObject) {
     if (!gemObject) return false
     const value = gemObject.value
@@ -85,8 +88,6 @@ export class BoardPowerups {
     alreadyExploded.add(bombObject)
     const bombRow = bombObject.sprite.getData('row')
     const bombCol = bombObject.sprite.getData('col')
-
-    // Vùng nổ 3x3
     for (let r = bombRow - 1; r <= bombRow + 1; r++) {
       for (let c = bombCol - 1; c <= bombCol + 1; c++) {
         const destroyedGem = this.damageCell(r, c)
@@ -95,11 +96,9 @@ export class BoardPowerups {
         }
       }
     }
-
-    // Kích hoạt bomb dây chuyền
     const chainReactionBombs = Array.from(alreadyExploded).filter(gem => 
       gem.value === GEM_TYPES.BOMB && 
-      gem !== bombObject // Tránh đệ quy vô hạn
+      gem !== bombObject
     )
     chainReactionBombs.forEach(nextBomb => {
       this.activateBomb(nextBomb, alreadyExploded)
@@ -173,143 +172,130 @@ export class BoardPowerups {
       })
     })
   }
-
-  // === HÀM TRUNG TÂM GÂY SÁT THƯƠNG ===
-  /**
-   * Gây sát thương lên một ô. Ưu tiên blocker trước.
-   * @returns {Phaser.GameObjects.Sprite | null} Trả về gem bị phá hủy (nếu có)
-   */
+  
+  // Hàm này giữ nguyên, nó hoạt động đúng cho các vụ nổ match-3 và bomb
   damageCell(row, col) {
-    // Kiểm tra xem ô có hợp lệ không
     if (row < 0 || row >= 9 || col < 0 || col >= 9) return null
-
     const blocker = this.blockerGrid?.[row]?.[col]
-    
-    // 1. ƯU TIÊN BLOCKER
     if (blocker) {
-      console.log(`Damaging blocker at ${row},${col}`)
       const destroyed = blocker.takeDamage()
       if (destroyed) {
         this.blockerGrid[row][col] = null
         if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
-      }
-      // Nếu blocker VẪN CÒN (chưa bị phá hủy), dừng lại ngay. Gem bên dưới an toàn.
-      else {
-        return null
+      } else {
+        return null // Dừng lại nếu blocker chưa bị phá hủy
       }
     }
-
-    // 2. NẾU KHÔNG CÓ BLOCKER (HOẶC VỪA BỊ PHÁ HỦY)
     const gem = this.grid[row]?.[col]
     if (gem) {
-      console.log(`Damaging gem at ${row},${col}`)
-      return gem // Trả về gem để thêm vào danh sách xóa
+      return gem 
     }
-
     return null
   }
 
-  // --- BOOSTERS ---
-  useHammer(row, col) {
-    if (this.boardBusy) return
+  // << HÀM MỚI: Phá hủy MỌI THỨ tại một ô, dành riêng cho booster >>
+  /**
+   * Phá hủy blocker và/hoặc gem tại một ô. Blocker sẽ được xóa bằng animation an toàn.
+   * @returns {object | null} Trả về gem object nếu có để xử lý animation.
+   */
+    // << THAY THẾ TOÀN BỘ HÀM forceDestroyCell CŨ BẰNG PHIÊN BẢN MỚI NÀY >>
+  /**
+   * Phá hủy ngay lập tức MỌI THỨ tại một ô (cả logic và sprite).
+   * Hàm này sẽ tự xử lý animation và dọn dẹp.
+   * Nó không trả về gì cả (void).
+   */
+  forceDestroyCell(row, col) {
+    if (!this.isValidCell(row, col)) return;
 
-    // 1. KHÓA BOARD NGAY LẬP TỨC
-    this.boardBusy = true
-    this.scene.input.enabled = false
-    // << XÓA DÒNG NÀY >>
-    // if (this.scene && this.scene.game && this.scene.game.events) {
-    //   this.scene.game.events.emit('boardBusy', true)
-    // }
-
-    const gemToRemove = this.grid[row]?.[col]
-    const blockerToRemove = this.blockerGrid[row]?.[col]
-
-    const gemsToRemove = new Set()
-    let wasBlockerDestroyed = false
-
-    // 2. ƯU TIÊN PHÁ BLOCKER TRƯỚC
-    if (blockerToRemove) {
-      // Dùng búa là phá hủy ngay lập tức, không cần takeDamage
-      console.log(`Hammer used on blocker at ${row},${col}`)
-      this.blockerGrid[row][col] = null
-      blockerToRemove.destroy() // Hủy đối tượng
-      wasBlockerDestroyed = true
-    }
-
-    // 3. PHÁ GEM (NẾU CÓ)
-    // Nếu ô đó vừa có blocker vừa có gem (ví dụ Rope), búa sẽ phá cả hai
-    if (gemToRemove) {
-      console.log(`Hammer used on gem at ${row},${col}`)
-      gemsToRemove.add(gemToRemove)
-    }
-    
-    // 4. BẮT ĐẦU CHUỖI HÀNH ĐỘNG
-    // Nếu không có gì để xóa, mở khóa board ngay
-    if (gemsToRemove.size === 0 && !wasBlockerDestroyed) {
-      this.endOfTurn()
-      return
-    }
-
-    // Nếu có gem bị xóa, thực hiện hiệu ứng và xóa sprite
-    if (gemsToRemove.size > 0) {
-      this.removeGemSprites(gemsToRemove)
-    }
-
-    // 5. KÍCH HOẠT GRAVITY VÀ REFILL (QUAN TRỌNG NHẤT)
-    // Dùng delayedCall để đảm bảo sprite đã có thời gian để thực hiện animation biến mất
-    this.scene.time.delayedCall(300, () => {
-      this.applyGravityAndRefill()
-    })
-  }
-
-  // << THAY THẾ TOÀN BỘ HÀM useRocket CŨ BẰNG HÀM NÀY >>
-  useRocket(row, col) {
-    if (this.boardBusy) return
-
-    // 1. KHÓA BOARD NGAY LẬP TỨC
-    this.boardBusy = true
-    this.scene.input.enabled = false
-    // << XÓA DÒNG NÀY >>
-    // Logic khóa board và gọi VFX sẽ được chuyển sang GameScene
-    // Ở đây, chúng ta chỉ tập trung vào việc thu thập gem cần xóa.
-    
-    const gemsToRemove = new Set()
-    const affectedColumns = [col]
-
-    // Thêm cột bên trái nếu hợp lệ
-    if (col > 0) {
-      affectedColumns.push(col - 1)
-    }
-    // Thêm cột bên phải nếu hợp lệ
-    if (col < GRID_SIZE - 1) {
-      affectedColumns.push(col + 1)
-    }
-
-    // Quét qua các cột bị ảnh hưởng
-    affectedColumns.forEach(c => {
-      // Quét toàn bộ hàng trong mỗi cột
-      for (let r = 0; r < GRID_SIZE; r++) {
-        const destroyedGem = this.damageCell(r, c)
-        if (destroyedGem) {
-          gemsToRemove.add(destroyedGem)
-        }
+    // --- Xử lý Blocker ---
+    const blocker = this.blockerGrid[row]?.[col];
+    if (blocker) {
+      this.blockerGrid[row][col] = null; // Xóa tham chiếu logic
+      if (blocker.type === 'rope') {
+        this.ropeDestroyedThisTurn = true;
       }
-    })
+      // Tạo animation xóa sprite
+      this.scene.tweens.add({
+        targets: blocker,
+        scale: 0,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => blocker.destroy()
+      });
+    }
 
-    // Bắt đầu chuỗi hành động SAU KHI VFX kết thúc
-    // Logic này sẽ được gọi từ callback trong GameScene
-    if (gemsToRemove.size > 0) {
-      this.removeGemSprites(gemsToRemove)
-      this.scene.time.delayedCall(100, () => this.applyGravityAndRefill())
-    } else {
-      // Nếu chỉ phá blocker, vẫn cần refill
-      this.scene.time.delayedCall(100, () => this.applyGravityAndRefill())
+    // --- Xử lý Gem ---
+    const gem = this.grid[row]?.[col];
+    if (gem && gem.sprite) {
+      this.grid[row][col] = null; // Xóa tham chiếu logic
+      // Tạo animation xóa sprite
+      this.scene.tweens.add({
+        targets: gem.sprite,
+        scale: 0,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => {
+          if (gem.sprite) gem.sprite.destroy();
+        }
+      });
     }
   }
+
+  // --- BOOSTERS (ĐÃ ĐƯỢC ĐƠN GIẢN HÓA) ---
+
+  // << THAY THẾ HÀM useHammer CŨ BẰNG PHIÊN BẢN ĐƠN GIẢN NÀY >>
+  useHammer(row, col) {
+    if (this.boardBusy) return;
+    this.boardBusy = true;
+    this.scene.input.enabled = false;
+
+    // Bước 1: Ra lệnh phá hủy mọi thứ tại ô đó.
+    this.forceDestroyCell(row, col);
+
+    // Bước 2: Hẹn giờ để kích hoạt gravity sau khi animation phá hủy có thời gian chạy.
+    this.scene.time.delayedCall(250, () => {
+        this.applyGravityAndRefill();
+    });
+  }
+  
+  // << CẬP NHẬT LUÔN HÀM useRocket ĐỂ DÙNG CHUNG LOGIC MỚI >>
+  useRocket(row, col) { // `row` không được sử dụng nhưng giữ để nhất quán
+    if (this.boardBusy) return;
+    this.boardBusy = true;
+    this.scene.input.enabled = false;
+
+    console.log(`Using Rocket at column ${col} and its neighbors.`);
+
+    // 1. Xác định các cột sẽ bị ảnh hưởng
+    const affectedColumns = [col]; // Luôn bao gồm cột được nhắm tới
+
+    // Thêm cột bên trái nếu nó tồn tại (chỉ số > 0)
+    if (col > 0) {
+      affectedColumns.push(col - 1);
+    }
+
+    // Thêm cột bên phải nếu nó tồn tại (chỉ số < 8)
+    if (col < GRID_SIZE - 1) {
+      affectedColumns.push(col + 1);
+    }
+
+    // 2. Quét qua tất cả các cột bị ảnh hưởng
+    affectedColumns.forEach(currentCol => {
+      // Trong mỗi cột, quét từ trên xuống dưới và phá hủy mọi thứ
+      for (let r = 0; r < GRID_SIZE; r++) {
+        this.forceDestroyCell(r, currentCol);
+      }
+    });
+
+    // 3. Kích hoạt gravity sau một khoảng trễ ngắn để animation kịp chạy
+    this.scene.time.delayedCall(250, () => {
+      this.applyGravityAndRefill();
+    });
+  }
+
 
   useSwap(gem1, gem2) {
     if (this.boardBusy) return
-    // Gọi swapGems với cờ isBooster để không swap-back khi không có match
     this.swapGems(gem1, gem2, { isBooster: true })
   }
 
@@ -317,8 +303,6 @@ export class BoardPowerups {
     if (this.boardBusy) return
     this.boardBusy = true
     this.scene.input.enabled = false
-    // << XÓA DÒNG NÀY >>
-    // Board không cần phát boardBusy(true) nữa vì GameScene đã làm
     const allGems = []
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
@@ -347,6 +331,7 @@ export class BoardPowerups {
     }
     this.scene.time.delayedCall(600, () => this.checkForNewMatches())
   }
+  
   damageBlockerAt(row, col) {
     const blocker = this.blockerGrid?.[row]?.[col]
     if (!blocker) return

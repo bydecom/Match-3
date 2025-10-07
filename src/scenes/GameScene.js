@@ -98,31 +98,22 @@ export class GameScene extends Phaser.Scene {
     }, this)
     // << KẾT THÚC THÊM MỚI >>
 
-    // Thêm nút quay lại MapScene (tạm thời)
-    const backButton = this.add.rectangle(100, 50, 120, 40, 0xe74c3c)
-      .setInteractive()
-      .setStrokeStyle(2, 0xc0392b)
-      .setDepth(10) // Đảm bảo nút bấm luôn ở trên cùng
+    // Nút cài đặt
+    const settingsButton = this.add.image(40, 40, 'setting_button')
+      .setInteractive({ useHandCursor: true })
+      .setDepth(10)
+      .setScale(0.15)
 
-    this.add.text(100, 50, 'Quay lại', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontSize: '16px',
-      color: '#ffffff'
-    }).setOrigin(0.5)
-      .setDepth(11) // Text nằm trên nút bấm
-
-    backButton.on('pointerdown', () => {
-      if (this.scene.isActive('UIScene')) this.scene.stop('UIScene')
-      this.scene.start('MapScene')
+    settingsButton.on('pointerdown', () => {
+      const currentLevelId = this.scene.settings?.data?.levelId || 1
+      this.scene.launch('SettingsPopup', { levelId: currentLevelId })
     })
 
-    // Hiệu ứng hover cho nút quay lại
-    backButton.on('pointerover', () => {
-      backButton.setFillStyle(0xec7063)
+    settingsButton.on('pointerover', () => {
+      this.tweens.add({ targets: settingsButton, scale: 0.17, duration: 100 })
     })
-
-    backButton.on('pointerout', () => {
-      backButton.setFillStyle(0xe74c3c)
+    settingsButton.on('pointerout', () => {
+      this.tweens.add({ targets: settingsButton, scale: 0.15, duration: 100 })
     })
     // Khởi động timer UI nếu có cấu hình
     this.startTimer()

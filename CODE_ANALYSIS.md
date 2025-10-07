@@ -5,7 +5,7 @@
 **Framework:** Phaser 3 + Vite  
 **Ngôn ngữ:** JavaScript (ES6+)  
 **Kiến trúc:** OOP + Event-Driven + Data-Driven (level JSON)  
-**Trạng thái:** 🚀 Chơi được; match-3 đầy đủ (match, swap, gravity, refill, chain), power-ups (Bomb/Color Bomb, combo) với VFX chuyên dụng, booster (Hammer/Swap/Rocket/Shuffle) với VFX, blocker (Đá, Dây leo) với hệ thống ưu tiên sát thương, input management thông minh, PowerupVFXManager cho hiệu ứng power-up
+**Trạng thái:** 🚀 Chơi được; match-3 đầy đủ (match, swap, gravity, refill, chain), power-ups (Bomb/Color Bomb + combo Bomb+Bomb 5x5) với VFX chuyên dụng, booster (Hammer/Swap/Rocket/Shuffle) với VFX, blocker (Đá, Dây leo) với hệ thống ưu tiên sát thương, input management thông minh (pointer-based), PowerupVFXManager cho hiệu ứng power-up, `gemLayer` + mask để clip vùng chơi, có timer theo level
 
 ---
 
@@ -77,13 +77,14 @@ main.js → BootScene → PreloaderScene → MapScene → GameScene
 - Vẽ nền đơn giản, danh sách 5 nút map: "Màn 1..5". Click chọn map sẽ `start('GameScene', { levelId })`.
 
 ### `src/scenes/GameScene.js`
-- Hiển thị `map1_background` (depth 0), nền playground và border (depth 3).
-- Tạo `Board` ở giữa khung chơi, load level theo `levelId` (mặc định 1) từ cache.
-- Khởi chạy `UIScene` dạng overlay nếu chưa chạy; nút "Quay lại" về `MapScene` (UI depth 10+).
-- Quản lý `BoosterVFXManager` và `PowerupVFXManager` cho hiệu ứng visual của boosters và power-ups.
-- Input management thông minh: `pointerdown/move/up` events, `boardBusy` state locking.
-- Lắng nghe event booster từ `UIScene` qua `game.events` (`boosterSelected`/`boosterActivated`).
-- Hàm chính: `createBoard`, `loadLevelData`, `setupBoardEvents`, `onBoosterSelected/Activated`, `clearActiveBooster`, `onPointerDown/Move/Up`, `loadLevelFromJSON`.
+- Hiển thị `map1_background` (depth 0), nền playground (depth 0) và border (depth 3).
+- Tạo `gemLayer` (depth 2) và áp dụng `GeometryMask` hình chữ nhật khớp vùng board để clip toàn bộ gem trong khung chơi.
+- Tạo `Board` ở giữa khung chơi, truyền `powerupVFXManager` và `gemLayer`; load level theo `levelId` (mặc định 1) từ cache.
+- Khởi chạy `UIScene` overlay; có nút "Quay lại" về `MapScene` (UI depth 10+).
+- Quản lý `BoosterVFXManager` (booster VFX) và `PowerupVFXManager` (power-up VFX).
+- Input booster pointer-based: sử dụng `pointerdown/move/up` và `hitTest` trên cả `children.list` và `gemLayer.list` để preview/target chính xác (đặc biệt cho Rocket/Swap). Lắng nghe `boardBusy` để dọn preview; hỗ trợ `screenShake` qua `game.events`.
+- Hỗ trợ timer theo level: `startTimer()` đọc `levelData.starTimes.startTime`, emit `updateTimer` mỗi giây cho UI, dừng khi hết giờ.
+- Hàm chính: `createBoard`, `loadLevelData`, `setupBoardEvents`, `onBoosterSelected`, `clearActiveBooster`, `onPointerDown/Move/Up`, `loadLevelFromJSON`.
 
 ---
 
@@ -92,7 +93,7 @@ main.js → BootScene → PreloaderScene → MapScene → GameScene
 `Board` là lớp trung tâm, được lắp (mixin) từ 5 module: `BoardCreator`, `BoardInput`, `BoardMatcher`, `BoardPowerups`, `BoardState` thông qua `applyMixins`.
 
 ### Thuộc tính chính
-- `scene`, `offsetX`, `offsetY`, `cellSize`, `powerupVFXManager`.
+- `scene`, `offsetX`, `offsetY`, `cellSize`, `powerupVFXManager`, `gemLayer` (layer chứa toàn bộ gem, đã được mask trong `GameScene`).
 - `grid` 9x9 (mảng 2D), `blockerGrid` 9x9 (OOP blocker), `gems` (sprite), `blockers` (legacy sprite), `levelData`.
 - `selectedGem`, `selectionFrame` (graphics highlight, depth 5), `ropeDestroyedThisTurn` (cờ cho cơ chế lây lan dây leo).
 - `boardBusy` (cờ khóa logic game), helper functions: `getCellPosition`, `getBoardDimensions`, `isValidCell`.
@@ -124,30 +125,29 @@ main.js → BootScene → PreloaderScene → MapScene → GameScene
 
 ### `board/BoardPowerups.js`
 - `isPowerup`, `transformIntoPowerup`.
-- Kích hoạt power-up/combos: Bomb+Bomb, Color+Color, Color+Bomb (biến nhiều gem thành Bomb rồi nổ chain).
+- Kích hoạt power-up/combos: Bomb+Bomb, Color+Color, Color+Bomb; một phần kick-off combo được phối hợp trong `BoardState.startActionChain()` để đồng bộ VFX.
 - `damageCell(row, col)`: hàm trung tâm gây sát thương với ưu tiên Blocker > Gem.
 - Tác động blocker: tất cả power-up/booster sử dụng `damageCell()` thay vì `damageBlockerAt()`.
-- Booster đã tích hợp trên Board: `useHammer`, `useRocket`, `useSwap`, `useShuffle` (đồng bộ trạng thái input/UI qua `boardBusy`).
+- Booster trên Board: `useHammer`, `useRocket`, `useSwap`, `useShuffle`. VFX/emit `boardBusy` do `GameScene` điều phối; Board tập trung tính toán và xóa/spawn.
 - `getGemsInArea(r,c,radius)` tiện ích gom gem theo vùng.
 
 ### `board/BoardState.js`
 - `initGrid()`: tạo `grid` và `blockerGrid` 9x9 rỗng.
 - `clearBoard()`: hủy gem/blocker sprite/OOP, xóa ô nền, reset chọn.
 - `fillEmptyCells()`: điền ngẫu nhiên theo `availableGems`.
-- `updateGridAfterSwap`, `swapGems` (khóa input + báo UI), `decideActionAfterSwap`, `swapBack`.
-- `startActionChain(...)`: hợp nhất kết quả match và power-up; VFX power-up → tạo power-up → xóa → gravity → refill.
-- Tích hợp `PowerupVFXManager` để hiển thị hiệu ứng chuyên dụng cho Bomb và Color Bomb.
-- Logic VFX đồng bộ: kiểm tra loại power-up và gọi VFX tương ứng trước khi xử lý logic game.
-- `processMatchGroups(...)`: quy tắc ưu tiên vị trí tạo power-up (vị trí swap > điểm giao T/L > vị trí giữa) và loại (4→Bomb, ≥5→Color Bomb). Sử dụng `damageCell()` cho sát thương blocker.
-- `addWiggleEffect`, `removeGemSprites`, `createPowerupsAfterWiggle`.
-- `applyGravityAndRefill()`: đá nguyên khối (health=2) chặn hoàn toàn gravity; refill từ trên với tween; hẹn `checkForNewMatches` theo rơi dài nhất.
+- `updateGridAfterSwap`, `swapGems` (khóa input + emit `boardBusy=true`), `decideActionAfterSwap`, `swapBack` (unlock không tính lượt).
+- `startActionChain(initialMatchGroups, powerupToActivate, otherGem, swapPosition)`: hợp nhất kết quả match và power-up; gọi VFX chuyên dụng trước khi xóa/tạo; sau VFX: `removeGemSprites` → `createPowerupsAfterWiggle` → `applyGravityAndRefill`.
+- Tích hợp `PowerupVFXManager` cho Bomb, Color Bomb và combo Bomb+Bomb (5x5 quanh tâm sau swap) qua `playBombEffect`, `playColorBombEffect`, `playDoubleBombEffect`.
+- `processMatchGroups(...)`: ưu tiên vị trí tạo power-up (vị trí swap > điểm giao T/L > vị trí giữa), loại (4→Bomb, ≥5→Color Bomb); dùng `damageCell()` để gây sát thương blocker lân cận và bảo vệ ô tạo power-up khỏi bị xóa.
+- `addWiggleEffect`, `removeGemSprites` (phiên bản an toàn kiểm tra tồn tại sprite), `createPowerupsAfterWiggle` (biến đổi gem sẵn có, fallback tạo mới nếu trống).
+- `applyGravityAndRefill()`: đá 2 máu chặn gravity; rơi theo cột, tính toán `newGrid`, tween rơi với tốc độ theo khoảng cách; refill spawn từ trên, alpha=0 và chỉ hiện khi bắt đầu rơi; gọi `checkForNewMatches` ngay khi tween cuối hoàn tất; fallback gọi ngay nếu không có tween.
 - `checkForNewMatches()`: tiếp tục chain nếu còn, ngược lại `endOfTurn()`.
-- `endOfTurn()`: nếu không phá rope trong lượt, cho mọi rope lây lan một lần (dùng snapshot + plannedSpawns); reset cờ, bật input, báo UI `boardBusy=false`.
-- `getPowerupActivationSet(...)`: tập hợp ô bị ảnh hưởng cho các biến thể power-up/combo.
+- `endOfTurn()`: nếu không phá rope trong lượt, cho mọi rope lây lan một lần (snapshot + `plannedSpawns`); reset cờ, bật input, emit `boardBusy=false`.
+- `getPowerupActivationSet(...)`: trả về tập gem bị ảnh hưởng cho các biến thể power-up/combo; Bomb+Bomb sử dụng vùng 5x5 quanh vị trí mới của power-up sau swap.
 
 ### Thứ tự render (depth)
 1. Ô nền `cell` (1)
-2. Gem và Blocker (2)
+2. `gemLayer` chứa Gem/Blocker (2), có `GeometryMask` clip trong khung board
 3. Viền khung chơi (3)
 4. Khung chọn (5)
 5. UI overlay, nút điều hướng (10+)
@@ -176,8 +176,9 @@ main.js → BootScene → PreloaderScene → MapScene → GameScene
 - `objects/vfx/PowerupVFXManager.js`: Quản lý hiệu ứng visual cho power-ups (Bomb phóng to + rung camera, Color Bomb hút gem + lắc lư).
 
 ### `objects/vfx/PowerupVFXManager.js`
-- `playBombEffect(bombGem, affectedGems, onComplete)`: hiệu ứng Bomb với phóng to gấp 3 lần, rung camera, làm gem biến mất.
+- `playBombEffect(bombGem, affectedGems, onComplete)`: hiệu ứng Bomb với phóng to, rung camera, làm gem biến mất.
 - `playColorBombEffect(colorBombGem, affectedGems, onComplete)`: hiệu ứng Color Bomb với phóng to + lắc lư, hút tất cả gem cùng màu về trung tâm.
+- `playDoubleBombEffect(bombA, bombB, affectedGems, onComplete)`: hiệu ứng combo Bomb+Bomb (vùng nổ 5x5 quanh tâm sau swap) với shake.
 - `startSuckingGems(affectedGems, targetPos, onComplete)`: animation hút gem với delay ngẫu nhiên và callback đồng bộ.
 - Tích hợp với `BoardState.startActionChain()` để đồng bộ VFX với logic game.
 
@@ -194,13 +195,13 @@ main.js → BootScene → PreloaderScene → MapScene → GameScene
 
 ### Asset
 - Nguồn tại `public/assets/images/...` và `public/assets/levels`.
-- Key texture trùng tên với code: `gem_*`, `blocker_*`, `booster_*`, `map1_background`, `playground1_*`, `cell`.
+- Key texture trùng tên với code: `gem_*`, `blocker_*`, `booster_*`, `map1_background`, `playground1_*`, `cell`, `progress_bar_*`, `star_on/off`.
 
 ---
 
 ## ✅ Trạng Thái Tính Năng
 
-- Đã có: tạo board, chọn/swap, tìm match, xóa, gravity, refill, chain reaction; power-ups (Bomb/Color Bomb) + combos với VFX chuyên dụng; booster (Hammer/Swap/Rocket/Shuffle) với VFX; blocker (Đá chặn rơi, Dây leo lây lan) với hệ thống ưu tiên sát thương; input management thông minh; smart random generation; board state locking; PowerupVFXManager cho hiệu ứng power-up.
+- Đã có: tạo board, chọn/swap, tìm match, xóa, gravity, refill, chain reaction; power-ups (Bomb/Color Bomb) + combos (Bomb+Bomb 5x5) với VFX chuyên dụng; booster (Hammer/Swap/Rocket/Shuffle) với VFX; blocker (Đá chặn rơi, Dây leo lây lan) với hệ thống ưu tiên sát thương; input management thông minh (pointer-based); smart random generation; board state locking; PowerupVFXManager cho hiệu ứng power-up; `gemLayer` + mask; timer theo level.
 - Chưa có: UI điểm/số lượt/mục tiêu, âm thanh, quản lý người chơi, điều kiện thắng/thua, drag & drop, hiệu ứng/animation nâng cao, thiết kế level/điều kiện phức tạp hơn, leaderboard.
 
 ---
