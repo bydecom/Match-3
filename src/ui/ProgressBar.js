@@ -91,7 +91,7 @@ export class ProgressBar extends Phaser.GameObjects.Container {
             } else {
                 this.scene.tweens.add({
                     targets: star,
-                    angle: { from: -15, to: 15 },
+                    angle: { from: -15, to: 0 },
                     duration: 80,
                     yoyo: true,
                     repeat: 1,

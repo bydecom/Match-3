@@ -123,12 +123,14 @@ export class BoardState {
     let powerupToActivate = null
     let otherGem = null
 
-    // Lấy lại tham chiếu tới các gem tại vị trí mới sau khi grid đã được cập nhật
+    // Sau khi cập nhật grid, lấy lại 2 viên ở vị trí mới
     const gem1AtNewPos = this.grid[gem1.sprite.getData('row')][gem1.sprite.getData('col')]
     const gem2AtNewPos = this.grid[gem2.sprite.getData('row')][gem2.sprite.getData('col')]
 
-    // Chỉ kiểm tra và kích hoạt power-up nếu đây là swap thông thường của người chơi
-    // Nếu isBooster là true, khối lệnh if này sẽ được bỏ qua
+    // Luôn xác định match sau swap
+    const matchGroups = this.findAllMatches()
+
+    // Chỉ xác định power-up cần kích hoạt nếu KHÔNG phải booster swap
     if (!options.isBooster) {
       if (this.isPowerup(gem1AtNewPos)) {
         powerupToActivate = gem1AtNewPos
@@ -136,59 +138,41 @@ export class BoardState {
       } else if (this.isPowerup(gem2AtNewPos)) {
         powerupToActivate = gem2AtNewPos
         otherGem = gem1AtNewPos
-      } else {
-        otherGem = gem1AtNewPos
       }
     }
-    // Nếu đây là booster swap, powerupToActivate sẽ luôn là null
 
-    // Tìm kiếm các match-3 được tạo ra (nếu có)
-    const matchGroups = this.findAllMatches()
-
-    // Logic hoán đổi trả lại vẫn giữ nguyên
+    // Chỉ swap back khi không có match và không kích hoạt power-up, và không phải booster
     if (matchGroups.length === 0 && !powerupToActivate && !options.isBooster) {
       this.swapBack(gem1, gem2)
       return
     }
 
-    // Bất kể là swap thường hay booster, nếu có match được tạo ra, nó vẫn sẽ được xử lý
-    // Nhưng nếu là booster swap, powerupToActivate sẽ là null, nên không có power-up nào được kích hoạt
     this.startActionChain(matchGroups, powerupToActivate, otherGem, swapPosition)
   }
 
   startActionChain(initialMatchGroups, powerupToActivate, otherGem, swapPosition) {
     let allGemsToRemove = new Set()
     let powerupsToCreate = []
+
+    // Luôn xử lý match và lên kế hoạch tạo power-up
     if (initialMatchGroups.length > 0) {
       const { gemsRemoved, powerupsCreated } = this.processMatchGroups(initialMatchGroups, swapPosition)
       gemsRemoved.forEach(gem => allGemsToRemove.add(gem))
       powerupsToCreate = powerupsCreated
     }
+
+    // Luôn xử lý kích hoạt power-up
     if (powerupToActivate) {
       const explosionSet = this.getPowerupActivationSet(powerupToActivate, otherGem)
       explosionSet.forEach(gem => allGemsToRemove.add(gem))
     }
 
-    // === PHẦN SỬA LỖI LOGIC NẰM Ở ĐÂY ===
-
-    // Tạo một hàm callback để thực hiện logic game SAU KHI animation kết thúc
+    // Callback sau khi VFX hoàn tất: chỉ xóa và tạo, không bảo vệ tại đây nữa
     const onVFXComplete = () => {
-        this.createPowerupsAfterWiggle(powerupsToCreate);
-        const powerupPositions = new Set(powerupsToCreate.map(p => `${p.row},${p.col}`));
-        
-        const finalGemsToRemove = new Set();
-        allGemsToRemove.forEach(gem => {
-            const gemPos = `${gem.sprite.getData('row')},${gem.sprite.getData('col')}`;
-            if (!powerupPositions.has(gemPos)) {
-                finalGemsToRemove.add(gem);
-            }
-        });
-        
-        this.removeGemSprites(finalGemsToRemove);
-        this.scene.time.delayedCall(100, () => {
-            this.applyGravityAndRefill();
-        });
-    };
+      this.removeGemSprites(allGemsToRemove)
+      this.createPowerupsAfterWiggle(powerupsToCreate)
+      this.scene.time.delayedCall(150, () => { this.applyGravityAndRefill() })
+    }
 
     // --- BẮT ĐẦU SỬA TỪ KHỐI LOGIC KIỂM TRA POWER-UP ---
     if (powerupToActivate) {
@@ -235,25 +219,30 @@ export class BoardState {
 
   // Biến đổi gem tại các vị trí đã chọn thành power-up sau khi hiệu ứng lắc hoàn tất
   createPowerupsAfterWiggle(powerupsToCreate) {
-    powerupsToCreate.forEach(powerup => {
-      const gemAtPowerupPos = this.grid[powerup.row][powerup.col]
+    powerupsToCreate.forEach(powerupInfo => {
+      const row = powerupInfo.row
+      const col = powerupInfo.col
+      const gemAtPowerupPos = this.grid[row]?.[col]
+
       if (gemAtPowerupPos && gemAtPowerupPos.type === 'gem') {
-        this.transformIntoPowerup(gemAtPowerupPos, powerup.type)
-        console.log(`Created ${powerup.type} power-up at ${powerup.row},${powerup.col}`)
+        // Biến đổi viên gem hiện có thành power-up
+        this.transformIntoPowerup(gemAtPowerupPos, powerupInfo.type)
+        console.log(`Created ${powerupInfo.type} at ${row},${col}`)
+      } else {
+        // Nếu ô trống (trường hợp hiếm) thì tạo mới power-up
+        this.createGem(row, col, powerupInfo.type)
       }
     })
   }
 
   processMatchGroups(matchGroups, swapPosition = null) {
-    const gemsToRemove = new Set();
+    const gemsToRemoveFromMatch = new Set();
     const powerupsToCreate = [];
 
     matchGroups.forEach(group => {
       let powerupCreationPos = null;
 
-      // --- QUY TẮC ƯU TIÊN VỊ TRÍ TẠO POWER-UP ---
-
-      // ƯU TIÊN 1: Vị trí do người chơi SWAP vào.
+      // ƯU TIÊN 1: Vị trí do người chơi SWAP vào
       if (swapPosition) {
         const gemAtSwapPos = this.grid[swapPosition.row]?.[swapPosition.col];
         if (gemAtSwapPos && group.includes(gemAtSwapPos)) {
@@ -261,7 +250,7 @@ export class BoardState {
         }
       }
 
-      // ƯU TIÊN 2: Nếu là COMBO (không có swapPosition), tìm ĐIỂM GIAO NHAU (khuỷu tay).
+      // ƯU TIÊN 2: L/T-shape (điểm giao)
       if (!powerupCreationPos && group.length >= 4) {
         let intersectionGem = null;
         for (const gem of group) {
@@ -269,89 +258,69 @@ export class BoardState {
           const col = gem.sprite.getData('col');
           const hasHorizontalNeighbor = group.find(g => g.sprite.getData('row') === row && Math.abs(g.sprite.getData('col') - col) === 1);
           const hasVerticalNeighbor = group.find(g => Math.abs(g.sprite.getData('row') - row) === 1 && g.sprite.getData('col') === col);
-          if (hasHorizontalNeighbor && hasVerticalNeighbor) {
-            intersectionGem = gem;
-            break;
-          }
+          if (hasHorizontalNeighbor && hasVerticalNeighbor) { intersectionGem = gem; break; }
         }
         if (intersectionGem) {
-          powerupCreationPos = {
-            row: intersectionGem.sprite.getData('row'),
-            col: intersectionGem.sprite.getData('col')
-          };
+          powerupCreationPos = { row: intersectionGem.sprite.getData('row'), col: intersectionGem.sprite.getData('col') };
         }
       }
 
-      // ƯU TIÊN 3: Nếu không có cả hai ở trên (chỉ là ĐƯỜNG THẲNG), mới lấy vị trí giữa.
+      // ƯU TIÊN 3: Đường thẳng, lấy giữa
       if (!powerupCreationPos && group.length >= 4) {
         if (group.length === 4) {
           const middleIndex = Phaser.Math.RND.pick([1, 2]);
           const middleGem = group[middleIndex];
-          powerupCreationPos = {
-            row: middleGem.sprite.getData('row'),
-            col: middleGem.sprite.getData('col')
-          };
+          powerupCreationPos = { row: middleGem.sprite.getData('row'), col: middleGem.sprite.getData('col') };
         } else {
           const middleGem = group[Math.floor(group.length / 2)];
-          powerupCreationPos = {
-            row: middleGem.sprite.getData('row'),
-            col: middleGem.sprite.getData('col')
-          };
+          powerupCreationPos = { row: middleGem.sprite.getData('row'), col: middleGem.sprite.getData('col') };
         }
       }
 
-      // --- QUYẾT ĐỊNH LOẠI POWER-UP DỰA TRÊN VỊ TRÍ ĐÃ TÌM ĐƯỢC ---
+      // Quyết định loại power-up
       if (powerupCreationPos) {
-        if (group.length === 4) {
-          powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
-        } else if (group.length >= 5) {
-          powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
-        }
+        if (group.length === 4) powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
+        else if (group.length >= 5) powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
       }
 
-      // Thêm tất cả gem trong cụm này vào danh sách xóa
-      group.forEach(gem => gemsToRemove.add(gem));
+      // Gom tất cả gem trong group vào danh sách xóa ban đầu
+      group.forEach(gem => gemsToRemoveFromMatch.add(gem));
     });
 
-    // Sử dụng damageCell để xử lý sát thương cho các ô lân cận
-    const gemsAndAdjacentCells = new Set()
-    gemsToRemove.forEach(gem => {
-      const r = gem.sprite.getData('row')
-      const c = gem.sprite.getData('col')
-      gemsAndAdjacentCells.add(`${r},${c}`) // Ô chứa gem
-      // Thêm các ô kề bên
-      gemsAndAdjacentCells.add(`${r-1},${c}`)
-      gemsAndAdjacentCells.add(`${r+1},${c}`)
-      gemsAndAdjacentCells.add(`${r},${c-1}`)
-      gemsAndAdjacentCells.add(`${r},${c+1}`)
-    })
-
+    // Gây sát thương blocker lân cận (giữ nguyên logic hiện có)
+    const gemsAndAdjacentCells = new Set();
+    gemsToRemoveFromMatch.forEach(gem => {
+      const r = gem.sprite.getData('row');
+      const c = gem.sprite.getData('col');
+      gemsAndAdjacentCells.add(`${r},${c}`);
+      gemsAndAdjacentCells.add(`${r-1},${c}`);
+      gemsAndAdjacentCells.add(`${r+1},${c}`);
+      gemsAndAdjacentCells.add(`${r},${c-1}`);
+      gemsAndAdjacentCells.add(`${r},${c+1}`);
+    });
     gemsAndAdjacentCells.forEach(coord => {
-      const [r, c] = coord.split(',').map(Number)
-      // Chỉ gây sát thương cho blocker, không phá gem lân cận
-      const blocker = this.blockerGrid?.[r]?.[c]
+      const [r, c] = coord.split(',').map(Number);
+      const blocker = this.blockerGrid?.[r]?.[c];
       if (blocker) {
-        const destroyed = blocker.takeDamage()
+        const destroyed = blocker.takeDamage();
         if (destroyed) {
-          this.blockerGrid[r][c] = null
-          if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+          this.blockerGrid[r][c] = null;
+          if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true;
         }
       }
-    })
+    });
 
-    // Thêm tất cả gem TRONG GROUP MATCH vào danh sách xóa
-    // (chỉ thêm nếu không có blocker che chắn)
-    const finalGemsToRemove = new Set()
-    gemsToRemove.forEach(gem => {
-      const r = gem.sprite.getData('row')
-      const c = gem.sprite.getData('col')
-      // Chỉ thêm vào nếu không có blocker che chắn
-      if (!this.blockerGrid[r]?.[c]) {
-        finalGemsToRemove.add(gem)
-      }
-    })
+    // Bảo vệ: loại bỏ gem tại vị trí tạo power-up khỏi danh sách xóa
+    if (powerupsToCreate.length > 0) {
+      const powerupPositions = new Set(powerupsToCreate.map(p => `${p.row},${p.col}`));
+      gemsToRemoveFromMatch.forEach(gem => {
+        if (!gem || !gem.sprite) return;
+        const pos = `${gem.sprite.getData('row')},${gem.sprite.getData('col')}`;
+        if (powerupPositions.has(pos)) gemsToRemoveFromMatch.delete(gem);
+      });
+    }
 
-    return { gemsRemoved: finalGemsToRemove, powerupsCreated: powerupsToCreate };
+    return { gemsRemoved: gemsToRemoveFromMatch, powerupsCreated: powerupsToCreate };
   }
 
   // << THAY THẾ HÀM removeGemSprites BẰNG PHIÊN BẢN AN TOÀN NÀY >>
