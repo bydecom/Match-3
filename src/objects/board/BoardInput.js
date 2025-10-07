@@ -86,6 +86,18 @@
       console.log(`Blocker clicked: ${blockerType} at ${row},${col}`)
       this.scene.events.emit('blockerSelected', { row, col, type: blockerType })
     }
+
+    /**
+     * Hủy bỏ lựa chọn gem hiện tại trên board.
+     * Dùng khi có một hành động bên ngoài (như chọn booster) yêu cầu.
+     */
+    clearSelection() {
+      if (this.selectedGem) {
+        console.log('Board selection cleared due to booster selection.');
+        this.selectionFrame.setVisible(false);
+        this.selectedGem = null;
+      }
+    }
   }
 
 

@@ -122,17 +122,37 @@ export class BoardState {
   decideActionAfterSwap(gem1, gem2, swapPosition, options = {}) {
     let powerupToActivate = null
     let otherGem = null
-    // Sau khi cập nhật grid, xác định lại object tại vị trí mới
+
+    // Lấy lại tham chiếu tới các gem tại vị trí mới sau khi grid đã được cập nhật
     const gem1AtNewPos = this.grid[gem1.sprite.getData('row')][gem1.sprite.getData('col')]
     const gem2AtNewPos = this.grid[gem2.sprite.getData('row')][gem2.sprite.getData('col')]
-    if (this.isPowerup(gem1AtNewPos)) { powerupToActivate = gem1AtNewPos; otherGem = gem2AtNewPos }
-    else if (this.isPowerup(gem2AtNewPos)) { powerupToActivate = gem2AtNewPos; otherGem = gem1AtNewPos }
-    else { otherGem = gem1AtNewPos }
+
+    // Chỉ kiểm tra và kích hoạt power-up nếu đây là swap thông thường của người chơi
+    // Nếu isBooster là true, khối lệnh if này sẽ được bỏ qua
+    if (!options.isBooster) {
+      if (this.isPowerup(gem1AtNewPos)) {
+        powerupToActivate = gem1AtNewPos
+        otherGem = gem2AtNewPos
+      } else if (this.isPowerup(gem2AtNewPos)) {
+        powerupToActivate = gem2AtNewPos
+        otherGem = gem1AtNewPos
+      } else {
+        otherGem = gem1AtNewPos
+      }
+    }
+    // Nếu đây là booster swap, powerupToActivate sẽ luôn là null
+
+    // Tìm kiếm các match-3 được tạo ra (nếu có)
     const matchGroups = this.findAllMatches()
+
+    // Logic hoán đổi trả lại vẫn giữ nguyên
     if (matchGroups.length === 0 && !powerupToActivate && !options.isBooster) {
       this.swapBack(gem1, gem2)
       return
     }
+
+    // Bất kể là swap thường hay booster, nếu có match được tạo ra, nó vẫn sẽ được xử lý
+    // Nhưng nếu là booster swap, powerupToActivate sẽ là null, nên không có power-up nào được kích hoạt
     this.startActionChain(matchGroups, powerupToActivate, otherGem, swapPosition)
   }
 
@@ -148,25 +168,68 @@ export class BoardState {
       const explosionSet = this.getPowerupActivationSet(powerupToActivate, otherGem)
       explosionSet.forEach(gem => allGemsToRemove.add(gem))
     }
-    if (allGemsToRemove.size > 0) {
-      this.addWiggleEffect(Array.from(allGemsToRemove), () => {
-        this.createPowerupsAfterWiggle(powerupsToCreate)
-        const powerupPositions = new Set(powerupsToCreate.map(p => `${p.row},${p.col}`))
-        const finalGemsToRemove = new Set()
+
+    // === PHẦN SỬA LỖI LOGIC NẰM Ở ĐÂY ===
+
+    // Tạo một hàm callback để thực hiện logic game SAU KHI animation kết thúc
+    const onVFXComplete = () => {
+        this.createPowerupsAfterWiggle(powerupsToCreate);
+        const powerupPositions = new Set(powerupsToCreate.map(p => `${p.row},${p.col}`));
+        
+        const finalGemsToRemove = new Set();
         allGemsToRemove.forEach(gem => {
-          const gemPos = `${gem.sprite.getData('row')},${gem.sprite.getData('col')}`
-          if (!powerupPositions.has(gemPos)) finalGemsToRemove.add(gem)
-        })
-        this.removeGemSprites(finalGemsToRemove)
-        this.scene.time.delayedCall(300, () => {
-          this.applyGravityAndRefill()
-        })
-      })
-    } else if (powerupsToCreate.length > 0) {
-      this.createPowerupsAfterWiggle(powerupsToCreate)
-      this.applyGravityAndRefill()
+            const gemPos = `${gem.sprite.getData('row')},${gem.sprite.getData('col')}`;
+            if (!powerupPositions.has(gemPos)) {
+                finalGemsToRemove.add(gem);
+            }
+        });
+        
+        this.removeGemSprites(finalGemsToRemove);
+        this.scene.time.delayedCall(100, () => {
+            this.applyGravityAndRefill();
+        });
+    };
+
+    // --- BẮT ĐẦU SỬA TỪ KHỐI LOGIC KIỂM TRA POWER-UP ---
+    if (powerupToActivate) {
+        // KIỂM TRA TRƯỚC TIÊN: CÓ PHẢI LÀ COMBO KHÔNG?
+        if (this.isPowerup(otherGem)) {
+            const type1 = powerupToActivate.value
+            const type2 = otherGem.value
+
+            // COMBO BOMB + BOMB
+            if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
+                // powerupToActivate là viên gem được chọn (selected)
+                // otherGem là viên gem ở vị trí đích (target)
+                this.powerupVFXManager.playDoubleBombEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
+            } 
+            else {
+                // Nếu là các combo khác chưa có VFX, tạm thời dùng hiệu ứng wiggle cũ
+                this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
+            }
+        }
+        // NẾU KHÔNG PHẢI COMBO, MÀ LÀ KÍCH HOẠT ĐƠN
+        else {
+            if (powerupToActivate.value === GEM_TYPES.BOMB) {
+                this.powerupVFXManager.playBombEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
+            } else if (powerupToActivate.value === GEM_TYPES.COLOR_BOMB) {
+                this.powerupVFXManager.playColorBombEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
+            } else {
+                // Trường hợp power-up khác trong tương lai, tạm thời dùng logic cũ
+                onVFXComplete()
+            }
+        }
+    } 
+    // Nếu chỉ là một match-3 thông thường, không có power-up
+    else if (allGemsToRemove.size > 0) {
+        this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete);
+    } 
+    // Nếu không có gì để xóa (ví dụ: chỉ tạo power-up)
+    else if (powerupsToCreate.length > 0) {
+        this.createPowerupsAfterWiggle(powerupsToCreate)
+        this.applyGravityAndRefill()
     } else {
-      this.endOfTurn()
+        this.endOfTurn();
     }
   }
 
@@ -250,30 +313,45 @@ export class BoardState {
       group.forEach(gem => gemsToRemove.add(gem));
     });
 
-    // Phần phá blocker giữ nguyên
-    const blockersToDamage = new Set()
+    // Sử dụng damageCell để xử lý sát thương cho các ô lân cận
+    const gemsAndAdjacentCells = new Set()
     gemsToRemove.forEach(gem => {
       const r = gem.sprite.getData('row')
       const c = gem.sprite.getData('col')
-      const neighbors = [ { r: r-1, c }, { r: r+1, c }, { r, c: c-1 }, { r, c: c+1 } ]
-      neighbors.forEach(n => {
-        if (n.r >= 0 && n.r < GRID_SIZE && n.c >= 0 && n.c < GRID_SIZE) {
-          const blocker = this.blockerGrid[n.r]?.[n.c]
-          if (blocker && (blocker.type === 'stone' || blocker.type === 'rope')) blockersToDamage.add(blocker)
-        }
-      })
-      const ropeOnGem = this.blockerGrid[r]?.[c]
-      if (ropeOnGem && ropeOnGem.type === 'rope') blockersToDamage.add(ropeOnGem)
+      gemsAndAdjacentCells.add(`${r},${c}`) // Ô chứa gem
+      // Thêm các ô kề bên
+      gemsAndAdjacentCells.add(`${r-1},${c}`)
+      gemsAndAdjacentCells.add(`${r+1},${c}`)
+      gemsAndAdjacentCells.add(`${r},${c-1}`)
+      gemsAndAdjacentCells.add(`${r},${c+1}`)
     })
-    blockersToDamage.forEach(blocker => {
-      const destroyed = blocker.takeDamage()
-      if (destroyed) {
-        this.blockerGrid[blocker.row][blocker.col] = null
-        if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+
+    gemsAndAdjacentCells.forEach(coord => {
+      const [r, c] = coord.split(',').map(Number)
+      // Chỉ gây sát thương cho blocker, không phá gem lân cận
+      const blocker = this.blockerGrid?.[r]?.[c]
+      if (blocker) {
+        const destroyed = blocker.takeDamage()
+        if (destroyed) {
+          this.blockerGrid[r][c] = null
+          if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+        }
       }
     })
 
-    return { gemsRemoved: gemsToRemove, powerupsCreated: powerupsToCreate };
+    // Thêm tất cả gem TRONG GROUP MATCH vào danh sách xóa
+    // (chỉ thêm nếu không có blocker che chắn)
+    const finalGemsToRemove = new Set()
+    gemsToRemove.forEach(gem => {
+      const r = gem.sprite.getData('row')
+      const c = gem.sprite.getData('col')
+      // Chỉ thêm vào nếu không có blocker che chắn
+      if (!this.blockerGrid[r]?.[c]) {
+        finalGemsToRemove.add(gem)
+      }
+    })
+
+    return { gemsRemoved: finalGemsToRemove, powerupsCreated: powerupsToCreate };
   }
 
   removeGemSprites(gemsToRemove) {
@@ -330,72 +408,108 @@ export class BoardState {
   }
 
   applyGravityAndRefill() {
-    let fallingGemsCount = 0
-    let longestDropDuration = 0
+    let longestDropDuration = 0;
+    const speed = 0.5; // Tốc độ rơi (pixels per millisecond). Tăng từ 1.5 lên 2.5 cho nhanh hơn.
+    const waveDelay = 0; // Giảm delay gợn sóng từ 60ms xuống 30ms.
+
+    // --- BƯỚC 1: TÍNH TOÁN VỊ TRÍ MỚI CHO TẤT CẢ GEM (LOGIC GIỮ NGUYÊN) ---
+    const newGrid = [];
+    for (let i = 0; i < GRID_SIZE; i++) newGrid.push(Array(GRID_SIZE).fill(null));
+
     for (let col = 0; col < GRID_SIZE; col++) {
-      let emptySlots = 0
-      for (let row = GRID_SIZE - 1; row >= 0; row--) {
-        const currentCell = this.grid[row][col]
-        const blockerAtCell = this.blockerGrid[row][col]
-        // Đá chặn rơi: reset khoảng trống, không cho vượt qua
-        if (blockerAtCell && blockerAtCell.type === 'stone') {
-          emptySlots = 0
-          continue
+        let newRow = GRID_SIZE - 1;
+        for (let row = GRID_SIZE - 1; row >= 0; row--) {
+            const blocker = this.blockerGrid[row]?.[col];
+            if (blocker && blocker.type === 'stone' && blocker.health === 2) {
+                newRow = row - 1;
+                continue;
+            }
+            const gem = this.grid[row][col];
+            if (gem) {
+                newGrid[newRow][col] = gem;
+                newRow--;
+            }
         }
-        if (currentCell === null) {
-          emptySlots++
-        } else if (emptySlots > 0) {
-          const gemObject = currentCell
-          const newRow = row + emptySlots
-          this.grid[newRow][col] = gemObject
-          this.grid[row][col] = null
-          gemObject.sprite.setData('row', newRow)
-          fallingGemsCount++
-          const duration = 200 + emptySlots * 50
-          if (duration > longestDropDuration) longestDropDuration = duration
-          this.scene.tweens.add({
-            targets: gemObject.sprite,
-            y: this.offsetY + newRow * this.cellSize + this.cellSize / 2,
-            duration: duration,
-            ease: 'Power2',
-            onComplete: () => { fallingGemsCount-- }
-          })
-        }
-      }
     }
+    this.grid = newGrid;
+
+    // --- BƯỚC 2: TẠO ANIMATION RƠI VÀ REFILL ---
+    let tweensCompleted = 0;
+    let totalTweens = 0;
+
+    const onTweenComplete = () => {
+        tweensCompleted++;
+        if (tweensCompleted === totalTweens) {
+            // KHI TWEEN CUỐI CÙNG HOÀN TẤT, GỌI checkForNewMatches NGAY LẬP TỨC
+            this.checkForNewMatches();
+        }
+    };
+
     for (let col = 0; col < GRID_SIZE; col++) {
-      let emptyCount = 0
-      for (let row = 0; row < GRID_SIZE; row++) {
-        const hasStone = this.blockerGrid[row][col] && this.blockerGrid[row][col].type === 'stone'
-        if (hasStone) {
-          emptyCount = 0
-          continue
+        let emptyCountInColumn = 0;
+        for (let row = GRID_SIZE - 1; row >= 0; row--) {
+            const gem = this.grid[row][col];
+            const endY = this.offsetY + row * this.cellSize + this.cellSize / 2;
+            
+            if (gem && gem.sprite.y !== endY) {
+                // Đây là gem "cũ" cần rơi
+                gem.sprite.setData('row', row);
+                const distance = Math.abs(endY - gem.sprite.y);
+                const duration = distance / speed;
+
+                totalTweens++;
+                this.scene.tweens.add({
+                    targets: gem.sprite,
+                    y: endY,
+                    duration: duration,
+                    delay: col * waveDelay,
+                    ease: 'Cubic.easeIn',
+                    onComplete: onTweenComplete
+                });
+
+            } else if (!gem) {
+                // Đây là ô trống cần refill
+                const blocker = this.blockerGrid[row]?.[col];
+                if (blocker && blocker.type === 'stone' && blocker.health === 2) continue;
+                
+                emptyCountInColumn++;
+                const availableGems = this.levelData.availableGems || Object.values(GEM_TYPES);
+                const randomGemType = Phaser.Math.RND.pick(availableGems);
+                
+                // Vị trí bắt đầu "ảo" từ trên cao
+                const startY = this.offsetY - emptyCountInColumn * this.cellSize;
+                
+                const newGemSprite = this.createGemAt(row, col, randomGemType, startY);
+                // << GIẢI QUYẾT VẤN ĐỀ "GEM TREO LƠ LỬNG" >>
+                // Đặt gem vô hình ban đầu
+                newGemSprite.setAlpha(0);
+
+                this.grid[row][col] = { type: 'gem', value: randomGemType, sprite: newGemSprite };
+
+                const distance = Math.abs(endY - startY);
+                const duration = distance / speed;
+
+                totalTweens++;
+                this.scene.tweens.add({
+                    targets: newGemSprite,
+                    y: endY,
+                    duration: duration,
+                    delay: col * waveDelay,
+                    ease: 'Cubic.easeIn',
+                    onStart: () => {
+                        // << CHỈ HIỆN GEM RA KHI NÓ BẮT ĐẦU RƠI >>
+                        newGemSprite.setAlpha(1);
+                    },
+                    onComplete: onTweenComplete
+                });
+            }
         }
-        if (this.grid[row][col] === null) {
-          emptyCount++
-          const availableGems = this.levelData.availableGems || Object.values(GEM_TYPES)
-          const randomGemType = Phaser.Math.RND.pick(availableGems)
-          const startY = this.offsetY - emptyCount * this.cellSize
-          const endY = this.offsetY + row * this.cellSize + this.cellSize / 2
-          const newGem = this.createGemAt(row, col, randomGemType, startY)
-          this.grid[row][col] = { type: 'gem', value: randomGemType, sprite: newGem }
-          fallingGemsCount++
-          const duration = 300 + row * 60
-          if (duration > longestDropDuration) longestDropDuration = duration
-          this.scene.tweens.add({
-            targets: newGem,
-            y: endY,
-            duration: duration,
-            ease: 'Power2',
-            onComplete: () => { fallingGemsCount-- }
-          })
-        }
-      }
     }
-    if (fallingGemsCount === 0) {
-      this.checkForNewMatches()
-    } else {
-      this.scene.time.delayedCall(longestDropDuration, () => { this.checkForNewMatches() })
+
+    // --- BƯỚC 3: XỬ LÝ TRƯỜNG HỢP KHÔNG CÓ GÌ RƠI ---
+    // Nếu không có animation nào được tạo, có nghĩa là board đã ổn định.
+    if (totalTweens === 0) {
+        this.checkForNewMatches();
     }
   }
 
@@ -449,8 +563,20 @@ export class BoardState {
           }
         }
       } else if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
-        const explosion1 = this.getGemsInArea(powerupGem.sprite.getData('row'), powerupGem.sprite.getData('col'), 2)
-        explosion1.forEach(gem => resultSet.add(gem))
+        // --- BẮT ĐẦU SỬA TỪ ĐÂY ---
+        // COMBO: BOMB + BOMB (Nổ 5x5)
+        // LƯU Ý QUAN TRỌNG:
+        // Hàm này được gọi SAU KHI swap đã xảy ra.
+        // `powerupGem` (quả bom được chọn) lúc này đã nằm ở vị trí của `otherGem`.
+        // Do đó, vị trí của `powerupGem` chính là tâm của vụ nổ.
+        
+        const centerRow = powerupGem.sprite.getData('row')
+        const centerCol = powerupGem.sprite.getData('col')
+        
+        // Lấy tất cả gem trong bán kính 2 (tức là vùng 5x5) từ tâm mới này
+        const explosion = this.getGemsInArea(centerRow, centerCol, 2)
+        explosion.forEach(gem => resultSet.add(gem))
+        // --- KẾT THÚC SỬA Ở ĐÂY ---
       } else {
         const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupGem : otherGem
         const bomb = (colorBomb === powerupGem) ? otherGem : powerupGem

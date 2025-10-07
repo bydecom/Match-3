@@ -2,6 +2,20 @@
 import { GEM_TYPES, GRID_SIZE } from '../../utils/constants'
 
 export class BoardMatcher {
+  // << THÊM HÀM HELPER NÀY >>
+  canMatchAt(row, col) {
+    const blocker = this.blockerGrid?.[row]?.[col]
+    if (!blocker) return true // Không có blocker, có thể match
+
+    // Đá nguyên khối không thể match
+    if (blocker.type === 'stone' && blocker.health === 2) {
+      return false
+    }
+
+    // Đá vỡ và dây leo có thể match
+    return true
+  }
+
   findAllMatches() {
     let horizontalMatches = []
     let verticalMatches = []
@@ -10,11 +24,11 @@ export class BoardMatcher {
       for (let col = 0; col < GRID_SIZE - 2; ) {
         const gem = this.grid[row][col]
         const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB)
-        if (gem && gem.type === 'gem' && !isPowerUp) {
+        if (gem && gem.type === 'gem' && !isPowerUp && this.canMatchAt(row, col)) {
           let match = [gem]
           for (let i = col + 1; i < GRID_SIZE; i++) {
             const nextGem = this.grid[row][i]
-            if (nextGem && nextGem.type === 'gem' && nextGem.value === gem.value) {
+            if (nextGem && nextGem.type === 'gem' && nextGem.value === gem.value && this.canMatchAt(row, i)) {
               match.push(nextGem)
             } else {
               break
@@ -32,11 +46,11 @@ export class BoardMatcher {
       for (let row = 0; row < GRID_SIZE - 2; ) {
         const gem = this.grid[row][col]
         const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB)
-        if (gem && gem.type === 'gem' && !isPowerUp) {
+        if (gem && gem.type === 'gem' && !isPowerUp && this.canMatchAt(row, col)) {
           let match = [gem]
           for (let i = row + 1; i < GRID_SIZE; i++) {
             const nextGem = this.grid[i][col]
-            if (nextGem && nextGem.type === 'gem' && nextGem.value === gem.value) {
+            if (nextGem && nextGem.type === 'gem' && nextGem.value === gem.value && this.canMatchAt(i, col)) {
               match.push(nextGem)
             } else {
               break

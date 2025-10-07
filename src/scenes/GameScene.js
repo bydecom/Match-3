@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { Board } from '../objects/Board'
 import { SCENE_KEYS, BOOSTER_TYPES } from '../utils/constants'
 import { BoosterVFXManager } from '../objects/vfx/BoosterVFXManager'
+import { PowerupVFXManager } from '../objects/vfx/PowerupVFXManager'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -153,13 +154,43 @@ export class GameScene extends Phaser.Scene {
   }
 
   createBoard(centerX, centerY, playgroundSize) {
-    // Tính toán kích thước cell
-    const cellSize = playgroundSize * 0.93 / 9
-    const boardOffsetX = centerX - (cellSize * 9) / 2
-    const boardOffsetY = centerY - (cellSize * 9) / 2
+    const gridSize = 9
+    const cellSize = playgroundSize * 0.93 / gridSize
+    const boardOffsetX = centerX - (cellSize * gridSize) / 2
+    const boardOffsetY = centerY - (cellSize * gridSize) / 2
     
-    // Tạo Board
-    this.board = new Board(this, boardOffsetX, boardOffsetY, cellSize)
+    // === PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ===
+
+    // 1. TẠO MỘT LAYER ĐỂ CHỨA TẤT CẢ CÁC GEM
+    // Layer này sẽ hoạt động như một container riêng
+    this.gemLayer = this.add.layer()
+
+    // === PHẦN SỬA LỖI NẰM Ở ĐÂY ===
+    // 2. GÁN DEPTH CHO LAYER ĐỂ KIỂM SOÁT THỨ TỰ RENDER
+    // Layer này sẽ nằm trên các cell (depth 1) và dưới border (depth 3)
+    this.gemLayer.setDepth(2)
+    // ===============================
+
+    // 3. TÍNH TOÁN KÍCH THƯỚC VÀ TẠO MẶT NẠ (giống như trước)
+    const boardWidth = gridSize * cellSize
+    const boardHeight = gridSize * cellSize
+    const maskShape = this.make.graphics()
+    maskShape.fillStyle(0xffffff)
+    maskShape.fillRect(boardOffsetX, boardOffsetY, boardWidth, boardHeight)
+    const mask = maskShape.createGeometryMask()
+
+    // 3. ÁP DỤNG MẶT NẠ CHỈ CHO LAYER GEM
+    this.gemLayer.setMask(mask)
+    
+    // 4. XÓA BỎ LỆNH GỌI setMask CHO CAMERA
+    // this.cameras.main.setMask(mask) // << XÓA HOẶC CHÚ THÍCH DÒNG NÀY
+
+    // === KẾT THÚC PHẦN SỬA LỖI ===
+
+    // Tạo PowerupVFXManager và Board
+    this.powerupVFXManager = new PowerupVFXManager(this)
+    // Truyền layer vào cho Board để nó biết nơi cần thêm gem vào
+    this.board = new Board(this, boardOffsetX, boardOffsetY, cellSize, this.powerupVFXManager, this.gemLayer)
     
     // Load level data
     this.loadLevelData()
@@ -191,14 +222,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   onBoosterSelected(boosterType) {
-    // 1. Dọn dẹp hiệu ứng của booster cũ (nếu có)
+    // === PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ===
+
+    // 1. RA LỆNH CHO BOARD HỦY LỰA CHỌN GEM HIỆN TẠI (NẾU CÓ)
+    this.board?.clearSelection(); // Dùng optional chaining `?.` để an toàn
+
+    // === KẾT THÚC PHẦN SỬA LỖI ===
+
+    // 2. Dọn dẹp hiệu ứng của booster cũ (nếu có)
     this.boosterVFXManager?.clearCurrentVFX()
 
-    // 2. Cập nhật trạng thái cho booster mới
+    // 3. Cập nhật trạng thái cho booster mới
     this.activeBooster = boosterType
     this.firstSwapGem = null
 
-    // 3. Hiển thị hiệu ứng ban đầu cho booster mới (nếu cần)
+    // 4. Hiển thị hiệu ứng ban đầu cho booster mới (nếu cần)
     if (boosterType === BOOSTER_TYPES.SHUFFLE && this.boosterVFXManager) {
       this.boosterVFXManager.showShuffleConfirmation()
     }

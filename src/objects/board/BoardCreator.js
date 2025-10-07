@@ -50,17 +50,25 @@ export class BoardCreator {
     const y = startY !== undefined ? startY : this.offsetY + row * this.cellSize + this.cellSize / 2
     console.log(`Creating gem ${gemType} at row:${row}, col:${col}, x:${x}, y:${y}`)
     const gemTextureKey = `gem_${gemType}`
-    const gem = this.scene.add.image(x, y, gemTextureKey)
-      .setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.8)
+    
+    // === SỬA DÒNG NÀY ===
+    // const gem = this.scene.add.image(x, y, gemTextureKey)
+    // THÀNH
+    const gem = this.gemLayer.add(
+      this.scene.make.image({ x, y, key: gemTextureKey, add: false })
+    )
+    // ======================
+    
+    gem.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.8)
       .setInteractive()
-      .setDepth(2)
+      .setDepth(2) // Depth này giờ là depth bên trong Layer
     gem.setData({ row, col, type: gemType, isGem: true })
     gem.on('pointerdown', () => {
       const currentRow = gem.getData('row')
       const currentCol = gem.getData('col')
       this.handleGemClick(currentRow, currentCol)
     })
-    this.gems.push(gem)
+    this.gems.push(gem) // Vẫn giữ để quản lý riêng
     return gem
   }
 

@@ -7,11 +7,13 @@ import { BoardPowerups } from './board/BoardPowerups'
 import { BoardState } from './board/BoardState'
 
 export class Board {
-  constructor(scene, offsetX, offsetY, cellSize) {
+  constructor(scene, offsetX, offsetY, cellSize, powerupVFXManager, gemLayer) {
     this.scene = scene
     this.offsetX = offsetX
     this.offsetY = offsetY
     this.cellSize = cellSize
+    this.powerupVFXManager = powerupVFXManager // Lưu lại tham chiếu
+    this.gemLayer = gemLayer // << LƯU LẠI THAM CHIẾU ĐẾN LAYER
 
     // Khởi tạo state
     this.grid = []
