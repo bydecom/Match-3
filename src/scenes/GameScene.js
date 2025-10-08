@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { Board } from '../objects/Board'
 import { SCENE_KEYS, BOOSTER_TYPES } from '../utils/constants'
+import { GRID_SIZE } from '../utils/constants'
 import { BoosterVFXManager } from '../objects/vfx/BoosterVFXManager'
 import { PowerupVFXManager } from '../objects/vfx/PowerupVFXManager'
 
@@ -353,6 +354,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   // << THAY THẾ TOÀN BỘ HÀM NÀY >>
+ // src/scenes/GameScene.js
+
+// ... (các hàm khác giữ nguyên)
+
+  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
   onPointerUp(pointer) {
     this.isPointerDown = false
 
@@ -365,7 +371,7 @@ export class GameScene extends Phaser.Scene {
     // Nếu không có booster nào đang được chọn, không làm gì cả
     if (!this.activeBooster) return
 
-    // --- LOGIC MỚI CHO SWAP BOOSTER ---
+    // --- LOGIC CHO SWAP BOOSTER ---
     if (this.activeBooster === BOOSTER_TYPES.SWAP) {
       if (!clickedObject) return
       const row = clickedObject.getData('row')
@@ -374,23 +380,19 @@ export class GameScene extends Phaser.Scene {
       if (!clickedGem || clickedGem.type !== 'gem') return
 
       if (!this.firstSwapGem) {
-        // Click đầu tiên: lưu lại và preview
         this.firstSwapGem = clickedGem
         this.boosterVFXManager?.showSwapPreview(row, col)
       } else {
-        // Click thứ hai
         if (this.firstSwapGem !== clickedGem) {
           this.game.events.emit('boardBusy', true)
           this.board.useSwap(this.firstSwapGem, clickedGem)
         }
-        // Dọn dẹp sau click thứ hai (dù có swap hay không)
         this.clearActiveBooster()
       }
       return
     }
-    // --- KẾT THÚC LOGIC SWAP ---
-
-    // Logic cho các booster khác (Hammer, Rocket, Shuffle) - kích hoạt ngay sau 1 click
+    
+    // --- LOGIC CHO CÁC BOOSTER CÒN LẠI ---
     const boosterToUse = this.activeBooster
     this.clearActiveBooster()
 
@@ -416,12 +418,45 @@ export class GameScene extends Phaser.Scene {
         }
         break
 
+      // << PHIÊN BẢN ĐÚNG ĐỂ CLONE CẢ BLOCKER >>
       case BOOSTER_TYPES.SHUFFLE:
         if (clickedObject) {
-          this.game.events.emit('boardBusy', true)
-          this.board.useShuffle()
+            this.game.events.emit('boardBusy', true);
+
+            // 1. Thu thập sprite của cả Gem và Blocker
+            const allGemSprites = [];
+            const allBlockerSprites = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const gem = this.board.grid[r]?.[c];
+                    if (gem && gem.sprite) {
+                        allGemSprites.push(gem.sprite);
+                    }
+                    const blocker = this.board.blockerGrid[r]?.[c];
+                    if (blocker) {
+                        allBlockerSprites.push(blocker);
+                    }
+                }
+            }
+            
+            // 2. Chạy logic thật (nhưng bị ẩn)
+            this.board.useShuffle();
+
+            // 3. Chạy hiệu ứng giả, truyền vào cả danh sách blocker
+            this.boosterVFXManager.playFakeShuffleEffect(allGemSprites, allBlockerSprites, () => {
+                // 4. Khi hiệu ứng kết thúc, hiển thị lại mọi thứ
+                allGemSprites.forEach(gem => {
+                    if (gem && gem.active) gem.setVisible(true);
+                });
+                allBlockerSprites.forEach(blocker => {
+                    if (blocker && blocker.active) blocker.setVisible(true);
+                });
+
+                // 5. Tiếp tục game
+                this.board.checkForNewMatches();
+            });
         }
-        break
+        break;
     }
   }
 

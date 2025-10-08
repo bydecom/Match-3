@@ -329,7 +329,7 @@ export class BoardPowerups {
         }
       }
     }
-    this.scene.time.delayedCall(600, () => this.checkForNewMatches())
+    // this.scene.time.delayedCall(600, () => this.checkForNewMatches())
   }
   
   damageBlockerAt(row, col) {

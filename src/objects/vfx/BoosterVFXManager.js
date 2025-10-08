@@ -218,6 +218,121 @@ playHammerEffect(row, col, onComplete) {
         }
     });
   }
+
+
+// src/objects/vfx/BoosterVFXManager.js
+
+// ... (các hàm khác giữ nguyên)
+
+  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
+  /**
+   * Dàn dựng hiệu ứng Shuffle "giả" trên một lớp riêng biệt, bao gồm cả blocker.
+   * @param {Phaser.GameObjects.Image[]} originalGemSprites - Mảng các sprite gem GỐC.
+   * @param {Phaser.GameObjects.Image[]} originalBlockerSprites - Mảng các sprite blocker GỐC.
+   * @param {function} onComplete - Callback để gọi khi TOÀN BỘ hiệu ứng kết thúc.
+   */
+  playFakeShuffleEffect(originalGemSprites, originalBlockerSprites, onComplete) {
+    const boardCenterX = this.board.offsetX + this.board.getBoardDimensions().width / 2;
+    const boardCenterY = this.board.offsetY + this.board.getBoardDimensions().height / 2;
+
+    const allClones = [];
+    const fakeGems = []; // Tách riêng mảng gem giả để dễ xử lý
+
+    // 1A. Clone blocker và ẩn blocker thật
+    originalBlockerSprites.forEach(blocker => {
+      if (blocker && blocker.active) {
+        const clone = this.scene.add.sprite(blocker.x, blocker.y, blocker.texture.key)
+          .setScale(blocker.scale)
+          .setDepth(12); // Depth cao
+        allClones.push(clone);
+        blocker.setVisible(false);
+      }
+    });
+
+    // 1B. Clone gem, LƯU THAM CHIẾU, và ẩn gem thật
+    originalGemSprites.forEach(gem => {
+      if (gem && gem.active) {
+        const clone = this.scene.add.sprite(gem.x, gem.y, gem.texture.key)
+          .setScale(gem.scale)
+          .setDepth(11); // Depth thấp hơn
+        clone.setData('realGem', gem); // Lưu tham chiếu đến gem thật
+        allClones.push(clone);
+        fakeGems.push(clone);
+        gem.setVisible(false);
+      }
+    });
+    
+    // 2. Bình rượu bay vào
+    const shufflePot = this.scene.add.sprite(boardCenterX, this.scene.scale.height + 100, 'booster_shuffle')
+      .setScale(0.25)
+      .setDepth(15);
+
+    this.scene.tweens.add({
+      targets: shufflePot,
+      y: boardCenterY,
+      duration: 400,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        // 3. Hút các gem "giả"
+        let suckedCount = 0;
+        fakeGems.forEach(clone => {
+          this.scene.tweens.add({
+            targets: clone,
+            x: boardCenterX,
+            y: boardCenterY,
+            scale: 0,
+            duration: 500,
+            ease: 'Cubic.easeIn',
+            delay: Math.random() * 200,
+            onComplete: () => {
+              suckedCount++;
+              if (suckedCount === fakeGems.length) {
+                // 4. Khi đã hút xong, lắc bình
+                this.scene.tweens.add({
+                  targets: shufflePot,
+                  angle: { from: -15, to: 15 },
+                  duration: 100,
+                  yoyo: true,
+                  repeat: 3,
+                  ease: 'Sine.easeInOut',
+                  delay: 200,
+                  onComplete: () => {
+                    // *** 5. HIỆU ỨNG NHẢ GEM RA (ĐÃ THÊM LẠI) ***
+                    let spitCount = 0;
+                    fakeGems.forEach(clone => {
+                      const realGem = clone.getData('realGem');
+                      clone.setPosition(boardCenterX, boardCenterY); // Bắt đầu từ tâm
+
+                      this.scene.tweens.add({
+                        targets: clone,
+                        x: realGem.x, // Bay đến vị trí X MỚI của gem thật
+                        y: realGem.y, // Bay đến vị trí Y MỚI của gem thật
+                        scale: realGem.scale,
+                        duration: 500,
+                        delay: Math.random() * 300,
+                        ease: 'Cubic.easeOut',
+                        onComplete: () => {
+                          spitCount++;
+                          // 6. Khi gem cuối cùng đã bay ra xong
+                          if (spitCount === fakeGems.length) {
+                            shufflePot.destroy();
+                            allClones.forEach(c => c.destroy());
+                            if (onComplete) {
+                              onComplete();
+                            }
+                          }
+                        }
+                      });
+                    });
+                  }
+                });
+              }
+            }
+          });
+        });
+      }
+    });
+  }
 }
 
 
