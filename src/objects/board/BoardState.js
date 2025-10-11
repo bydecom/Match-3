@@ -287,7 +287,6 @@ export class BoardState {
         }
       }
       
-      // --- Kết thúc logic mới ---
 
       group.forEach(gem => gemsToRemoveFromMatch.add(gem));
     });
@@ -327,7 +326,7 @@ export class BoardState {
     return { gemsRemoved: gemsToRemoveFromMatch, powerupsCreated: powerupsToCreate };
   }
 
-  // << THAY THẾ HÀM removeGemSprites BẰNG PHIÊN BẢN AN TOÀN NÀY >>
+ 
   removeGemSprites(gemsToRemove) {
     gemsToRemove.forEach(gemObject => {
       // === BƯỚC KIỂM TRA AN TOÀN QUAN TRỌNG ===
@@ -407,11 +406,7 @@ export class BoardState {
     }
   }
 
-  
-
-  // << THAY THẾ TOÀN BỘ HÀM applyGravityAndRefill BẰNG PHIÊN BẢN NÀY >>
-
-  // << THAY THẾ TOÀN BỘ HÀM applyGravityAndRefill BẰNG PHIÊN BẢN KẾT HỢP NÀY >>
+ 
   applyGravityAndRefill() {
     if (this.isShuffling) return; 
     
@@ -509,10 +504,6 @@ export class BoardState {
         this.checkForNewMatches();
     }
   }
-
-
-
-
 
   checkForNewMatches() {
     const newMatchGroups = this.findAllMatches()

@@ -108,7 +108,7 @@ export class GameScene extends Phaser.Scene {
 
     createBoard(centerX, centerY, playgroundSize) {
         const gridSize = 9;
-        const cellSize = playgroundSize * 0.93 / gridSize;
+        const cellSize = playgroundSize * 0.94 / gridSize;
         const boardOffsetX = centerX - (cellSize * gridSize) / 2;
         const boardOffsetY = centerY - (cellSize * gridSize) / 2;
         

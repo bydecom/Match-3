@@ -277,7 +277,8 @@ export class PowerupVFXManager {
                 .setScale(0.4)
                 .setDepth(15) // Nốt nhạc ở dưới "tù và" (depth 20)
                 .setAlpha(0.9);
-            
+            this.scene.children.bringToTop(stripeSprite); // Đảm bảo tù và ở trên tất cả
+
             // 3. Nốt nhạc bay chậm hơn
             const travelDuration = Phaser.Math.Between(1200, 1500); // Tăng thời gian bay
             const maxDistance = this.scene.board.cellSize * (4 + Math.random() * 2);
