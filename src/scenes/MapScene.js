@@ -40,8 +40,8 @@ export class MapScene extends Phaser.Scene {
       btn.on('pointerover', () => btn.setFillStyle(0x5dade2))
       btn.on('pointerout', () => btn.setFillStyle(0x3498db))
       btn.on('pointerdown', () => {
-        console.log(`Chọn Map ${lv.id} - Chuyển đến GameScene`)
-        this.scene.start('GameScene', { levelId: lv.id })
+        console.log(`Chọn Map ${lv.id} - Chuyển đến LevelLoaderScene`)
+        this.scene.start('LevelLoaderScene', { levelId: lv.id })
       })
     })
   }

@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { PreloaderScene } from './scenes/PreloaderScene';
 import { MapScene } from './scenes/MapScene';
+import { LevelLoaderScene } from './scenes/LevelLoaderScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 import { SettingsPopup } from './scenes/popups/SettingsPopup';
@@ -17,7 +18,7 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene, MapScene, GameScene, UIScene, SettingsPopup] 
+  scene: [BootScene, PreloaderScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup] 
 };
 
 function initializeApp() {

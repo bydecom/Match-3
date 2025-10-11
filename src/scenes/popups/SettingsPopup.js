@@ -57,7 +57,8 @@ export class SettingsPopup extends Phaser.Scene {
         restartButton.on('pointerdown', () => {
             this.scene.stop('GameScene');
             this.scene.stop('UIScene');
-            this.scene.start('GameScene', { levelId: this.levelId });
+            // Bắt đầu màn hình loading thay vì vào thẳng game
+            this.scene.start('LevelLoaderScene', { levelId: this.levelId });
         });
 
         // 6. Nút Về bản đồ
