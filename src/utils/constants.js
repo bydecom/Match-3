@@ -16,7 +16,8 @@ export const GEM_TYPES = {
   YELLOW: 'yellow',
   ORANGE: 'orange',
   BOMB: 'bomb',
-  COLOR_BOMB: 'color_bomb'
+  COLOR_BOMB: 'color_bomb',
+  STRIPE: 'stripe'
 }
 
 export const BLOCKER_TYPES = {

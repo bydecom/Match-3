@@ -23,7 +23,7 @@ export class BoardMatcher {
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE - 2; ) {
         const gem = this.grid[row][col]
-        const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB)
+        const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB || gem.value === GEM_TYPES.STRIPE)
         if (gem && gem.type === 'gem' && !isPowerUp && this.canMatchAt(row, col)) {
           let match = [gem]
           for (let i = col + 1; i < GRID_SIZE; i++) {
@@ -45,7 +45,7 @@ export class BoardMatcher {
     for (let col = 0; col < GRID_SIZE; col++) {
       for (let row = 0; row < GRID_SIZE - 2; ) {
         const gem = this.grid[row][col]
-        const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB)
+        const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB || gem.value === GEM_TYPES.STRIPE)
         if (gem && gem.type === 'gem' && !isPowerUp && this.canMatchAt(row, col)) {
           let match = [gem]
           for (let i = row + 1; i < GRID_SIZE; i++) {

@@ -199,6 +199,8 @@ export class BoardState {
                 this.powerupVFXManager.playBombEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
             } else if (powerupToActivate.value === GEM_TYPES.COLOR_BOMB) {
                 this.powerupVFXManager.playColorBombEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
+            } else if (powerupToActivate.value === GEM_TYPES.STRIPE) {
+                this.powerupVFXManager.playStripeEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
             } else {
                 // Trường hợp power-up khác trong tương lai, tạm thời dùng logic cũ
                 onVFXComplete()
@@ -242,53 +244,55 @@ export class BoardState {
 
     matchGroups.forEach(group => {
       let powerupCreationPos = null;
+      let isLTshape = false;
 
-      // ƯU TIÊN 1: Vị trí do người chơi SWAP vào
-      if (swapPosition) {
-        const gemAtSwapPos = this.grid[swapPosition.row]?.[swapPosition.col];
-        if (gemAtSwapPos && group.includes(gemAtSwapPos)) {
-          powerupCreationPos = swapPosition;
+      // --- Logic mới để xác định loại power-up ---
+
+      // 1. Kiểm tra có phải là hình T/L không (ưu tiên cao nhất)
+      for (const gem of group) {
+        const row = gem.sprite.getData('row');
+        const col = gem.sprite.getData('col');
+        const hasHorizontalNeighbor = group.some(g => g.sprite.getData('row') === row && Math.abs(g.sprite.getData('col') - col) === 1);
+        const hasVerticalNeighbor = group.some(g => Math.abs(g.sprite.getData('row') - row) === 1 && g.sprite.getData('col') === col);
+
+        if (hasHorizontalNeighbor && hasVerticalNeighbor) {
+          isLTshape = true;
+          powerupCreationPos = { row, col };
+          break;
         }
       }
-
-      // ƯU TIÊN 2: L/T-shape (điểm giao)
-      if (!powerupCreationPos && group.length >= 4) {
-        let intersectionGem = null;
-        for (const gem of group) {
-          const row = gem.sprite.getData('row');
-          const col = gem.sprite.getData('col');
-          const hasHorizontalNeighbor = group.find(g => g.sprite.getData('row') === row && Math.abs(g.sprite.getData('col') - col) === 1);
-          const hasVerticalNeighbor = group.find(g => Math.abs(g.sprite.getData('row') - row) === 1 && g.sprite.getData('col') === col);
-          if (hasHorizontalNeighbor && hasVerticalNeighbor) { intersectionGem = gem; break; }
+      
+      // 2. Nếu không phải T/L, xác định vị trí tạo power-up cho match thẳng
+      if (!isLTshape && group.length >= 4) {
+         if (swapPosition) {
+          const gemAtSwapPos = this.grid[swapPosition.row]?.[swapPosition.col];
+          if (gemAtSwapPos && group.includes(gemAtSwapPos)) {
+            powerupCreationPos = swapPosition;
+          }
         }
-        if (intersectionGem) {
-          powerupCreationPos = { row: intersectionGem.sprite.getData('row'), col: intersectionGem.sprite.getData('col') };
-        }
-      }
-
-      // ƯU TIÊN 3: Đường thẳng, lấy giữa
-      if (!powerupCreationPos && group.length >= 4) {
-        if (group.length === 4) {
-          const middleIndex = Phaser.Math.RND.pick([1, 2]);
-          const middleGem = group[middleIndex];
-          powerupCreationPos = { row: middleGem.sprite.getData('row'), col: middleGem.sprite.getData('col') };
-        } else {
-          const middleGem = group[Math.floor(group.length / 2)];
-          powerupCreationPos = { row: middleGem.sprite.getData('row'), col: middleGem.sprite.getData('col') };
+        if (!powerupCreationPos) {
+           const middleGem = group[Math.floor(group.length / 2)];
+           powerupCreationPos = { row: middleGem.sprite.getData('row'), col: middleGem.sprite.getData('col') };
         }
       }
-
-      // Quyết định loại power-up
+      
+      // 3. Quyết định loại power-up để tạo
       if (powerupCreationPos) {
-        if (group.length === 4) powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
-        else if (group.length >= 5) powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
+        if (isLTshape) {
+          powerupsToCreate.push({ type: GEM_TYPES.BOMB, ...powerupCreationPos });
+        } else if (group.length === 4) {
+          powerupsToCreate.push({ type: GEM_TYPES.STRIPE, ...powerupCreationPos });
+        } else if (group.length >= 5) {
+          powerupsToCreate.push({ type: GEM_TYPES.COLOR_BOMB, ...powerupCreationPos });
+        }
       }
+      
+      // --- Kết thúc logic mới ---
 
-      // Gom tất cả gem trong group vào danh sách xóa ban đầu
       group.forEach(gem => gemsToRemoveFromMatch.add(gem));
     });
 
-    // Gây sát thương blocker lân cận (giữ nguyên logic hiện có)
+    // Phần còn lại của hàm (gây sát thương blocker, bảo vệ gem) giữ nguyên
     const gemsAndAdjacentCells = new Set();
     gemsToRemoveFromMatch.forEach(gem => {
       const r = gem.sprite.getData('row');
@@ -311,7 +315,6 @@ export class BoardState {
       }
     });
 
-    // Bảo vệ: loại bỏ gem tại vị trí tạo power-up khỏi danh sách xóa
     if (powerupsToCreate.length > 0) {
       const powerupPositions = new Set(powerupsToCreate.map(p => `${p.row},${p.col}`));
       gemsToRemoveFromMatch.forEach(gem => {
@@ -407,19 +410,15 @@ export class BoardState {
   
 
   // << THAY THẾ TOÀN BỘ HÀM applyGravityAndRefill BẰNG PHIÊN BẢN NÀY >>
+
+  // << THAY THẾ TOÀN BỘ HÀM applyGravityAndRefill BẰNG PHIÊN BẢN KẾT HỢP NÀY >>
   applyGravityAndRefill() {
-    const speed = 0.5;
-    let totalTweens = 0;
-    let tweensCompleted = 0;
+    if (this.isShuffling) return; 
+    
+    const speed = 0.5;      // Tốc độ rơi (pixels per millisecond)
+    const waveDelay = 30;   // Delay giữa các cột để tạo hiệu ứng gợn sóng
 
-    const onTweenComplete = () => {
-      tweensCompleted++;
-      if (tweensCompleted === totalTweens) {
-        this.checkForNewMatches();
-      }
-    };
-
-    // BƯỚC 1: TÁI CẤU TRÚC LƯỚI LOGIC (GIỮ NGUYÊN, ĐÃ CHUẨN)
+    // --- BƯỚC 1: TÁI CẤU TRÚC LƯỚI LOGIC (Giữ nguyên logic mới, đã chuẩn) ---
     const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
     const newBlockerGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
     for (let col = 0; col < GRID_SIZE; col++) {
@@ -431,14 +430,11 @@ export class BoardState {
         const blocker = this.blockerGrid[readRow][col];
         const gem = this.grid[readRow][col];
         if (blocker && blocker.type === 'stone') {
-          // Blocker tĩnh không di chuyển, nó ở nguyên vị trí cũ
           newBlockerGrid[readRow][col] = blocker;
-          // Gem bên dưới nó (nếu có) cũng không di chuyển
           if (gem) newGrid[readRow][col] = gem;
-          // Đáy mới cho các vật phẩm bên trên chính là vị trí ngay trên blocker tĩnh này
           writeRow = readRow - 1;
-          continue; // Chuyển sang đọc ô tiếp theo
-      }
+          continue;
+        }
         if (gem) newGrid[writeRow][col] = gem;
         if (blocker) newBlockerGrid[writeRow][col] = blocker;
         writeRow--;
@@ -447,84 +443,75 @@ export class BoardState {
     this.grid = newGrid;
     this.blockerGrid = newBlockerGrid;
 
-    // --- BƯỚC 2 & 3: TẠO ANIMATION "RƠI THEO KHỐI" ---
+    // --- BƯỚC 2: TẠO ANIMATION VỚI LOGIC TỪ CODE CŨ MÀ BẠN THÍCH ---
+    let totalTweens = 0;
+    let tweensCompleted = 0;
+
+    const onTweenComplete = () => {
+        tweensCompleted++;
+        if (tweensCompleted === totalTweens) {
+            this.checkForNewMatches();
+        }
+    };
+
     for (let col = 0; col < GRID_SIZE; col++) {
-      
-      const itemsToAnimate = [];
-      let maxDurationThisColumn = 0;
+        let emptyCountInColumn = 0;
+        for (let row = GRID_SIZE - 1; row >= 0; row--) {
+            const gem = this.grid[row][col];
+            const blocker = this.blockerGrid[row][col];
+            const endY = this.offsetY + row * this.cellSize + this.cellSize / 2;
+            
+            // Animate cho gem/blocker cũ cần rơi
+            const itemToMove = (gem && gem.sprite.y !== endY) ? gem.sprite : ((blocker && blocker.y !== endY) ? blocker : null);
+            if (itemToMove) {
+                totalTweens++;
+                const distance = Math.abs(endY - itemToMove.y);
+                const duration = distance / speed;
 
-      const topmostItemRow = (() => {
-        for (let r = 0; r < GRID_SIZE; r++) {
-          if (this.grid[r][col] || this.blockerGrid[r][col]) return r;
+                this.scene.tweens.add({
+                    targets: itemToMove,
+                    y: endY,
+                    duration: duration,
+                    delay: col * waveDelay,
+                    ease: 'Cubic.easeIn',
+                    onComplete: onTweenComplete
+                });
+                itemToMove.setData({ row: row, col: col });
+            } 
+            // Tạo gem mới cho các ô trống
+            else if (!gem && !blocker && this.levelData.gridLayout[row][col] !== null) {
+                emptyCountInColumn++;
+                const startY = this.offsetY - emptyCountInColumn * this.cellSize;
+                const randomGemType = Phaser.Math.RND.pick(this.levelData.availableGems || Object.values(GEM_TYPES));
+                
+                const newGemSprite = this.createGemAt(row, col, randomGemType, startY);
+                newGemSprite.setAlpha(0);
+                this.grid[row][col] = { type: 'gem', value: randomGemType, sprite: newGemSprite };
+
+                totalTweens++;
+                const distance = Math.abs(endY - startY);
+                const duration = distance / speed;
+
+                this.scene.tweens.add({
+                    targets: newGemSprite,
+                    y: endY,
+                    duration: duration,
+                    delay: col * waveDelay,
+                    ease: 'Cubic.easeIn',
+                    onStart: () => newGemSprite.setAlpha(1),
+                    onComplete: onTweenComplete
+                });
+            }
         }
-        return -1;
-      })();
-
-      // --- PASS 1: THU THẬP THÔNG TIN VÀ TÌM DURATION LỚN NHẤT ---
-      let emptyCountInColumn = 0;
-      for (let row = 0; row < GRID_SIZE; row++) {
-        const endY = this.offsetY + row * this.cellSize + this.cellSize / 2;
-        const blocker = this.blockerGrid[row][col];
-        const gem = this.grid[row][col];
-        
-        let currentItem = null;
-        let startY = 0;
-        let isNew = false;
-        
-        if (blocker && blocker.y !== endY) {
-          currentItem = blocker;
-          startY = blocker.y;
-        } else if (gem && gem.sprite.y !== endY) {
-          currentItem = gem.sprite;
-          startY = gem.sprite.y;
-        } else {
-          const isInRefillZone = (topmostItemRow === -1) || (row < topmostItemRow);
-          if (!gem && !blocker && this.levelData.gridLayout[row][col] !== null && isInRefillZone) {
-            emptyCountInColumn++;
-            startY = this.offsetY - emptyCountInColumn * this.cellSize;
-            const randomGemType = Phaser.Math.RND.pick(this.levelData.availableGems || Object.values(GEM_TYPES));
-            currentItem = this.createGemAt(row, col, randomGemType, startY);
-            currentItem.setAlpha(0);
-            this.grid[row][col] = { type: 'gem', value: randomGemType, sprite: currentItem };
-            isNew = true;
-          }
-        }
-
-        if (currentItem) {
-          const duration = Math.abs(endY - startY) / speed;
-          maxDurationThisColumn = Math.max(maxDurationThisColumn, duration);
-          itemsToAnimate.push({ target: currentItem, y: endY, isNew: isNew });
-          
-          if (!isNew) { // Chỉ cập nhật data cho vật phẩm cũ
-             if (blocker) blocker.setData({ row: row, col: col });
-             else if (gem) gem.sprite.setData({ row: row, col: col });
-          }
-        }
-      }
-
-      // --- PASS 2: TẠO TWEEN VỚI CÙNG DURATION ---
-      if (itemsToAnimate.length > 0) {
-        totalTweens += itemsToAnimate.length;
-        itemsToAnimate.forEach(item => {
-          const tweenConfig = {
-            targets: item.target,
-            y: item.y,
-            duration: maxDurationThisColumn, // << SỬ DỤNG DURATION LỚN NHẤT CHO TẤT CẢ
-            ease: 'Cubic.easeIn',
-            onComplete: onTweenComplete
-          };
-          if (item.isNew) {
-            tweenConfig.onStart = () => item.target.setAlpha(1);
-          }
-          this.scene.tweens.add(tweenConfig);
-        });
-      }
     }
 
     if (totalTweens === 0) {
-      this.checkForNewMatches();
+        this.checkForNewMatches();
     }
   }
+
+
+
 
 
   checkForNewMatches() {
@@ -564,77 +551,99 @@ export class BoardState {
   }
 
   getPowerupActivationSet(powerupGem, otherGem) {
-    const resultSet = new Set()
+    const resultSet = new Set();
+    
+    // Xử lý combo (hai power-up swap với nhau)
     if (this.isPowerup(otherGem)) {
-      resultSet.add(powerupGem)
-      resultSet.add(otherGem)
-      const type1 = powerupGem.value
-      const type2 = otherGem.value
+      resultSet.add(powerupGem);
+      resultSet.add(otherGem);
+      const type1 = powerupGem.value;
+      const type2 = otherGem.value;
+
       if (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.COLOR_BOMB) {
         for (let r = 0; r < GRID_SIZE; r++) {
           for (let c = 0; c < GRID_SIZE; c++) {
-            if (this.grid[r][c]) resultSet.add(this.grid[r][c])
+            if (this.grid[r][c]) resultSet.add(this.grid[r][c]);
           }
         }
       } else if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
-        // --- BẮT ĐẦU SỬA TỪ ĐÂY ---
-        // COMBO: BOMB + BOMB (Nổ 5x5)
-        // LƯU Ý QUAN TRỌNG:
-        // Hàm này được gọi SAU KHI swap đã xảy ra.
-        // `powerupGem` (quả bom được chọn) lúc này đã nằm ở vị trí của `otherGem`.
-        // Do đó, vị trí của `powerupGem` chính là tâm của vụ nổ.
-        
-        const centerRow = powerupGem.sprite.getData('row')
-        const centerCol = powerupGem.sprite.getData('col')
-        
-        // Lấy tất cả gem trong bán kính 2 (tức là vùng 5x5) từ tâm mới này
-        const explosion = this.getGemsInArea(centerRow, centerCol, 2)
-        explosion.forEach(gem => resultSet.add(gem))
-        // --- KẾT THÚC SỬA Ở ĐÂY ---
+        const centerRow = powerupGem.sprite.getData('row');
+        const centerCol = powerupGem.sprite.getData('col');
+        const explosion = this.getGemsInArea(centerRow, centerCol, 2);
+        explosion.forEach(gem => resultSet.add(gem));
       } else {
-        const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupGem : otherGem
-        const bomb = (colorBomb === powerupGem) ? otherGem : powerupGem
-        const colorBombRow = colorBomb.sprite.getData('row')
-        const colorBombCol = colorBomb.sprite.getData('col')
+        const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupGem : otherGem;
+        const bomb = (colorBomb === powerupGem) ? otherGem : powerupGem;
+        const colorBombRow = colorBomb.sprite.getData('row');
+        const colorBombCol = colorBomb.sprite.getData('col');
         for (let c = Math.max(0, colorBombCol - 1); c <= Math.min(GRID_SIZE - 1, colorBombCol + 1); c++) {
           for (let r = 0; r < GRID_SIZE; r++) {
-            const gem = this.grid[r][c]
-            if (gem && gem.type === 'gem') { resultSet.add(gem) }
+            const gem = this.grid[r][c];
+            if (gem && gem.type === 'gem') { resultSet.add(gem); }
           }
         }
         for (let r = Math.max(0, colorBombRow - 1); r <= Math.min(GRID_SIZE - 1, colorBombRow + 1); r++) {
           for (let c = 0; c < GRID_SIZE; c++) {
-            const gem = this.grid[r][c]
-            if (gem && gem.type === 'gem') { resultSet.add(gem) }
+            const gem = this.grid[r][c];
+            if (gem && gem.type === 'gem') { resultSet.add(gem); }
           }
         }
-        resultSet.add(colorBomb)
-        resultSet.add(bomb)
+        resultSet.add(colorBomb);
+        resultSet.add(bomb);
       }
+
+    // Xử lý kích hoạt power-up đơn lẻ
     } else {
-      resultSet.add(powerupGem)
+      resultSet.add(powerupGem);
       switch (powerupGem.value) {
         case GEM_TYPES.BOMB: {
-          const explosion = this.getGemsInArea(powerupGem.sprite.getData('row'), powerupGem.sprite.getData('col'), 1)
-          explosion.forEach(gem => resultSet.add(gem))
-          break
+          const explosion = this.getGemsInArea(powerupGem.sprite.getData('row'), powerupGem.sprite.getData('col'), 1);
+          explosion.forEach(gem => resultSet.add(gem));
+          break;
         }
         case GEM_TYPES.COLOR_BOMB: {
           if (otherGem) {
-            const targetColor = otherGem.value
+            const targetColor = otherGem.value;
             for (let r = 0; r < GRID_SIZE; r++) {
               for (let c = 0; c < GRID_SIZE; c++) {
-                const gem = this.grid[r][c]
-                if (gem && gem.type === 'gem' && gem.value === targetColor) { resultSet.add(gem) }
+                const gem = this.grid[r][c];
+                if (gem && gem.type === 'gem' && gem.value === targetColor) {
+                  resultSet.add(gem);
+                }
               }
             }
-            resultSet.add(otherGem)
+            resultSet.add(otherGem);
           }
-          break
+          break;
         }
+        // --- LOGIC MỚI CHO STRIPE ---
+        case GEM_TYPES.STRIPE: {
+          const powerupRow = powerupGem.sprite.getData('row');
+          const powerupCol = powerupGem.sprite.getData('col');
+
+          // Xác định hướng swap dựa vào vị trí của gem còn lại
+          const isHorizontalSwap = powerupRow === otherGem.sprite.getData('row');
+
+          // << LOGIC ĐÃ ĐƯỢC SỬA LẠI CHO ĐÚNG >>
+          if (isHorizontalSwap) { // Swap ngang -> Kích hoạt HÀNG NGANG
+            for (let c = 0; c < GRID_SIZE; c++) {
+              if (this.grid[powerupRow][c]) {
+                resultSet.add(this.grid[powerupRow][c]);
+              }
+            }
+          } else { // Swap dọc -> Kích hoạt CỘT DỌC
+            for (let r = 0; r < GRID_SIZE; r++) {
+              if (this.grid[r][powerupCol]) {
+                resultSet.add(this.grid[r][powerupCol]);
+              }
+            }
+          }
+          break;
+        }
+        // --- KẾT THÚC LOGIC MỚI ---
       }
     }
-    return resultSet
+    return resultSet;
   }
 }
 
