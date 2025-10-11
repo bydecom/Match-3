@@ -221,109 +221,118 @@ export class PowerupVFXManager {
     })
   }
 
-  // << THÊM HÀM MỚI NÀY VÀO CUỐI CLASS >>
+// src/objects/vfx/PowerupVFXManager.js
+
+// ... (các hàm khác giữ nguyên)
+
   /**
-   * Hiệu ứng cho Stripe với nốt nhạc bay đến từng gem bị ảnh hưởng.
-   * @param {object} stripeGem - Đối tượng gem Stripe (tù và).
-   * @param {Set<object>} affectedGems - Set các gem bị ảnh hưởng.
-   * @param {function} onComplete - Callback khi hiệu ứng kết thúc.
+   * Hiệu ứng cho Stripe với 8 nốt nhạc bay ra hai hướng (phiên bản tinh chỉnh).
    */
   playStripeEffect(stripeGem, affectedGems, onComplete) {
     const stripeSprite = stripeGem.sprite;
+    if (!stripeSprite || !stripeSprite.active) {
+      if (onComplete) onComplete();
+      return;
+    }
     const startPos = { x: stripeSprite.x, y: stripeSprite.y };
     const stripeRow = stripeSprite.getData('row');
 
-    // 1. Phóng to nhẹ "tù và" để tạo điểm nhấn
+    // 1. Đưa "tù và" lên lớp trên cùng và thực hiện hiệu ứng
+    const originalDepth = stripeSprite.depth;
+    stripeSprite.setDepth(20); // Đưa lên trên các nốt nhạc (depth 15)
+
     this.scene.tweens.add({
-        targets: stripeSprite,
-        scale: stripeSprite.scale * 1.5,
-        duration: 200,
-        yoyo: true,
-        ease: 'Quad.easeOut'
+      targets: stripeSprite,
+      scale: stripeSprite.scale * 1.5,
+      duration: 200,
+      ease: 'Quad.easeOut',
+      yoyo: true, // Tự động quay về scale cũ
+      onComplete: () => {
+          // Trả lại depth ban đầu sau khi hiệu ứng kết thúc
+          this.scene.time.delayedCall(1200, () => {
+              stripeSprite.setDepth(originalDepth);
+          });
+      }
     });
-
-    // 2. Xác định hướng kích hoạt (ngang hay dọc)
-    const isHorizontal = Array.from(affectedGems).some(g => g.sprite.getData('row') === stripeRow && g !== stripeGem);
+    this.scene.tweens.add({
+      targets: stripeSprite,
+      angle: { from: -5, to: 5 },
+      duration: 150,
+      yoyo: true,
+      repeat: 4,
+      delay: 100
+    });
     
-    // 3. Sắp xếp các gem bị ảnh hưởng theo khoảng cách từ tâm
-    const sortedGems = Array.from(affectedGems).filter(gem => gem !== stripeGem).sort((a, b) => {
-        const distA = Phaser.Math.Distance.Between(stripeSprite.x, stripeSprite.y, a.sprite.x, a.sprite.y);
-        const distB = Phaser.Math.Distance.Between(stripeSprite.x, stripeSprite.y, b.sprite.x, b.sprite.y);
-        return distA - distB;
-    });
+    // 2. Xác định hướng
+    const isHorizontal = Array.from(affectedGems).some(g => g.sprite.getData('row') === stripeRow && g !== stripeGem);
+    const noteKeys = Phaser.Utils.Array.Shuffle(['note1', 'note2', 'note3', 'note4', 'note1', 'note2', 'note3', 'note4']);
 
-    let maxDelay = 0;
+    // --- Hàm trợ giúp tạo sóng âm ---
+    const createNoteWave = (directionVector) => {
+        for (let i = 0; i < 4; i++) {
+            const noteKey = noteKeys.pop();
+            if (!noteKey) continue;
 
-    // 4. Tạo nốt nhạc bay đến từng gem bị ảnh hưởng
-    sortedGems.forEach((gem, index) => {
-        if (!gem || !gem.sprite || !gem.sprite.active) return;
+            const note = this.scene.add.image(startPos.x, startPos.y, noteKey)
+                .setScale(0.4)
+                .setDepth(15) // Nốt nhạc ở dưới "tù và" (depth 20)
+                .setAlpha(0.9);
+            
+            // 3. Nốt nhạc bay chậm hơn
+            const travelDuration = Phaser.Math.Between(1200, 1500); // Tăng thời gian bay
+            const maxDistance = this.scene.board.cellSize * (4 + Math.random() * 2);
+            const offset = (Math.random() - 0.5) * this.scene.board.cellSize * 0.8;
 
+            this.scene.tweens.add({
+                targets: note,
+                x: startPos.x + directionVector.x * maxDistance + (isHorizontal ? 0 : offset),
+                y: startPos.y + directionVector.y * maxDistance + (isHorizontal ? offset : 0),
+                alpha: 0,
+                scale: 1.1,
+                duration: travelDuration,
+                delay: i * 100, // Các nốt nhạc xuất hiện nối đuôi nhau
+                ease: 'Quad.easeOut',
+                onComplete: () => note.destroy()
+            });
+        }
+    };
+    // --- Kết thúc hàm trợ giúp ---
+
+    if (isHorizontal) {
+        createNoteWave({ x: 1, y: 0 });
+        createNoteWave({ x: -1, y: 0 });
+    } else {
+        createNoteWave({ x: 0, y: 1 });
+        createNoteWave({ x: 0, y: -1 });
+    }
+
+    affectedGems.forEach(gem => {
+        if (!gem || !gem.sprite || !gem.sprite.active || gem === stripeGem) return;
         const gemSprite = gem.sprite;
         const distance = Phaser.Math.Distance.Between(startPos.x, startPos.y, gemSprite.x, gemSprite.y);
-        const travelDuration = distance * 2; // Tốc độ bay của nốt nhạc
-        const noteTravelDelay = index * 100; // Các nốt nhạc xuất hiện lần lượt
-        
-        if (noteTravelDelay > maxDelay) {
-            maxDelay = noteTravelDelay;
-        }
+        const effectDelay = distance * 4; // Tăng delay để khớp với tốc độ nốt nhạc chậm hơn
 
-        // Tạo một nốt nhạc ngẫu nhiên tại vị trí "tù và"
-        const note = this.scene.add.image(startPos.x, startPos.y, Phaser.Math.RND.pick(['note1', 'note2', 'note3', 'note4']))
-            .setScale(0.5)
-            .setDepth(15)
-            .setAlpha(0.8);
-
-        // Animation cho nốt nhạc bay tới viên gem
-        this.scene.tweens.add({
-            targets: note,
-            x: gemSprite.x,
-            y: gemSprite.y,
-            alpha: 0,
-            scale: 1.2,
-            duration: travelDuration,
-            delay: noteTravelDelay,
-            ease: 'Quad.easeOut',
-            onComplete: () => {
-                note.destroy();
-            }
-        });
-
-        // Tạo hiệu ứng lơ lửng cho nốt nhạc khi bay
-        this.scene.tweens.add({
-            targets: note,
-            y: note.y + (Math.random() > 0.5 ? 15 : -15),
-            duration: travelDuration / 2,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
-
-        // Kích hoạt hiệu ứng lắc và biến mất trên viên gem
-        this.scene.time.delayedCall(noteTravelDelay + travelDuration / 2, () => {
+        this.scene.time.delayedCall(effectDelay, () => {
              if (!gemSprite.active) return;
-             
-             // Lắc lư
              this.scene.tweens.add({
                  targets: gemSprite,
-                 angle: { from: -10, to: 10 },
-                 duration: 80,
+                 angle: { from: -15, to: 15 },
+                 duration: 100,
                  yoyo: true,
                  repeat: 2,
              });
-
-             // Biến mất
              this.scene.tweens.add({
                  targets: gemSprite,
                  scale: 0,
                  alpha: 0,
-                 duration: 200,
-                 delay: 150, // Chờ lắc xong mới biến mất
+                 duration: 250,
+                 delay: 200,
              });
         });
     });
 
-    // 5. Gọi onComplete sau khi nốt nhạc cuối cùng đã bay được một đoạn
-    this.scene.time.delayedCall(maxDelay + 400, onComplete);
+    // 4. Kéo dài thời gian chờ trước khi gọi onComplete
+    this.scene.time.delayedCall(1500, onComplete);
   }
 
 }
