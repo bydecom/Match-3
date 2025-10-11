@@ -92,6 +92,11 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image(`map1_background`, 'assets/images/map/map1-background.png');
         this.load.image(`playground1_border`, 'assets/images/map/playground-border.png');
         this.load.image(`playground1_background`, 'assets/images/map/playground.png');
+        
+        // Tải asset cho theme board của level 5
+        this.load.image(`playground2_border`, 'assets/images/map/playground2_border.png');
+        this.load.image(`playground2_background`, 'assets/images/map/playground2_background.png');
+        
         this.load.image(`cell`, 'assets/images/map/cell.png');
         
         // Load gem images
@@ -139,6 +144,12 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('note2', 'assets/images/vfx/note2.png');
         this.load.image('note3', 'assets/images/vfx/note3.png');
         this.load.image('note4', 'assets/images/vfx/note4.png');
+
+        // Load assets cho màn hình bản đồ mới
+        this.load.image('map_part1', 'assets/images/map/map_part_1.png');
+        this.load.image('map_part2', 'assets/images/map/map_part_2.png'); // Sử dụng cùng ảnh tạm thời
+        // Nút bấm cho mỗi level (sử dụng cell.png làm nút tạm thời)
+        this.load.image('level_node_button', 'assets/images/map/cell.png'); 
 
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');

@@ -15,7 +15,9 @@ export class LevelLoaderScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // 1. Chọn ngẫu nhiên một ảnh nền từ 1 đến 6
-        const randomIndex = Phaser.Math.Between(1, 6);
+        // const randomIndex = Phaser.Math.Between(1, 6);
+        const randomIndex = 2;
+
 
         // 2. Hiển thị ảnh nền đã chọn
         const bg = this.add.image(width / 2, height / 2, `loading_background_${randomIndex}`);
@@ -26,10 +28,10 @@ export class LevelLoaderScene extends Phaser.Scene {
         let progressBarY = 576; // Vị trí Y mặc định cho các màn hình khác
         
         // NẾU là màn hình loading 5, SỬ DỤNG VỊ TRÍ Y MỚI
-        if (randomIndex === 5 || randomIndex === 1) {
-            progressBarY = 623; // Cập nhật vị trí Y theo thông số bạn cung cấp
-        } else if (randomIndex === 6) {
+        if (randomIndex === 6 || randomIndex === 1) {
             progressBarY = 604; // Cập nhật vị trí Y theo thông số bạn cung cấp
+        } else if (randomIndex === 5) {
+            progressBarY = 623; // Cập nhật vị trí Y theo thông số bạn cung cấp
         }
 
         // 4. Tạo thanh progress bar với vị trí và scale đã được điều chỉnh

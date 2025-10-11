@@ -1,20 +1,21 @@
 {
   "levelId": 5,
+  "playgroundTheme": "2",
   "moves": 25,
   "objectives": [
     { "target": "blocker", "type": "rope", "count": 9 },
     { "target": "blocker", "type": "stone", "count": 8 }
   ],
   "gridLayout": [
+    [null, null, 0, 0, 0, 0, 0, null, null],
+    [null, 0, 0, 0, 0, 0, 0, 0, null],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [null, 0, 0, 0, 0, 0, 0, 0, null],
+    [null, null, 0, 0, 0, 0, 0, null, null]
   ],
   "blockerLayout": [
     [0, 0, 0, 0, 1, 0, 0, 0, 0],

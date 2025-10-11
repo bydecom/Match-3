@@ -15,19 +15,28 @@ export class BoardCreator {
   }
 
   createAllCells() {
+    // Giả định rằng 'this.levelData' đã được truyền vào và có thể truy cập được
+    // từ class Board chính.
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
-        const x = this.offsetX + col * this.cellSize + this.cellSize / 2
-        const y = this.offsetY + row * this.cellSize + this.cellSize / 2
-        const cell = this.scene.add.image(x, y, 'cell')
-          .setDisplaySize(this.cellSize * 0.95, this.cellSize * 0.95)
-          .setDepth(1)
-        cell.setData('row', row)
-        cell.setData('col', col)
-        cell.setData('isCell', true)
+        
+        // === THÊM ĐIỀU KIỆN KIỂM TRA TẠI ĐÂY ===
+        // Chỉ tạo cell background nếu vị trí đó không phải là 'null' trong gridLayout
+        if (this.levelData.gridLayout[row][col] !== null) {
+          const x = this.offsetX + col * this.cellSize + this.cellSize / 2
+          const y = this.offsetY + row * this.cellSize + this.cellSize / 2
+          const cell = this.scene.add.image(x, y, 'cell')
+            .setDisplaySize(this.cellSize * 0.95, this.cellSize * 0.95)
+            .setDepth(1)
+          cell.setData('row', row)
+          cell.setData('col', col)
+          cell.setData('isCell', true)
+        }
+        // =========================================
+
       }
     }
-    console.log('Created all cell backgrounds with depth 1')
+    console.log('Created playable cell backgrounds with depth 1')
   }
 
   getGemTypeByNumber(number) {
