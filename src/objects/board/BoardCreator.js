@@ -14,20 +14,17 @@ export class BoardCreator {
     return frame
   }
 
-  createAllCells() {
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        const x = this.offsetX + col * this.cellSize + this.cellSize / 2
-        const y = this.offsetY + row * this.cellSize + this.cellSize / 2
-        const cell = this.scene.add.image(x, y, 'cell')
-          .setDisplaySize(this.cellSize * 0.95, this.cellSize * 0.95)
-          .setDepth(1)
-        cell.setData('row', row)
-        cell.setData('col', col)
-        cell.setData('isCell', true)
-      }
-    }
-    console.log('Created all cell backgrounds with depth 1')
+  // XÓA HÀM createAllCells() VÀ THAY THẾ BẰNG HÀM MỚI NÀY
+  createCellAt(row, col) {
+    const x = this.offsetX + col * this.cellSize + this.cellSize / 2
+    const y = this.offsetY + row * this.cellSize + this.cellSize / 2
+    const cell = this.scene.add.image(x, y, 'cell')
+      .setDisplaySize(this.cellSize * 0.95, this.cellSize * 0.95)
+      .setDepth(1) // Depth 1: Nền cell nằm dưới gem (depth 2)
+    cell.setData('row', row)
+    cell.setData('col', col)
+    cell.setData('isCell', true)
+    return cell
   }
 
   getGemTypeByNumber(number) {

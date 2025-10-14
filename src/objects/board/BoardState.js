@@ -653,6 +653,25 @@ applyGravityAndRefill() {
     }
   }
 
+  isPowerup(gemObject) {
+    if (!gemObject) return false
+    const value = gemObject.value
+    return value === GEM_TYPES.BOMB || value === GEM_TYPES.COLOR_BOMB || value === GEM_TYPES.STRIPE
+  }
+
+  getGemsInArea(centerRow, centerCol, radius) {
+    const gemsInArea = []
+    for (let r = centerRow - radius; r <= centerRow + radius; r++) {
+      for (let c = centerCol - radius; c <= centerCol + radius; c++) {
+        if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+          const gem = this.grid[r][c]
+          if (gem) gemsInArea.push(gem)
+        }
+      }
+    }
+    return gemsInArea
+  }
+
   getPowerupActivationSet(powerupGem, otherGem) {
     const resultSet = new Set()
     if (this.isPowerup(otherGem)) {

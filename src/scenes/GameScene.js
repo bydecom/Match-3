@@ -19,9 +19,12 @@ export class GameScene extends Phaser.Scene {
     this.currentTime = 0
   }
 
-  create(data) {
+  create(data) { // Cần nhận data từ LevelLoaderScene
     const { width, height } = this.scale
 
+    // 1. THÊM BƯỚC NÀY ĐỂ LOAD LEVEL DATA TRƯỚC TIÊN
+    this.loadLevelData(data) 
+    
     // Debug: Kiểm tra xem ảnh có được load không
     console.log('GameScene create - Kiểm tra cache:')
     console.log('map1_background:', this.textures.exists('map1_background'))
@@ -35,41 +38,46 @@ export class GameScene extends Phaser.Scene {
     console.log('gem_yellow:', this.textures.exists('gem_yellow'))
     console.log('gem_orange:', this.textures.exists('gem_orange'))
 
-    // Hiển thị background map1
+    // Hiển thị background map1 (giữ nguyên)
     this.add.image(width / 2, height / 2, 'map1_background')
       .setDisplaySize(width, height)
-      .setDepth(0) // Lớp nền xa nhất
+      .setDepth(0) 
 
     // Tạo khung chơi ở giữa màn hình
-    const playgroundSize = Math.min(width, height) * 0.9 // 90% kích thước màn hình
+    const playgroundSize = Math.min(width, height) * 0.9
     const playgroundX = width / 2
-    const playgroundY = height / 2 + height / 8 - height/48  // Di chuyển xuống 1/4 chiều dài map
+    const playgroundY = height / 2 + height / 8 - height/48
 
-    // Hiển thị nền khung chơi (playground1_background)
-    if (this.textures.exists('playground1_background')) {
-      const playgroundBackground = this.add.image(playgroundX, playgroundY, 'playground1_background')
+    // 2. SỬ DỤNG THEME TỪ LEVEL DATA
+    const theme = this.levelData?.playgroundTheme || '1' // Mặc định là '1'
+    const backgroundKey = `playground${theme}_background`
+    const borderKey = `playground${theme}_border`
+
+    // Hiển thị nền khung chơi (Background)
+    if (this.textures.exists(backgroundKey)) {
+      const playgroundBackground = this.add.image(playgroundX, playgroundY, backgroundKey)
         .setDisplaySize(playgroundSize, playgroundSize)
-        .setDepth(0); // << GÁN DEPTH = 0
-      console.log('Đã tạo playgroundBackground thành công')
+        .setDepth(0); 
+      console.log(`Đã tạo ${backgroundKey} thành công`)
     } else {
-      console.error('Không tìm thấy playground1_background texture!')
+      console.error(`Không tìm thấy ${backgroundKey} texture!`)
     }
 
-    // Hiển thị viền khung chơi (playground1_border)
-    if (this.textures.exists('playground1_border')) {
-      const playgroundBorder = this.add.image(playgroundX, playgroundY, 'playground1_border')
+    // Hiển thị viền khung chơi (Border)
+    if (this.textures.exists(borderKey)) {
+      const playgroundBorder = this.add.image(playgroundX, playgroundY, borderKey)
         .setDisplaySize(playgroundSize, playgroundSize)
-        .setDepth(3); // << GÁN DEPTH = 3 (Nằm trên gem và cell)
-      console.log('Đã tạo playgroundBorder thành công')
+        .setDepth(3); 
+      console.log(`Đã tạo ${borderKey} thành công`)
     } else {
-      console.error('Không tìm thấy playground1_border texture!')
+      console.error(`Không tìm thấy ${borderKey} texture!`)
     }
 
-    // Tạo Board và load level (Board sẽ tự tạo cell backgrounds)
-    this.createBoard(playgroundX, playgroundY, playgroundSize)
-    // Khởi tạo VFX manager cho booster
+    // Tạo Board
+    this.createBoard(playgroundX, playgroundY, playgroundSize) 
+    // Khởi tạo VFX manager cho booster (giữ nguyên)
     this.boosterVFXManager = new BoosterVFXManager(this, this.board)
-    // Khởi chạy UIScene overlay
+    // Khởi chạy UIScene overlay (giữ nguyên)
     if (!this.scene.isActive('UIScene')) this.scene.launch('UIScene')
 
     // Sự kiện booster từ UIScene
@@ -120,41 +128,9 @@ export class GameScene extends Phaser.Scene {
     this.startTimer()
   }
 
-  createGameGrid(centerX, centerY, playgroundSize) {
-    const gridSize = 9 // 9x9 grid
-    const cellSize = playgroundSize * 0.93 / gridSize // 80% của khung chơi chia cho 9
-    const gridOffsetX = centerX - (cellSize * gridSize) / 2
-    const gridOffsetY = centerY - (cellSize * gridSize) / 2
+  // XÓA HÀM createGameGrid() nếu còn (vì không dùng)
 
-    // Tạo lưới 9x9
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const cellX = gridOffsetX + col * cellSize + cellSize / 2
-        const cellY = gridOffsetY + row * cellSize + cellSize / 2
-
-        // Tạo cell background bằng ảnh cell.png
-        const cell = this.add.image(cellX, cellY, 'cell')
-          .setDisplaySize(cellSize*0.95, cellSize*0.95)
-
-        // Thêm số thứ tự cell (để debug)
-        this.add.text(cellX, cellY, `${row},${col}`, {
-          fontFamily: 'Arial',
-          fontSize: '10px',
-          color: '#666666'
-        }).setOrigin(0.5)
-
-        // Lưu thông tin cell để sử dụng sau này
-        cell.setData('row', row)
-        cell.setData('col', col)
-        cell.setData('cellX', cellX)
-        cell.setData('cellY', cellY)
-        cell.setData('cellSize', cellSize)
-      }
-    }
-
-    console.log(`Đã tạo lưới 9x9 với ${gridSize * gridSize} cells`)
-  }
-
+  // SỬA HÀM createBoard: Gọi board.loadLevel sau khi board được tạo
   createBoard(centerX, centerY, playgroundSize) {
     const gridSize = 9
     const cellSize = playgroundSize * 0.93 / gridSize
@@ -194,16 +170,19 @@ export class GameScene extends Phaser.Scene {
     // Truyền layer vào cho Board để nó biết nơi cần thêm gem vào
     this.board = new Board(this, boardOffsetX, boardOffsetY, cellSize, this.powerupVFXManager, this.gemLayer)
     
-    // Load level data
-    this.loadLevelData()
+    // Load level vào Board (Dùng this.levelData đã load ở create)
+    if (this.levelData) {
+        this.board.loadLevel(this.levelData)
+    }
     
     // Lắng nghe sự kiện từ Board
     this.setupBoardEvents()
   }
 
-  loadLevelData() {
+  // SỬA HÀM loadLevelData: chỉ load data vào this.levelData.
+  loadLevelData(data) {
     // Load level data từ cache (đã load trong PreloaderScene)
-    const selectedLevelId = this.scene.settings?.data?.levelId || 1
+    const selectedLevelId = data?.levelId || 1 // Dùng data từ create()
     this.levelData = this.cache.json.get(`level_${selectedLevelId}`)
     
     if (!this.levelData) {
@@ -212,9 +191,6 @@ export class GameScene extends Phaser.Scene {
     }
     
     console.log('Loaded level data from cache:', this.levelData)
-    
-    // Load level vào Board
-    this.board.loadLevel(this.levelData)
   }
 
   setupBoardEvents() {

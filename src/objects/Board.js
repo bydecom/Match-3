@@ -57,12 +57,18 @@ export class Board {
     }
 
     this.clearBoard()
-    this.createAllCells()
+    // XÓA: this.createAllCells() 
 
     // Load gem layout
     for (let row = 0; row < levelData.gridLayout.length; row++) {
       for (let col = 0; col < levelData.gridLayout[row].length; col++) {
         const cellValue = levelData.gridLayout[row][col]
+        
+        // SỬA: CHỈ TẠO CELL NỀN NẾU KHÔNG PHẢI LÀ LỖ HỔNG (null)
+        if (cellValue !== null) {
+            this.createCellAt(row, col) // <== GỌI HÀM TẠO CELL NỀN CÓ ĐIỀU KIỆN
+        }
+
         if (cellValue === null) {
           this.grid[row][col] = null
         } else if (cellValue === 0) {
