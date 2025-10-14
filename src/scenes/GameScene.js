@@ -149,12 +149,23 @@ export class GameScene extends Phaser.Scene {
     this.gemLayer.setDepth(2)
     // ===============================
 
-    // 3. TÍNH TOÁN KÍCH THƯỚC VÀ TẠO MẶT NẠ (giống như trước)
-    const boardWidth = gridSize * cellSize
-    const boardHeight = gridSize * cellSize
+    // 3. TÍNH TOÁN KÍCH THƯỚC VÀ TẠO MẶT NẠ DỰA TRÊN gridLayout
     const maskShape = this.make.graphics()
     maskShape.fillStyle(0xffffff)
-    maskShape.fillRect(boardOffsetX, boardOffsetY, boardWidth, boardHeight)
+
+    // === LOGIC MASK: CHỈ VẼ CHO KHU VỰC BOARD THẬT ===
+    const gridLayout = this.levelData.gridLayout
+
+    // Chỉ vẽ mask cho các ô không null trong gridLayout
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        if (gridLayout[row][col] !== null) {
+          const cellX = boardOffsetX + col * cellSize
+          const cellY = boardOffsetY + row * cellSize
+          maskShape.fillRect(cellX, cellY, cellSize, cellSize)
+        }
+      }
+    }
     const mask = maskShape.createGeometryMask()
 
     // 3. ÁP DỤNG MẶT NẠ CHỈ CHO LAYER GEM
@@ -167,7 +178,7 @@ export class GameScene extends Phaser.Scene {
 
     // Tạo PowerupVFXManager và Board
     this.powerupVFXManager = new PowerupVFXManager(this)
-    // Truyền layer vào cho Board để nó biết nơi cần thêm gem vào
+    // Truyền layer vào cho Board (Board sẽ tự tạo mask riêng cho fake gem)
     this.board = new Board(this, boardOffsetX, boardOffsetY, cellSize, this.powerupVFXManager, this.gemLayer)
     
     // Load level vào Board (Dùng this.levelData đã load ở create)

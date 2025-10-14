@@ -14,6 +14,10 @@ export class RopeBlocker extends BaseBlocker {
     // chỉ lan ngang/dọc, ưu tiên ô chưa có rope
     const pushIfFree = (r, c) => {
       if (r >= 0 && r < board.grid.length && c >= 0 && c < board.grid[0].length) {
+        // tránh lan sang ô lỗ (null) trong layout cấp độ
+        if (board.levelData?.gridLayout?.[r]?.[c] === null) {
+          return
+        }
         const hasBlocker = board.blockerGrid[r][c]
         if (!hasBlocker) candidates.push({ row: r, col: c })
       }

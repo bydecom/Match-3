@@ -97,6 +97,9 @@ export class Board {
     }
 
     this.fillEmptyCells()
+    
+    // DEBUG: Hiển thị mask overlay để quan sát
+    // this.showDebugMaskOverlay() // << TẮT DEBUG - Đã hoạt động đúng!
   }
 
   // Entry point nhận input từ Scene
