@@ -128,7 +128,7 @@ export class BoardPowerups {
       const allGemsToExplode = new Set()
       allGemsToExplode.add(colorBombObject)
       allGemsToExplode.add(swappedObject)
-      const availableGems = this.levelData.availableGems || Object.values(GEM_TYPES).filter(t => ![GEM_TYPES.BOMB, GEM_TYPES.COLOR_BOMB, GEM_TYPES.STRIPE].includes(t))
+      const availableGems = this.levelData.availableGems || Object.values(GEM_TYPES).filter(t => ![GEM_TYPES.BOMB, GEM_TYPES.COLOR_BOMB].includes(t))
       const targetColor = Phaser.Math.RND.pick(availableGems)
       const bombsToActivate = []
       for (let r = 0; r < GRID_SIZE; r++) {

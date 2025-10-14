@@ -221,13 +221,6 @@ export class PowerupVFXManager {
     })
   }
 
-// src/objects/vfx/PowerupVFXManager.js
-
-// ... (các hàm khác giữ nguyên)
-
-  /**
-   * Hiệu ứng cho Stripe với 8 nốt nhạc bay ra hai hướng (phiên bản tinh chỉnh).
-   */
   playStripeEffect(stripeGem, affectedGems, onComplete) {
     const stripeSprite = stripeGem.sprite;
     if (!stripeSprite || !stripeSprite.active) {
