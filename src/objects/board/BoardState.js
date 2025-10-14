@@ -491,7 +491,7 @@ applyGravityAndRefill() {
             if (writeRow < 0) break;
             
             // === LOGIC XỬ LÝ BLOCKER TĨNH (QUAN TRỌNG NHẤT) ===
-            if (blocker && (blocker.type === 'stone' || blocker.type === 'rope')) {
+            if (blocker && (blocker.type === 'stone')) {
                 // Blocker tĩnh luôn được đặt vào vị trí CŨ của nó trong lưới mới
                 newBlockerGrid[readRow][col] = blocker;
 
