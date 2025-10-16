@@ -9,7 +9,10 @@ export class BootScene extends Phaser.Scene {
     preload() {
         // Tải những asset TỐI THIỂU cho màn hình loading
         // Ví dụ: ảnh nền của thanh loading và ảnh thanh loading sẽ được fill
-        this.load.image('loading_background', 'assets/screen/loading.png');
+        this.load.image('loading_background', 'assets/images/map/loading.png');
+        this.load.image('loading_logo', 'assets/images/map/logo.png');
+        this.load.image('loading_progress_bar', 'assets/images/map/loading_progress_bar.png');
+        this.load.image('loading_progress_bar_background', 'assets/images/map/loading_progress_bar_background.png');
 
     }
 

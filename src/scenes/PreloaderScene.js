@@ -7,6 +7,11 @@ export class PreloaderScene extends Phaser.Scene {
     constructor() {
         super('PreloaderScene');
         this.background = null;
+        this.logo = null;
+        this.progressBarBg = null;
+        this.progressBar = null;
+        this.barTextureWidth = 0;
+        this.barTextureHeight = 0;
         this.percentText = null;
         this.realProgress = 0;
         this.displayProgress = 0;
@@ -58,14 +63,16 @@ export class PreloaderScene extends Phaser.Scene {
     update() {
         const elapsedTime = this.time.now - this.startTime;
         const timeProgress = Math.min(1.0, elapsedTime / MIN_LOAD_TIME);
-        const targetProgress = timeProgress;
+        const targetProgress = Math.max(timeProgress, this.realProgress);
         
         if (this.displayProgress < targetProgress) {
              this.displayProgress += (targetProgress - this.displayProgress) * 0.1;
         }
 
-        if (this.percentText) {
-            this.percentText.setText(`Loading ${Math.round(this.displayProgress * 100)}%`);
+        // Cập nhật crop để lấp đầy thanh progress bar (nhẹ hơn so với GeometryMask)
+        if (this.progressBar && this.barTextureWidth > 0) {
+            const cropWidth = Math.max(0, Math.min(1, this.displayProgress)) * this.barTextureWidth;
+            this.progressBar.setCrop(0, 0, cropWidth, this.barTextureHeight);
         }
     }
 
@@ -77,9 +84,44 @@ export class PreloaderScene extends Phaser.Scene {
         const gameWidth = this.scale.gameSize.width;
         const gameHeight = this.scale.gameSize.height;
 
-        this.percentText = this.add.text(gameWidth / 2, gameHeight / 2 + 150, 'Loading 0%', {
-            font: '24px Arial', fill: '#ffffff'
-        }).setOrigin(0.5);
+        // Logo ở giữa, lệch lên trên
+        this.logo = this.add.image(gameWidth / 2, gameHeight / 2 - 310, 'loading_logo').setOrigin(0.5);
+        // Scale logo để không vượt quá 60% bề rộng màn hình
+        const maxLogoWidth = gameWidth * 0.4;
+        if (this.logo.width > 0 && this.logo.width > maxLogoWidth) {
+            const logoScale = 0.4;
+            this.logo.setScale(logoScale);
+        }
+
+        // Hiệu ứng lướt lên xuống nhẹ nhàng cho logo
+        this.tweens.add({
+            targets: this.logo,
+            y: '+=10',
+            duration: 2000,
+            delay: 500, 
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Progress bar background và bar ở dưới logo
+        const progressY = gameHeight / 2 - 130;
+        this.progressBarBg = this.add.image(gameWidth / 2, progressY, 'loading_progress_bar_background').setOrigin(0.5);
+        this.progressBar = this.add.image(gameWidth / 2, progressY, 'loading_progress_bar').setOrigin(0.5);
+
+        // Scale theo bề rộng màn hình (tối đa 70%)
+        const maxBarWidth = gameWidth * 0.5;
+        const baseBarWidth = this.progressBar.width;
+        if (baseBarWidth > 0 && baseBarWidth > maxBarWidth) {
+            const barScale = maxBarWidth / baseBarWidth;
+            this.progressBarBg.setScale(barScale);
+            this.progressBar.setScale(barScale);
+        }
+
+        // Dùng crop theo kích thước texture (tối ưu hiệu năng)
+        this.barTextureWidth = this.progressBar.width;
+        this.barTextureHeight = this.progressBar.height;
+        this.progressBar.setCrop(0, 0, 0, this.barTextureHeight);
 
         this.load.on('progress', (value) => {
             this.realProgress = value;
@@ -87,6 +129,7 @@ export class PreloaderScene extends Phaser.Scene {
     }
     
     loadAssets() {
+        this.load.maxParallelDownloads = 4
         console.log("Bắt đầu ra lệnh tải assets...");
         this.load.image(`level_background`, 'assets/screen/level.png');
         this.load.image(`map1_background`, 'assets/images/map/map1-background.png');
@@ -99,27 +142,6 @@ export class PreloaderScene extends Phaser.Scene {
         
         this.load.image(`cell`, 'assets/images/map/cell.png');
         
-        // Load gem images
-        this.load.image(`gem_red`, 'assets/images/gameplay/gems/red.png');
-        this.load.image(`gem_green`, 'assets/images/gameplay/gems/green.png');
-        this.load.image(`gem_blue`, 'assets/images/gameplay/gems/blue.png');
-        this.load.image(`gem_purple`, 'assets/images/gameplay/gems/purple.png');
-        this.load.image(`gem_yellow`, 'assets/images/gameplay/gems/yellow.png');
-        this.load.image(`gem_orange`, 'assets/images/gameplay/gems/orange.png');
-        
-        // Load power-up images
-        this.load.image(`gem_bomb`, 'assets/images/gameplay/gems/bomb.png');
-        this.load.image(`gem_color_bomb`, 'assets/images/gameplay/gems/color_bomb.png');
-        this.load.image(`gem_stripe`, 'assets/images/gameplay/gems/stripe.png');
-        // Load blocker images (stone levels + rope)
-        this.load.image(`blocker_stone_1`, 'assets/images/gameplay/blockers/blocker_stone_2.png');
-        this.load.image(`blocker_stone_2`, 'assets/images/gameplay/blockers/blocker_stone_1.png');
-        this.load.image(`blocker_rope`, 'assets/images/gameplay/blockers/blocker_rope.png');
-        // Load booster icons (UI)
-        this.load.image('booster_hammer', 'assets/images/ui/booster_hammer.png');
-        this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
-        this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
-        this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
         // Nút cài đặt
         this.load.image('setting_button', 'assets/images/ui/setting_button.png');
         // Load UI Progress Bar assets
@@ -138,12 +160,6 @@ export class PreloaderScene extends Phaser.Scene {
         
         // Load progress bar image for level loading
         this.load.image('loading_level_progressbar', 'assets/screen/progress-bar.png');
-
-        // Load note images for Stripe effect
-        this.load.image('note1', 'assets/images/vfx/note1.png');
-        this.load.image('note2', 'assets/images/vfx/note2.png');
-        this.load.image('note3', 'assets/images/vfx/note3.png');
-        this.load.image('note4', 'assets/images/vfx/note4.png');
 
         // Load assets cho màn hình bản đồ mới
         this.load.image('map_part1', 'assets/images/map/map_part_1.png');
