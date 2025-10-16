@@ -1,6 +1,12 @@
 {
   "levelId": 2,
   "moves": 25,
+  "starTimes": {
+    "startTime": 120,
+    "threeStars": 90,
+    "twoStars": 60,
+    "oneStar": 30
+  },
   "objectives": [
     { "target": "blocker", "type": "stone", "count": 5 }
   ],

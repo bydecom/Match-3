@@ -151,12 +151,12 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('star_on', 'assets/images/ui/star_on.png');
         
         // Load loading background images
-        this.load.image('loading_background_1', 'assets/screen/loading1.png');
-        this.load.image('loading_background_2', 'assets/screen/loading2.png');
-        this.load.image('loading_background_3', 'assets/screen/loading3.png');
-        this.load.image('loading_background_4', 'assets/screen/loading4.png');
-        this.load.image('loading_background_5', 'assets/screen/loading5.png');
-        this.load.image('loading_background_6', 'assets/screen/loading6.png');
+        this.load.image('loading_background_1', 'assets/screen/loading_1.png');
+        this.load.image('loading_background_2', 'assets/screen/loading_2.png');
+        this.load.image('loading_background_3', 'assets/screen/loading_3.png');
+        this.load.image('loading_background_4', 'assets/screen/loading_4.png');
+        this.load.image('loading_background_5', 'assets/screen/loading_5.png');
+        this.load.image('loading_background_6', 'assets/screen/loading_6.png');
         
         // Load progress bar image for level loading
         this.load.image('loading_level_progressbar', 'assets/screen/progress-bar.png');
