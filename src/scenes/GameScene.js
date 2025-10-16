@@ -184,6 +184,8 @@ export class GameScene extends Phaser.Scene {
     // Load level vào Board (Dùng this.levelData đã load ở create)
     if (this.levelData) {
         this.board.loadLevel(this.levelData)
+        // << GỌI HÀM KHỞI TẠO NHIỆM VỤ CỦA BOARD >>
+        this.board.initializeObjectives(this.levelData.objectives);
     }
     
     // Lắng nghe sự kiện từ Board
@@ -202,6 +204,11 @@ export class GameScene extends Phaser.Scene {
     }
     
     console.log('Loaded level data from cache:', this.levelData)
+    
+    // << GỌI HÀM KHỞI TẠO NHIỆM VỤ CỦA BOARD >>
+    if (this.board) {
+      this.board.initializeObjectives(this.levelData.objectives);
+    }
   }
 
   setupBoardEvents() {
@@ -340,12 +347,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
- // src/scenes/GameScene.js
 
-// ... (các hàm khác giữ nguyên)
-
-  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
   onPointerUp(pointer) {
     this.isPointerDown = false
 

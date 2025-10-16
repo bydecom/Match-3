@@ -9,7 +9,8 @@
   },
   "objectives": [
     { "target": "gem", "type": "red", "count": 25 },
-    { "target": "gem", "type": "blue", "count": 25 }
+    { "target": "gem", "type": "blue", "count": 25 },
+    { "target": "powerup", "type": "bomb", "count": 3 }
   ],
   "gridLayout": [
     [0, 0, 0, 0, 0, 0, 0, 0, 0],

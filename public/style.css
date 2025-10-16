@@ -1,0 +1,13 @@
+@font-face {
+  font-family: 'UTMCookies';
+  src: url('/assets/fonts/UTM COOKIES.TTF') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+

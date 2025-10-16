@@ -7,6 +7,7 @@ import { LevelLoaderScene } from './scenes/LevelLoaderScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 import { SettingsPopup } from './scenes/popups/SettingsPopup';
+import { WinPopup } from './scenes/popups/WinPopup';
 
 const config = {
   type: Phaser.AUTO,
@@ -18,7 +19,7 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup] 
+  scene: [BootScene, PreloaderScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup, WinPopup] 
 };
 
 function initializeApp() {

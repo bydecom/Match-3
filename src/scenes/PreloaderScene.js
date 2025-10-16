@@ -40,7 +40,10 @@ export class PreloaderScene extends Phaser.Scene {
             }, MIN_LOAD_TIME);
         });
 
-        Promise.all([minTimePromise, loadCompletePromise]).then(() => {
+        // Chờ font web sẵn sàng (UTMCookies) để tránh giật font khi vào scene tiếp theo
+        const fontLoadPromise = this.waitForFont('UTMCookies');
+
+        Promise.all([minTimePromise, loadCompletePromise, fontLoadPromise]).then(() => {
             if (!this.scene.isActive()) {
                 console.log("Promise hoàn thành, nhưng scene không còn hoạt động. Bỏ qua.");
                 return;
@@ -173,6 +176,25 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.json('level_3', 'assets/levels/level_3.json');
         this.load.json('level_4', 'assets/levels/level_4.json');
         this.load.json('level_5', 'assets/levels/level_5.json');
+    }
+
+    // Chờ font web sẵn sàng. Nếu trình duyệt không hỗ trợ, bỏ qua để không chặn preload
+    waitForFont(fontName) {
+        try {
+            if (document && document.fonts && document.fonts.load) {
+                // Kích hoạt tải font và đợi ready
+                const triggerLoad = document.fonts.load(`20px ${fontName}`);
+                const ready = document.fonts.ready;
+                return Promise.all([triggerLoad, ready]).then(() => {
+                    console.log(`[Preloader] Font '${fontName}' đã sẵn sàng.`);
+                }).catch((err) => {
+                    console.warn(`[Preloader] Không thể xác nhận trạng thái font '${fontName}':`, err);
+                });
+            }
+        } catch (e) {
+            console.warn('[Preloader] document.fonts không khả dụng:', e);
+        }
+        return Promise.resolve();
     }
 
 

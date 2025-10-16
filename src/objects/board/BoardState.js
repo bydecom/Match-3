@@ -6,6 +6,11 @@ export class BoardState {
     this.grid = []
     this.blockerGrid = []
     this.isGravityEffectRunning = false // Cờ chặn auto match khi gravity effect đang chạy
+    this.objectives = {}; // << THÊM: Biến theo dõi nhiệm vụ
+    // Theo dõi bổ sung
+    this.powerupActivations = {}; // { bomb: n, stripe: n, color_bomb: n }
+    this.blockerCounts = {}; // { stone: n, rope: n, ... }
+    this.levelWon = false; // Cờ thắng để tránh emit nhiều lần
     for (let row = 0; row < GRID_SIZE; row++) {
       this.grid[row] = []
       this.blockerGrid[row] = []
@@ -39,6 +44,85 @@ export class BoardState {
     this.initGrid()
   }
 
+  // << THÊM HÀM MỚI: Khởi tạo bộ theo dõi nhiệm vụ >>
+  initializeObjectives(levelObjectives) {
+    this.objectives = {};
+    if (!levelObjectives) return;
+
+    levelObjectives.forEach(obj => {
+      const key = `${obj.target}_${obj.type}`;
+      this.objectives[key] = { ...obj, remaining: obj.count };
+    });
+    console.log('Objectives initialized:', this.objectives);
+
+    // Cập nhật đếm blocker hiện có trên bảng ngay khi khởi tạo mục tiêu
+    this.recalculateBlockerCounts();
+  }
+
+  // << THÊM HÀM MỚI: Cập nhật tiến trình và phát sự kiện >>
+  updateObjectiveProgress(target, type, count = 1) {
+    const key = `${target}_${type}`;
+    if (this.objectives[key] && this.objectives[key].remaining > 0) {
+      this.objectives[key].remaining -= count;
+      
+      // Đảm bảo không bị số âm
+      if (this.objectives[key].remaining < 0) {
+        this.objectives[key].remaining = 0;
+      }
+
+      console.log(`Objective updated: ${key}, remaining: ${this.objectives[key].remaining}`);
+      
+      // Phát sự kiện toàn cục để UIScene lắng nghe
+      this.scene.game.events.emit('objectiveUpdated', {
+        key: key,
+        remaining: this.objectives[key].remaining
+      });
+      // Không emit thắng tại đây; sẽ kiểm tra ở cuối lượt (endOfTurn)
+    }
+  }
+
+  // Xác định xem tất cả mục tiêu đã hoàn thành chưa
+  areAllObjectivesCompleted() {
+    if (!this.objectives) return false;
+    return Object.values(this.objectives).every(obj => (obj?.remaining ?? 0) <= 0);
+  }
+
+  // Tính lại số lượng blocker trên toàn bảng và phát sự kiện cập nhật
+  recalculateBlockerCounts() {
+    const counts = {};
+    for (let r = 0; r < this.blockerGrid.length; r++) {
+      for (let c = 0; c < this.blockerGrid[r].length; c++) {
+        const b = this.blockerGrid[r][c];
+        if (b && b.type) {
+          counts[b.type] = (counts[b.type] || 0) + 1;
+        }
+      }
+    }
+    this.blockerCounts = counts;
+    Object.keys(counts).forEach(type => {
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('blockerCountUpdated', { type, remaining: counts[type] });
+      }
+    });
+  }
+
+  // Ghi nhận một lần kích hoạt power-up và phát sự kiện theo dõi
+  trackPowerupActivation(powerupType) {
+    if (!powerupType) return;
+    const map = {
+      [GEM_TYPES.BOMB]: 'bomb',
+      [GEM_TYPES.STRIPE]: 'stripe',
+      [GEM_TYPES.COLOR_BOMB]: 'color_bomb'
+    };
+    const key = map[powerupType] || String(powerupType).toLowerCase();
+    this.powerupActivations[key] = (this.powerupActivations[key] || 0) + 1;
+    // Cập nhật mục tiêu powerup (nếu level có yêu cầu)
+    this.updateObjectiveProgress('powerup', key, 1);
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('powerupActivated', { type: key, count: this.powerupActivations[key] });
+    }
+  }
+
   createGem(row, col, gemType) {
     const gemSprite = this.createGemAt(row, col, gemType)
     this.grid[row][col] = { type: 'gem', value: gemType, sprite: gemSprite }
@@ -53,7 +137,7 @@ export class BoardState {
     const gem = this.gemLayer.add(
       this.scene.make.image({ x, y, key: gemTextureKey, add: false })
     )
-    gem.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.8)
+    gem.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.82)
       .setInteractive()
       .setDepth(2)
     gem.setData({ row, col, type: gemType, isGem: true })
@@ -182,6 +266,7 @@ export class BoardState {
   startActionChain(initialMatchGroups, powerupToActivate, otherGem, swapPosition) {
     let allGemsToRemove = new Set()
     let powerupsToCreate = []
+    const activatedThisAction = []
 
     // Luôn xử lý match và lên kế hoạch tạo power-up
     if (initialMatchGroups.length > 0) {
@@ -198,13 +283,38 @@ export class BoardState {
 
     // Callback sau khi VFX hoàn tất: chỉ xóa và tạo, không bảo vệ tại đây nữa
     const onVFXComplete = () => {
+      // Tính tổng gem bị phá theo màu trong hành động này
+      const gemCounts = {}
+      allGemsToRemove.forEach(gem => {
+        if (gem && gem.value) {
+          gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
+        }
+      })
+
       this.removeGemSprites(allGemsToRemove)
       this.createPowerupsAfterWiggle(powerupsToCreate)
+
+      // Phát tóm tắt trước khi gravity chạy
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('matchSummary', {
+          gemCounts,
+          blockerCounts: this.blockerCounts || {},
+          powerups: activatedThisAction.map(t => t)
+        })
+      }
+
       this.scene.time.delayedCall(150, () => { this.applyGravityAndRefill() })
     }
 
     // --- BẮT ĐẦU SỬA TỪ KHỐI LOGIC KIỂM TRA POWER-UP ---
     if (powerupToActivate) {
+      // Ghi nhận kích hoạt power-up
+      this.trackPowerupActivation(powerupToActivate.value)
+      activatedThisAction.push(powerupToActivate.value)
+      if (this.isPowerup(otherGem)) {
+        this.trackPowerupActivation(otherGem.value)
+        activatedThisAction.push(otherGem.value)
+      }
         // KIỂM TRA TRƯỚC TIÊN: CÓ PHẢI LÀ COMBO KHÔNG?
         if (this.isPowerup(otherGem)) {
             const type1 = powerupToActivate.value
@@ -346,17 +456,27 @@ export class BoardState {
       gemsAndAdjacentCells.add(`${r},${c-1}`);
       gemsAndAdjacentCells.add(`${r},${c+1}`);
     });
+    let blockerDestroyedThisPass = false;
     gemsAndAdjacentCells.forEach(coord => {
       const [r, c] = coord.split(',').map(Number);
       const blocker = this.blockerGrid?.[r]?.[c];
       if (blocker) {
         const destroyed = blocker.takeDamage();
         if (destroyed) {
+          // Cập nhật mục tiêu và số lượng blocker còn lại
+          if (blocker.type) {
+            this.updateObjectiveProgress('blocker', blocker.type);
+          }
           this.blockerGrid[r][c] = null;
+          blockerDestroyedThisPass = true;
           if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true;
         }
       }
     });
+    // Sau khi xử lý xong tất cả blocker, mới tính lại 1 lần để tránh spam sự kiện
+    if (blockerDestroyedThisPass) {
+      this.recalculateBlockerCounts();
+    }
 
     // Bảo vệ: loại bỏ gem tại vị trí tạo power-up khỏi danh sách xóa
     if (powerupsToCreate.length > 0) {
@@ -377,6 +497,9 @@ export class BoardState {
       // === BƯỚC KIỂM TRA AN TOÀN QUAN TRỌNG ===
       // Chỉ xử lý nếu gemObject là một đối tượng hợp lệ VÀ có thuộc tính sprite
       if (gemObject && gemObject.sprite) {
+        // << LOGIC MỚI: Cập nhật nhiệm vụ gem >>
+        this.updateObjectiveProgress('gem', gemObject.value);
+        
         const row = gemObject.sprite.getData('row')
         const col = gemObject.sprite.getData('col')
         
@@ -406,6 +529,11 @@ export class BoardState {
    */
   removeBlockerSprite(blockerObject) {
     if (blockerObject && typeof blockerObject.destroy === 'function') {
+      // << LOGIC MỚI: Cập nhật nhiệm vụ blocker >>
+      if (blockerObject.type) {
+        this.updateObjectiveProgress('blocker', blockerObject.type);
+      }
+      
       this.scene.tweens.add({
         targets: blockerObject,
         scale: 0,
@@ -413,6 +541,8 @@ export class BoardState {
         duration: 200,
         onComplete: () => {
           blockerObject.destroy()
+          // Cập nhật lại bộ đếm blocker sau khi hủy
+          this.recalculateBlockerCounts()
         }
       })
     }
@@ -1071,6 +1201,8 @@ applyGravityAndRefill() {
     if (this.scene && this.scene.game && this.scene.game.events) {
       this.scene.game.events.emit('boardBusy', false)
     }
+    // Sau khi hiệu ứng và refill hoàn tất, kiểm tra và emit thắng nếu đủ điều kiện
+    this.maybeEmitLevelCompleted()
   }
 
   getPowerupActivationSet(powerupGem, otherGem) {
@@ -1173,6 +1305,18 @@ applyGravityAndRefill() {
       }
     }
     return resultSet
+  }
+
+  // Chỉ emit levelCompleted sau khi lượt đã kết thúc và chưa emit trước đó
+  maybeEmitLevelCompleted() {
+    if (this.levelWon) return;
+    if (this.isGravityEffectRunning) return;
+    if (this.areAllObjectivesCompleted()) {
+      this.levelWon = true;
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('levelCompleted');
+      }
+    }
   }
 }
 

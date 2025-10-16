@@ -210,6 +210,10 @@ export class BoardPowerups {
     // --- Xử lý Blocker ---
     const blocker = this.blockerGrid[row]?.[col];
     if (blocker) {
+      // Cập nhật mục tiêu blocker và xóa khỏi lưới
+      if (blocker.type) {
+        this.updateObjectiveProgress('blocker', blocker.type);
+      }
       this.blockerGrid[row][col] = null; // Xóa tham chiếu logic
       if (blocker.type === 'rope') {
         this.ropeDestroyedThisTurn = true;
@@ -222,11 +226,16 @@ export class BoardPowerups {
         duration: 200,
         onComplete: () => blocker.destroy()
       });
+      // Ghi nhận để tổng hợp cuối lượt
+      if (!this.turnStats) this.turnStats = { gemCounts: {}, powerups: [] };
+      this.turnStats.blockerTouched = true;
     }
 
     // --- Xử lý Gem ---
     const gem = this.grid[row]?.[col];
     if (gem && gem.sprite) {
+      // Cập nhật mục tiêu gem
+      this.updateObjectiveProgress('gem', gem.value);
       this.grid[row][col] = null; // Xóa tham chiếu logic
       // Tạo animation xóa sprite
       this.scene.tweens.add({
@@ -238,6 +247,10 @@ export class BoardPowerups {
           if (gem.sprite) gem.sprite.destroy();
         }
       });
+      // Ghi nhận để tổng hợp cuối lượt
+      if (!this.turnStats) this.turnStats = { gemCounts: {}, powerups: [] };
+      const color = gem.value;
+      this.turnStats.gemCounts[color] = (this.turnStats.gemCounts[color] || 0) + 1;
     }
   }
 
@@ -249,11 +262,23 @@ export class BoardPowerups {
     this.boardBusy = true;
     this.scene.input.enabled = false;
 
+    // Reset thống kê cho lượt booster
+    this.turnStats = { gemCounts: {}, powerups: [] };
+
     // Bước 1: Ra lệnh phá hủy mọi thứ tại ô đó.
     this.forceDestroyCell(row, col);
 
     // Bước 2: Hẹn giờ để kích hoạt gravity sau khi animation phá hủy có thời gian chạy.
     this.scene.time.delayedCall(250, () => {
+        // Tính lại blocker sau khi phá và phát tóm tắt cho UI
+        this.recalculateBlockerCounts();
+        if (this.scene && this.scene.game && this.scene.game.events) {
+          this.scene.game.events.emit('matchSummary', {
+            gemCounts: this.turnStats.gemCounts,
+            blockerCounts: this.blockerCounts || {},
+            powerups: this.turnStats.powerups
+          })
+        }
         this.applyGravityAndRefill();
     });
   }
@@ -265,6 +290,9 @@ export class BoardPowerups {
     this.scene.input.enabled = false;
 
     console.log(`Using Rocket at column ${col} and its neighbors.`);
+
+    // Reset thống kê cho lượt booster
+    this.turnStats = { gemCounts: {}, powerups: [] };
 
     // 1. Xác định các cột sẽ bị ảnh hưởng
     const affectedColumns = [col]; // Luôn bao gồm cột được nhắm tới
@@ -289,6 +317,15 @@ export class BoardPowerups {
 
     // 3. Kích hoạt gravity sau một khoảng trễ ngắn để animation kịp chạy
     this.scene.time.delayedCall(250, () => {
+      // Tính lại blocker sau khi phá và phát tóm tắt cho UI
+      this.recalculateBlockerCounts();
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('matchSummary', {
+          gemCounts: this.turnStats.gemCounts,
+          blockerCounts: this.blockerCounts || {},
+          powerups: this.turnStats.powerups
+        })
+      }
       this.applyGravityAndRefill();
     });
   }

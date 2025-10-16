@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { BOOSTER_TYPES } from '../utils/constants';
 import { ProgressBar } from '../ui/ProgressBar';
+import { ObjectiveItem } from '../ui/ObjectiveItem'; // << THÊM IMPORT
 
 export class UIScene extends Phaser.Scene {
   constructor() {
@@ -11,6 +12,7 @@ export class UIScene extends Phaser.Scene {
     // this.isBoardBusy = false; 
     this.boosterIcons = [];
     this.progressBar = null;
+    this.objectiveItems = {}; // << THÊM ĐỂ LƯU TRỮ CÁC ITEM NHIỆM VỤ
   }
 
   create() {
@@ -35,6 +37,9 @@ export class UIScene extends Phaser.Scene {
       // Không có cấu hình thời gian: tránh đăng ký cập nhật thanh tiến trình
       this.progressBar = null;
     }
+
+    // === PHẦN MỚI: TẠO BẢNG NHIỆM VỤ ===
+    this.createObjectivesPanel(levelData);
 
     // Đăng ký listener qua handler tách riêng để dễ off khi shutdown
     // Chỉ đăng ký nếu có progressBar (tức là có starTimes)
@@ -102,6 +107,15 @@ export class UIScene extends Phaser.Scene {
     
     // << THÊM LISTENER MỚI NÀY VÀO CUỐI HÀM create() >>
     this.game.events.on('screenShake', this.handleScreenShake, this)
+    
+    // << THÊM LISTENER MỚI CHO NHIỆM VỤ >>
+    this.game.events.on('objectiveUpdated', this.handleObjectiveUpdate, this);
+    // Khi hoàn thành toàn bộ mục tiêu -> mở WinPopup
+    this.game.events.on('levelCompleted', this.handleLevelCompleted, this);
+    // Theo dõi bổ sung: power-up và blocker còn lại
+    this.game.events.on('powerupActivated', this.handlePowerupActivated, this);
+    this.game.events.on('blockerCountUpdated', this.handleBlockerCountUpdated, this);
+    this.game.events.on('matchSummary', this.handleMatchSummary, this);
     // << KẾT THÚC THÊM MỚI >>
   }
 
@@ -131,12 +145,140 @@ export class UIScene extends Phaser.Scene {
     this.cameras.main.shake(shakeData.duration, shakeData.intensity)
   }
 
+  /**
+   * Tạo và hiển thị bảng các nhiệm vụ của màn chơi.
+   */
+  createObjectivesPanel(levelData) {
+    if (!levelData || !levelData.objectives) return;
+
+    // Vị trí bắt đầu của grid nhiệm vụ (ví dụ: góc trên bên trái)
+    const startX = 90;
+    const startY = 130;
+    const spacingX = 60;
+    const spacingY = 60;
+    const itemsPerRow = 2; // Grid 2x3
+
+    levelData.objectives.forEach((objData, index) => {
+      const row = Math.floor(index / itemsPerRow);
+      const col = index % itemsPerRow;
+
+      const x = startX + col * spacingX;
+      const y = startY + row * spacingY;
+      
+      // Tạo key duy nhất cho mỗi nhiệm vụ, ví dụ: "gem_red" hoặc "blocker_stone"
+      const objectiveKey = `${objData.target}_${objData.type}`;
+      
+      const item = new ObjectiveItem(this, x, y, objData);
+      this.objectiveItems[objectiveKey] = item;
+    });
+  }
+  
+  /**
+   * Xử lý sự kiện khi một nhiệm vụ được cập nhật từ GameScene.
+   * @param {object} updateData - { key, remaining }
+   */
+  handleObjectiveUpdate(updateData) {
+    const { key, remaining } = updateData;
+    const item = this.objectiveItems[key];
+    
+    if (item) {
+      item.updateCount(remaining);
+    }
+  }
+
+  // Nhận sự kiện theo dõi kích hoạt power-up: nếu có mục tiêu dạng powerup_*, cập nhật luôn
+  handlePowerupActivated(data) {
+    const { type, count } = data;
+    const key = `powerup_${type}`;
+    const item = this.objectiveItems[key];
+    if (item) {
+      // Với mục tiêu đếm số lần kích hoạt, remaining giảm khi count tăng
+      const initial = item.initialCount ?? item.currentCount;
+      const remaining = Math.max(0, initial - count);
+      item.updateCount(remaining);
+    }
+  }
+
+  // Nhận sự kiện cập nhật số blocker còn lại trên bảng: nếu có mục tiêu blocker_*, đồng bộ remaining
+  handleBlockerCountUpdated(data) {
+    const { type, remaining } = data;
+    const key = `blocker_${type}`;
+    const item = this.objectiveItems[key];
+    if (item) {
+      item.updateCount(remaining);
+    }
+  }
+
+  // Nhận tóm tắt một hành động match: cập nhật nhanh UI theo số liệu tổng
+  handleMatchSummary(summary) {
+    // 1) Cập nhật đếm gem theo mục tiêu nếu có
+    if (summary.gemCounts) {
+      Object.entries(summary.gemCounts).forEach(([color, destroyed]) => {
+        const key = `gem_${color}`;
+        const item = this.objectiveItems[key];
+        if (item && item.currentCount > 0) {
+          const remaining = Math.max(0, item.currentCount - destroyed);
+          item.updateCount(remaining);
+        }
+      });
+    }
+    // 2) Đồng bộ blocker còn lại nếu có
+    if (summary.blockerCounts) {
+      Object.entries(summary.blockerCounts).forEach(([type, remaining]) => {
+        const key = `blocker_${type}`;
+        const item = this.objectiveItems[key];
+        if (item) item.updateCount(remaining);
+      });
+    }
+    // 3) Hiển thị powerup vừa kích hoạt nếu có mục tiêu dạng powerup_*
+    if (summary.powerups) {
+      summary.powerups.forEach(p => {
+        const key = `powerup_${p === 0 ? 'bomb' : String(p).toLowerCase()}`;
+        const item = this.objectiveItems[key];
+        if (item) {
+          const initial = item.initialCount ?? item.currentCount;
+          // Tăng đếm tổng: lấy số đã kích hoạt từ sự kiện 'powerupActivated' là chuẩn, ở đây chỉ giảm 1 nếu có mục tiêu
+          const remaining = Math.max(0, item.currentCount - 1);
+          item.updateCount(remaining);
+        }
+      });
+    }
+  }
+
+  // Tính số sao dựa vào thời gian còn lại
+  calculateStars() {
+    const gameScene = this.scene.get('GameScene');
+    const levelData = gameScene?.levelData;
+    const currentTime = gameScene?.currentTime ?? 0;
+    if (!levelData || !levelData.starTimes) return 1;
+    const { threeStars, twoStars, oneStar } = levelData.starTimes;
+    if (currentTime >= threeStars) return 3;
+    if (currentTime >= twoStars) return 2;
+    if (currentTime >= oneStar) return 1;
+    return 1;
+  }
+
+  handleLevelCompleted() {
+    // Ngắt chọn booster nếu có
+    this.handleBoosterCleared();
+    // Tính sao và mở popup
+    const stars = this.calculateStars();
+    const gameScene = this.scene.get('GameScene');
+    const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+    this.scene.launch('WinPopup', { levelId, stars });
+  }
+
   shutdown() {
     console.log('UIScene is shutting down, removing global listeners...')
     this.game.events.off('updateTimer', this.handleUpdateTimer, this)
     this.game.events.off('boardBusy', this.handleBoardBusy, this)
     this.game.events.off('boosterSelectionCleared', this.handleBoosterCleared, this)
     this.game.events.off('screenShake', this.handleScreenShake, this)
+    this.game.events.off('objectiveUpdated', this.handleObjectiveUpdate, this); // << DỌN DẸP LISTENER
+    this.game.events.off('levelCompleted', this.handleLevelCompleted, this);
+    this.game.events.off('powerupActivated', this.handlePowerupActivated, this)
+    this.game.events.off('blockerCountUpdated', this.handleBlockerCountUpdated, this)
+    this.game.events.off('matchSummary', this.handleMatchSummary, this)
   }
 
   // << CÁC HÀM NÀY ĐÃ ĐÚNG, GIỮ NGUYÊN >>
