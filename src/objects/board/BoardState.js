@@ -77,7 +77,11 @@ export class BoardState {
         key: key,
         remaining: this.objectives[key].remaining
       });
-      // Không emit thắng tại đây; sẽ kiểm tra ở cuối lượt (endOfTurn)
+      // Kiểm tra thắng sớm nếu tất cả mục tiêu đã hoàn thành và không có hiệu ứng đang chạy
+      // (vẫn có kiểm tra an toàn ở endOfTurn)
+      if (this.areAllObjectivesCompleted() && !this.isGravityEffectRunning && !this.boardBusy) {
+        this.maybeEmitLevelCompleted();
+      }
     }
   }
 

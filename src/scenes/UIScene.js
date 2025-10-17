@@ -13,6 +13,7 @@ export class UIScene extends Phaser.Scene {
     this.boosterIcons = [];
     this.progressBar = null;
     this.objectiveItems = {}; // << THÊM ĐỂ LƯU TRỮ CÁC ITEM NHIỆM VỤ
+    this.levelCompletedShown = false; // Cờ ngăn mở WinPopup nhiều lần
   }
 
   create() {
@@ -184,6 +185,11 @@ export class UIScene extends Phaser.Scene {
     if (item) {
       item.updateCount(remaining);
     }
+
+    // Dự phòng: nếu tất cả mục tiêu đều hoàn thành theo UI, phát sự kiện thắng một lần
+    if (!this.levelCompletedShown && this.areAllObjectivesCleared()) {
+      this.game.events.emit('levelCompleted');
+    }
   }
 
   // Nhận sự kiện theo dõi kích hoạt power-up: nếu có mục tiêu dạng powerup_*, cập nhật luôn
@@ -265,6 +271,8 @@ export class UIScene extends Phaser.Scene {
     const stars = this.calculateStars();
     const gameScene = this.scene.get('GameScene');
     const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+    if (this.levelCompletedShown) return;
+    this.levelCompletedShown = true;
     this.scene.launch('WinPopup', { levelId, stars });
   }
 
@@ -343,5 +351,12 @@ export class UIScene extends Phaser.Scene {
         }
       });
     }
+  }
+  
+  // Kiểm tra tất cả mục tiêu trên UI đã về 0
+  areAllObjectivesCleared() {
+    const items = Object.values(this.objectiveItems);
+    if (items.length === 0) return false;
+    return items.every(it => (it?.currentCount ?? 0) <= 0);
   }
 }
