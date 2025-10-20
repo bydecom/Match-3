@@ -1,7 +1,7 @@
 // src/scenes/PreloaderScene.js
 import Phaser from 'phaser';
 
-const MIN_LOAD_TIME = 5000;
+const MIN_LOAD_TIME = 2000; // Giảm thời gian chờ một chút
 
 export class PreloaderScene extends Phaser.Scene {
     constructor() {
@@ -165,10 +165,65 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('loading_level_progressbar', 'assets/screen/progress-bar.png');
 
         // Load assets cho màn hình bản đồ mới
-        this.load.image('map_part1', 'assets/images/map/map_part_1.png');
-        this.load.image('map_part2', 'assets/images/map/map_part_2.png'); // Sử dụng cùng ảnh tạm thời
-        // Nút bấm cho mỗi level (sử dụng cell.png làm nút tạm thời)
-        this.load.image('level_node_button', 'assets/images/map/cell.png'); 
+        this.load.image('map_part1', 'assets/images/map/map.png');
+        // this.load.image('map_part1', 'assets/images/map/map_part_1.png');
+        this.load.image('map_part2', 'assets/images/map/map_part_2.png');
+        
+        // --- THÊM ASSETS MỚI CHO MAPSCENE ---
+        this.load.image('level_lock', 'assets/images/map/level_lock.png');
+        this.load.image('level_unlock', 'assets/images/map/level_unlock.png');
+        this.load.image('star_1', 'assets/images/map/star_1.png');
+        this.load.image('star_2', 'assets/images/map/star_2.png');
+        this.load.image('star_3', 'assets/images/map/star_3.png'); 
+
+        // VFX - steam
+        this.load.image('vfx_steam_1_1_bot_nuoc', 'assets/images/map/vfx/steam/1.1. Bot nuoc.png');
+        this.load.image('vfx_steam_1_2_bot_nuoc', 'assets/images/map/vfx/steam/1.2. Bot nuoc.png');
+        this.load.image('vfx_steam_1_3_bot_nuoc', 'assets/images/map/vfx/steam/1.3. Bot nuoc.png');
+        this.load.image('vfx_steam_1_4_bot_nuoc', 'assets/images/map/vfx/steam/1.4.  Bot nuoc.png');
+        // --- NEW: Banana tree variants and wooden stumps for Steam area ---
+        // Bạn đã cung cấp 3 ảnh: cay_chuoi1, cay_chuoi2, coc_go
+        // Đặt key ngắn gọn để dùng trong MapVFXManager
+        this.load.image('steam_cay_chuoi1', 'assets/images/map/vfx/steam/cay_chuoi1.png');
+        this.load.image('steam_cay_chuoi2', 'assets/images/map/vfx/steam/cay_chuoi2.png');
+        this.load.image('steam_coc_go', 'assets/images/map/vfx/steam/coc_go.png');
+        this.load.image('vfx_steam_10_mat_nuoc_loang_1', 'assets/images/map/vfx/steam/10. Mat nuoc loang 1.png');
+        this.load.image('vfx_steam_11_mat_nuoc_loang_1', 'assets/images/map/vfx/steam/11. Mat nuoc loang 1.png');
+        this.load.image('vfx_steam_13_mat_nuoc_loang_3', 'assets/images/map/vfx/steam/13. Mat nuoc loang 3.png');
+        this.load.image('vfx_steam_15_nuoc_chay_chan_thac', 'assets/images/map/vfx/steam/15. Nuoc chay chan thac.png');
+        this.load.image('vfx_steam_16_nuoc_chay_chan_thac', 'assets/images/map/vfx/steam/16. nuoc chay chan thac.png');
+        this.load.image('vfx_steam_17_nuoc_loang_chan_thac', 'assets/images/map/vfx/steam/17. Nuoc loang chan thac.png');
+        this.load.image('vfx_steam_3_nuoc_dau_ngon_thac', 'assets/images/map/vfx/steam/3. Nuoc dau ngon thac.png');
+        this.load.image('vfx_steam_4_nuoc_dau_ngon_thac', 'assets/images/map/vfx/steam/4. Nuoc dau ngon thac.png');
+        this.load.image('vfx_steam_5_giot_nuoc_ngon_thac', 'assets/images/map/vfx/steam/5. Giot nuoc ngon thac.png');
+        this.load.image('vfx_steam_6_nuoc_chay_giua_ngon_thac', 'assets/images/map/vfx/steam/6. Nuoc chay giua ngon thac.png');
+        this.load.image('vfx_steam_7_nuoc_chay_giua_angon_thac', 'assets/images/map/vfx/steam/7. Nuoc chay giua angon thac.png');
+        this.load.image('vfx_steam_8_nuoc_chay_giua_ngon_thac', 'assets/images/map/vfx/steam/8. Nuoc chay giua ngon thac.png');
+        this.load.image('vfx_steam_9_nuoc_chay_giua_ngon_thac', 'assets/images/map/vfx/steam/9. Nuoc chay giua ngon thac.png');
+        this.load.image('vfx_steam_mat_nuoc_loang_2', 'assets/images/map/vfx/steam/Mat nuoc loang 2.png');
+        this.load.image('vfx_steam_mat_nuoc_loang_4', 'assets/images/map/vfx/steam/Mat nuoc loang 4.png');
+        this.load.image('vfx_steam_thac_nuoc', 'assets/images/map/vfx/steam/Thac nuoc.png');
+
+        // VFX - decanter
+        this.load.image('vfx_decanter_dong_nuoc_chinh', 'assets/images/map/vfx/decanter/Dong nuoc chinh.png');
+        this.load.image('vfx_decanter_giot_nuoc_1', 'assets/images/map/vfx/decanter/Giot nuoc 1.png');
+        this.load.image('vfx_decanter_giot_nuoc_2', 'assets/images/map/vfx/decanter/Giot nuoc 2.png');
+        this.load.image('vfx_decanter_giot_nuoc_3', 'assets/images/map/vfx/decanter/Giot nuoc 3.png');
+        this.load.image('vfx_decanter_giot_nuoc_4', 'assets/images/map/vfx/decanter/Giot nuoc 4.png');
+        this.load.image('vfx_decanter_nuoc_chay_1', 'assets/images/map/vfx/decanter/Nuoc chay 1.png');
+        this.load.image('vfx_decanter_nuoc_chay_2', 'assets/images/map/vfx/decanter/Nuoc chay 2.png');
+        this.load.image('vfx_decanter_nuoc_chay_3', 'assets/images/map/vfx/decanter/Nuoc chay 3.png');
+        this.load.image('vfx_decanter_nuoc_chay_4', 'assets/images/map/vfx/decanter/Nuoc chay 4.png');
+
+        // VFX - bambo
+        this.load.image('vfx_bambo_cay_tre', 'assets/images/map/vfx/bambo/Cay tre.png');
+        this.load.image('vfx_bambo_mat_sau_quai_trong_dong', 'assets/images/map/vfx/bambo/Mat sau quai trong dong.png');
+        this.load.image('vfx_bambo_quai_trong_dong_1', 'assets/images/map/vfx/bambo/Quai trong dong 1.png');
+        this.load.image('vfx_bambo_quai_trong_dong_2', 'assets/images/map/vfx/bambo/Quai trong dong 2.png');
+
+        // VFX - banana
+        this.load.image('vfx_banana_buong_chuoi', 'assets/images/map/vfx/banana/Buong chuoi.png');
+        this.load.image('vfx_banana_cay_chuoi', 'assets/images/map/vfx/banana/Cay chuoi.png');
 
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
