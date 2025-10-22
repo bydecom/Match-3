@@ -16,26 +16,29 @@ export class PausePopup extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
-        // 1. Tạm dừng các scene bên dưới để không thể tương tác
+        // 1. Tạm dừng các scene bên dưới
         this.scene.pause('GameScene');
         this.scene.pause('UIScene');
 
-        // 2. Tạo một lớp nền mờ che phủ toàn bộ màn hình
+        // 2. Tạo một lớp nền mờ
         const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
             .setOrigin(0)
             .setInteractive()
             .setDepth(1);
 
-        // 3. Tạo background UI cho popup
+        // 3. Tạo background UI
         const uiBackground = this.add.image(width / 2, height / 2, 'pause_ui')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setDepth(2);
 
-        // 4. Tạo nút đóng (X) ở góc trên bên phải
-        const closeButton = this.add.image(width / 2 + 200, height / 2 - 200, 'pause_exit')
+        // 4. Tạo nút đóng (X)
+        // (Tăng depth để đảm bảo nó ở trên các thanh trượt nếu cần)
+        const closeButton = this.add.image(450, 200, 'pause_exit')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
-            .setDepth(3);
+            .setDepth(5); // Tăng depth
 
         closeButton.on('pointerdown', () => {
             this.closePopup();
@@ -55,27 +58,48 @@ export class PausePopup extends Phaser.Scene {
     }
 
     createMusicSlider(width, height) {
-        // Vị trí thanh trượt âm nhạc
-        const sliderX = width / 2;
-        const sliderY = height / 2 - 50;
+        // Vị trí
+        const sliderX = 288;
+        const sliderY = 510;
+        const startX = 140;
+        const endX = 440;
+        const sliderWidth = endX - startX;
+        const maskY = sliderY - 30; // Vị trí Y và chiều cao của mask
+        const maskHeight = 60;
 
-        // Tạo thanh trượt
+        // 1. Tạo thanh bar DUY NHẤT
+        // Đây là thanh bar sẽ bị che (mask)
         const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setDepth(3);
 
-        // Tạo nút kéo thả âm nhạc
-        const musicHandle = this.add.image(sliderX - 100 + (this.musicVolume * 200), sliderY, 'pause_music')
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .setDepth(4);
+        // 2. Tạo mask (một đối tượng Graphics)
+        // Mask định nghĩa vùng "HIỂN THỊ"
+        const musicMask = this.add.graphics();
+        musicMask.fillStyle(0xffffff);
+        
+        // 3. Áp dụng mask cho thanh bar
+        sliderBar.setMask(musicMask.createGeometryMask());
 
-        // Lưu thông tin slider
+        // 4. Vẽ mask ban đầu (từ startX đến vị trí volume hiện tại)
+        const initialFillWidth = (this.musicVolume * sliderWidth);
+        musicMask.fillRect(startX, maskY, initialFillWidth, maskHeight);
+
+        // 5. Tạo nút kéo thả
+        const musicHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_music')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(4); // Phải nằm trên thanh bar
+
+        // Lưu thông tin
         this.musicSlider = {
             bar: sliderBar,
+            mask: musicMask,
             handle: musicHandle,
-            startX: sliderX - 100,
-            endX: sliderX + 100,
+            startX: startX,
+            endX: endX,
             currentValue: this.musicVolume
         };
 
@@ -85,36 +109,60 @@ export class PausePopup extends Phaser.Scene {
             const newX = Phaser.Math.Clamp(dragX, this.musicSlider.startX, this.musicSlider.endX);
             musicHandle.setX(newX);
             
-            // Cập nhật giá trị âm lượng
             this.musicVolume = (newX - this.musicSlider.startX) / (this.musicSlider.endX - this.musicSlider.startX);
             this.musicSlider.currentValue = this.musicVolume;
+            
+            // 6. CẬP NHẬT MASK (vẽ lại phần HIỂN THỊ)
+            const fillWidth = newX - this.musicSlider.startX;
+            this.musicSlider.mask.clear();
+            this.musicSlider.mask.fillStyle(0xffffff);
+            this.musicSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
             
             console.log('Music Volume:', this.musicVolume);
         });
     }
 
     createSoundSlider(width, height) {
-        // Vị trí thanh trượt âm thanh
-        const sliderX = width / 2;
-        const sliderY = height / 2 + 20;
+        // Vị trí
+        const sliderX = 288;
+        const sliderY = 590;
+        const startX = 140;
+        const endX = 440;
+        const sliderWidth = endX - startX;
+        const maskY = sliderY - 30;
+        const maskHeight = 60;
 
-        // Tạo thanh trượt
+        // 1. Tạo thanh bar DUY NHẤT
         const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setDepth(3);
 
-        // Tạo nút kéo thả âm thanh
-        const soundHandle = this.add.image(sliderX - 100 + (this.soundVolume * 200), sliderY, 'pause_sound')
+        // 2. Tạo mask
+        const soundMask = this.add.graphics();
+        soundMask.fillStyle(0xffffff);
+
+        // 3. Áp dụng mask
+        sliderBar.setMask(soundMask.createGeometryMask());
+
+        // 4. Vẽ mask ban đầu
+        const initialFillWidth = (this.soundVolume * sliderWidth);
+        soundMask.fillRect(startX, maskY, initialFillWidth, maskHeight);
+
+        // 5. Tạo nút kéo thả
+        const soundHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_sound')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(4);
 
-        // Lưu thông tin slider
+        // Lưu thông tin
         this.soundSlider = {
             bar: sliderBar,
+            mask: soundMask,
             handle: soundHandle,
-            startX: sliderX - 100,
-            endX: sliderX + 100,
+            startX: startX,
+            endX: endX,
             currentValue: this.soundVolume
         };
 
@@ -124,34 +172,37 @@ export class PausePopup extends Phaser.Scene {
             const newX = Phaser.Math.Clamp(dragX, this.soundSlider.startX, this.soundSlider.endX);
             soundHandle.setX(newX);
             
-            // Cập nhật giá trị âm lượng
             this.soundVolume = (newX - this.soundSlider.startX) / (this.soundSlider.endX - this.soundSlider.startX);
             this.soundSlider.currentValue = this.soundVolume;
+            
+            // 6. CẬP NHẬT MASK (vẽ lại phần HIỂN THỊ)
+            const fillWidth = newX - this.soundSlider.startX;
+            this.soundSlider.mask.clear();
+            this.soundSlider.mask.fillStyle(0xffffff);
+            this.soundSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
             
             console.log('Sound Volume:', this.soundVolume);
         });
     }
 
     createActionButtons(width, height) {
-        // Vị trí các nút
-        const buttonY = height / 2 + 120;
-        const buttonSpacing = 120;
-
         // Nút Tiếp tục
-        const continueButton = this.add.image(width / 2 - buttonSpacing, buttonY, 'pause_continue')
+        const continueButton = this.add.image(288, 662, 'pause_continue')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
-            .setDepth(3);
+            .setDepth(3); // Giữ depth 3
 
         continueButton.on('pointerdown', () => {
             this.closePopup();
         });
 
         // Nút Chơi lại
-        const restartButton = this.add.image(width / 2, buttonY, 'pause_restart')
+        const restartButton = this.add.image(288, 735, 'pause_restart')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
-            .setDepth(3);
+            .setDepth(3); // Giữ depth 3
 
         restartButton.on('pointerdown', () => {
             this.scene.stop('GameScene');
@@ -160,10 +211,11 @@ export class PausePopup extends Phaser.Scene {
         });
 
         // Nút Thoát
-        const quitButton = this.add.image(width / 2 + buttonSpacing, buttonY, 'pause_quit')
+        const quitButton = this.add.image(288, 798, 'pause_quit')
             .setOrigin(0.5)
+            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
-            .setDepth(3);
+            .setDepth(3); // Giữ depth 3
 
         quitButton.on('pointerdown', () => {
             this.scene.stop('GameScene');

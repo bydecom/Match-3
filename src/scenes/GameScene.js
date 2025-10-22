@@ -111,7 +111,7 @@ export class GameScene extends Phaser.Scene {
     const settingsButton = this.add.image(40, 40, 'setting_button')
       .setInteractive({ useHandCursor: true })
       .setDepth(10)
-      .setScale(0.15)
+      .setScale(1.0)
 
     settingsButton.on('pointerdown', () => {
       const currentLevelId = this.scene.settings?.data?.levelId || 1
@@ -119,10 +119,10 @@ export class GameScene extends Phaser.Scene {
     })
 
     settingsButton.on('pointerover', () => {
-      this.tweens.add({ targets: settingsButton, scale: 0.17, duration: 100 })
+      this.tweens.add({ targets: settingsButton, scale: 1.1, duration: 100 })
     })
     settingsButton.on('pointerout', () => {
-      this.tweens.add({ targets: settingsButton, scale: 0.15, duration: 100 })
+      this.tweens.add({ targets: settingsButton, scale: 1.0, duration: 100 })
     })
     // Khởi động timer UI nếu có cấu hình
     this.startTimer()
