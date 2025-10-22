@@ -30,3 +30,4 @@ pnpm-debug.log*
 *.tgz
 tmp/
 MD.md
+*.zip
