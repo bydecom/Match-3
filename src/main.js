@@ -8,6 +8,7 @@ import { LevelLoaderScene } from './scenes/LevelLoaderScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 import { SettingsPopup } from './scenes/popups/SettingsPopup';
+import { PausePopup } from './scenes/popups/PausePopup';
 import { WinPopup } from './scenes/popups/WinPopup';
 
 const config = {
@@ -20,7 +21,7 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene, DemoScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup, WinPopup] 
+  scene: [BootScene, PreloaderScene, DemoScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup, PausePopup, WinPopup] 
 };
 
 function initializeApp() {

@@ -146,7 +146,18 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image(`cell`, 'assets/images/map/cell.png');
         
         // Nút cài đặt
-        this.load.image('setting_button', 'assets/images/ui/setting_button.png');
+        this.load.image('setting_button', 'assets/images/ui/setting_button_scale.png');
+        
+        // Load Pause UI assets
+        this.load.image('pause_ui', 'assets/images/ui/pause/UI.png');
+        this.load.image('pause_continue', 'assets/images/ui/pause/countinue.png');
+        this.load.image('pause_quit', 'assets/images/ui/pause/quit.png');
+        this.load.image('pause_restart', 'assets/images/ui/pause/Restart.png');
+        this.load.image('pause_exit', 'assets/images/ui/pause/exit.png');
+        this.load.image('pause_bar', 'assets/images/ui/pause/Bar.png');
+        this.load.image('pause_music', 'assets/images/ui/pause/music.png');
+        this.load.image('pause_sound', 'assets/images/ui/pause/sound.png');
+        
         // Load UI Progress Bar assets
         this.load.image('progress_bar_background', 'assets/images/ui/progress_bar_background.png');
         this.load.image('progress_bar_fill', 'assets/images/ui/progress_bar_fill.png');
@@ -174,7 +185,11 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('level_unlock', 'assets/images/map/level_unlock.png');
         this.load.image('star_1', 'assets/images/map/star_1.png');
         this.load.image('star_2', 'assets/images/map/star_2.png');
-        this.load.image('star_3', 'assets/images/map/star_3.png'); 
+        this.load.image('star_3', 'assets/images/map/star_3.png');
+        
+        // Load UI assets cho ResourceDisplay
+        this.load.image('coin', 'assets/screen/coin.png');
+        this.load.image('heart', 'assets/screen/heart.png'); 
 
         // VFX - steam
         this.load.image('vfx_steam_1_1_bot_nuoc', 'assets/images/map/vfx/steam/1.1. Bot nuoc.png');

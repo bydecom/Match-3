@@ -234,9 +234,28 @@ export class BoardPowerups {
     // --- Xử lý Gem ---
     const gem = this.grid[row]?.[col];
     if (gem && gem.sprite) {
-      // Cập nhật mục tiêu gem
-      this.updateObjectiveProgress('gem', gem.value);
+      // << CẬP NHẬT OBJECTIVE TẠI ĐÂY >>
+      const isPowerup = 
+        gem.value === GEM_TYPES.BOMB ||
+        gem.value === GEM_TYPES.STRIPE ||
+        gem.value === GEM_TYPES.COLOR_BOMB
+      
+      if (isPowerup) {
+        // Đếm power-up
+        const map = {
+          [GEM_TYPES.BOMB]: 'bomb',
+          [GEM_TYPES.STRIPE]: 'stripe',
+          [GEM_TYPES.COLOR_BOMB]: 'color_bomb'
+        }
+        const key = map[gem.value] || String(gem.value).toLowerCase()
+        this.updateObjectiveProgress('powerup', key, 1)
+      } else {
+        // Đếm gem thường
+        this.updateObjectiveProgress('gem', gem.value, 1)
+      }
+      
       this.grid[row][col] = null; // Xóa tham chiếu logic
+      
       // Tạo animation xóa sprite
       this.scene.tweens.add({
         targets: gem.sprite,
@@ -247,6 +266,7 @@ export class BoardPowerups {
           if (gem.sprite) gem.sprite.destroy();
         }
       });
+      
       // Ghi nhận để tổng hợp cuối lượt
       if (!this.turnStats) this.turnStats = { gemCounts: {}, powerups: [] };
       const color = gem.value;

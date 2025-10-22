@@ -115,7 +115,7 @@ export class GameScene extends Phaser.Scene {
 
     settingsButton.on('pointerdown', () => {
       const currentLevelId = this.scene.settings?.data?.levelId || 1
-      this.scene.launch('SettingsPopup', { levelId: currentLevelId })
+      this.scene.launch('PausePopup', { levelId: currentLevelId })
     })
 
     settingsButton.on('pointerover', () => {

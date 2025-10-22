@@ -110,7 +110,7 @@ export class BoardState {
     });
   }
 
-  // Ghi nhận một lần kích hoạt power-up và phát sự kiện theo dõi
+  // Ghi nhận MỘT LẦN KÍCH HOẠT power-up và CẬP NHẬT NHIỆM VỤ ngay lập tức
   trackPowerupActivation(powerupType) {
     if (!powerupType) return;
     const map = {
@@ -119,9 +119,16 @@ export class BoardState {
       [GEM_TYPES.COLOR_BOMB]: 'color_bomb'
     };
     const key = map[powerupType] || String(powerupType).toLowerCase();
+
+    // 1. Cập nhật vào bộ theo dõi (giữ nguyên)
     this.powerupActivations[key] = (this.powerupActivations[key] || 0) + 1;
-    // Cập nhật mục tiêu powerup (nếu level có yêu cầu)
+    
+    // << LOGIC MỚI: CẬP NHẬT NHIỆM VỤ NGAY TẠI ĐÂY >>
+    // Đây là nơi duy nhất chúng ta đếm power-up được kích hoạt.
+    console.log(`[Objective] Power-up ACTIVATED, updating objective for: ${key}`);
     this.updateObjectiveProgress('powerup', key, 1);
+
+    // 2. Phát sự kiện (giữ nguyên)
     if (this.scene && this.scene.game && this.scene.game.events) {
       this.scene.game.events.emit('powerupActivated', { type: key, count: this.powerupActivations[key] });
     }
@@ -270,7 +277,10 @@ export class BoardState {
   startActionChain(initialMatchGroups, powerupToActivate, otherGem, swapPosition) {
     let allGemsToRemove = new Set()
     let powerupsToCreate = []
-    const activatedThisAction = []
+    const activatedPowerups = new Set()
+    
+    // Giữ lại tham chiếu đến các gem bị nổ bởi power-up
+    let explosionSet = new Set()
 
     // Luôn xử lý match và lên kế hoạch tạo power-up
     if (initialMatchGroups.length > 0) {
@@ -281,29 +291,60 @@ export class BoardState {
 
     // Luôn xử lý kích hoạt power-up
     if (powerupToActivate) {
-      const explosionSet = this.getPowerupActivationSet(powerupToActivate, otherGem)
+      explosionSet = this.getPowerupActivationSet(powerupToActivate, otherGem)
       explosionSet.forEach(gem => allGemsToRemove.add(gem))
     }
-
-    // Callback sau khi VFX hoàn tất: chỉ xóa và tạo, không bảo vệ tại đây nữa
+    
+    // << THAY ĐỔI HOÀN TOÀN KHỐI onVFXComplete NÀY >>
+    let isActionChainCompleted = false
     const onVFXComplete = () => {
-      // Tính tổng gem bị phá theo màu trong hành động này
-      const gemCounts = {}
-      allGemsToRemove.forEach(gem => {
-        if (gem && gem.value) {
-          gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
-        }
-      })
+      if (isActionChainCompleted) return
+      isActionChainCompleted = true
 
+      // --- LOGIC ĐẾM GEM MỚI, CHÍNH XÁC HƠN ---
+      const gemCounts = {}
+      const countedGems = new Set() // Dùng để chống đếm trùng
+
+      // 1. Đếm tất cả gem từ các match ban đầu (match-3, 4, 5...)
+      // Đây là bước quan trọng nhất để sửa lỗi của bạn.
+      // Nó sẽ đếm TẤT CẢ gem trong group, bao gồm cả gem sắp biến thành power-up.
+      if (initialMatchGroups.length > 0) {
+        initialMatchGroups.forEach(group => {
+          group.forEach(gem => {
+            if (gem && gem.value && !this.isPowerup(gem)) {
+              gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
+              countedGems.add(gem) // Đánh dấu đã đếm
+            }
+          })
+        })
+      }
+
+      // 2. Đếm các gem "bị phá hủy ké" bởi power-up
+      // (chỉ đếm những gem chưa được đếm ở bước 1)
+      if (powerupToActivate) {
+        explosionSet.forEach(gem => {
+          // Chỉ đếm nếu gem này chưa được đếm, và nó là gem thường
+          if (gem && gem.value && !countedGems.has(gem) && !this.isPowerup(gem)) {
+            gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
+          }
+        })
+      }
+      
+      // 3. Cập nhật objective cho tất cả gem thường đã đếm
+      console.log("[Objective] Batch updating gems:", gemCounts)
+      for (const type in gemCounts) {
+          this.updateObjectiveProgress('gem', type, gemCounts[type])
+      }
+      
+      // --- Phần còn lại giữ nguyên ---
       this.removeGemSprites(allGemsToRemove)
       this.createPowerupsAfterWiggle(powerupsToCreate)
 
-      // Phát tóm tắt trước khi gravity chạy
       if (this.scene && this.scene.game && this.scene.game.events) {
         this.scene.game.events.emit('matchSummary', {
           gemCounts,
           blockerCounts: this.blockerCounts || {},
-          powerups: activatedThisAction.map(t => t)
+          powerups: Array.from(activatedPowerups).map(p => p.value)
         })
       }
 
@@ -312,12 +353,13 @@ export class BoardState {
 
     // --- BẮT ĐẦU SỬA TỪ KHỐI LOGIC KIỂM TRA POWER-UP ---
     if (powerupToActivate) {
-      // Ghi nhận kích hoạt power-up
-      this.trackPowerupActivation(powerupToActivate.value)
-      activatedThisAction.push(powerupToActivate.value)
+      // << ĐÂY LÀ ĐIỂM KÍCH HOẠT VÀ ĐẾM >>
+      this.trackPowerupActivation(powerupToActivate.value);
+      activatedPowerups.add(powerupToActivate); // Thêm gem object vào Set
+
       if (this.isPowerup(otherGem)) {
-        this.trackPowerupActivation(otherGem.value)
-        activatedThisAction.push(otherGem.value)
+        this.trackPowerupActivation(otherGem.value);
+        activatedPowerups.add(otherGem); // Thêm gem object vào Set
       }
         // KIỂM TRA TRƯỚC TIÊN: CÓ PHẢI LÀ COMBO KHÔNG?
         if (this.isPowerup(otherGem)) {
@@ -355,8 +397,9 @@ export class BoardState {
     } 
     // Nếu không có gì để xóa (ví dụ: chỉ tạo power-up)
     else if (powerupsToCreate.length > 0) {
-        this.createPowerupsAfterWiggle(powerupsToCreate)
-        this.applyGravityAndRefill()
+        // Trường hợp đặc biệt: Chỉ tạo powerup mà không xóa gì (hiếm)
+        // Chúng ta vẫn cần đếm gem đã biến hình.
+        onVFXComplete(); 
     } else {
         this.endOfTurn();
     }
@@ -495,15 +538,11 @@ export class BoardState {
     return { gemsRemoved: gemsToRemoveFromMatch, powerupsCreated: powerupsToCreate };
   }
 
-  // << THAY THẾ HÀM removeGemSprites BẰNG PHIÊN BẢN AN TOÀN NÀY >>
+  // << THAY THẾ TOÀN BỘ HÀM NÀY >>
   removeGemSprites(gemsToRemove) {
     gemsToRemove.forEach(gemObject => {
-      // === BƯỚC KIỂM TRA AN TOÀN QUAN TRỌNG ===
-      // Chỉ xử lý nếu gemObject là một đối tượng hợp lệ VÀ có thuộc tính sprite
+      // Kiểm tra an toàn
       if (gemObject && gemObject.sprite) {
-        // << LOGIC MỚI: Cập nhật nhiệm vụ gem >>
-        this.updateObjectiveProgress('gem', gemObject.value);
-        
         const row = gemObject.sprite.getData('row')
         const col = gemObject.sprite.getData('col')
         
@@ -516,11 +555,13 @@ export class BoardState {
         this.scene.tweens.add({
           targets: gemObject.sprite,
           scale: 0,
-          alpha: 0, // Thêm cả alpha để đảm bảo biến mất hoàn toàn
+          alpha: 0,
           duration: 200,
           onComplete: () => {
-            // Hủy sprite sau khi animation kết thúc
-            gemObject.sprite.destroy()
+            // Hủy sprite sau khi animation kết thúc một cách an toàn
+            if (gemObject.sprite && gemObject.sprite.destroy) {
+                gemObject.sprite.destroy()
+            }
           }
         })
       }

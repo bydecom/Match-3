@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import PlayerDataManager from '../managers/PlayerDataManager';
 import { MapVFXManager } from '../objects/vfx/MapVFXManager';
 import { LevelNode } from '../ui/LevelNode';
+import { ResourceDisplay } from '../ui/ResourceDisplay';
 
 export class MapScene extends Phaser.Scene {
     constructor() {
@@ -30,6 +31,7 @@ export class MapScene extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         const playerData = PlayerDataManager.getProgression();
+        const fullPlayerData = PlayerDataManager.getUserData();
 
         // this.mapContainer = this.add.container(0, 0); // <-- BỎ DÒNG NÀY
 
@@ -144,6 +146,12 @@ export class MapScene extends Phaser.Scene {
         
         // Khởi tạo VFX cho TẤT CẢ các map
         this.vfxManager.startAllMapVFX();
+        
+        // --- 5. TẠO UI OVERLAY HIỂN THỊ COIN VÀ HEART ---
+        
+        // Tạo ResourceDisplay ở góc trên bên trái màn hình
+        this.resourceDisplay = new ResourceDisplay(this, 20, 20, fullPlayerData);
+        
         
         // Dọn dẹp VFX khi scene shutdown
         this.events.once('shutdown', () => {

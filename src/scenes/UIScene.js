@@ -113,9 +113,13 @@ export class UIScene extends Phaser.Scene {
     this.game.events.on('objectiveUpdated', this.handleObjectiveUpdate, this);
     // Khi hoàn thành toàn bộ mục tiêu -> mở WinPopup
     this.game.events.on('levelCompleted', this.handleLevelCompleted, this);
-    // Theo dõi bổ sung: power-up và blocker còn lại
-    this.game.events.on('powerupActivated', this.handlePowerupActivated, this);
-    this.game.events.on('blockerCountUpdated', this.handleBlockerCountUpdated, this);
+    
+    // << CÁC LISTENER NÀY KHÔNG CÒN CẦN THIẾT NỮA, VÌ 'objectiveUpdated' ĐÃ BAO HÀM TẤT CẢ >>
+    // << BẠN CÓ THỂ XÓA HOẶC COMMENT CHÚNG ĐI >>
+    // this.game.events.on('powerupActivated', this.handlePowerupActivated, this);
+    // this.game.events.on('blockerCountUpdated', this.handleBlockerCountUpdated, this);
+    
+    // 'matchSummary' vẫn có thể hữu ích cho hiệu ứng, nhưng không phải để cập nhật state
     this.game.events.on('matchSummary', this.handleMatchSummary, this);
     // << KẾT THÚC THÊM MỚI >>
   }
@@ -183,6 +187,9 @@ export class UIScene extends Phaser.Scene {
     const item = this.objectiveItems[key];
     
     if (item) {
+      const oldCount = item.currentCount;
+      const difference = oldCount - remaining;
+      console.log(`[UIScene] Objective updated: ${key} | ${oldCount} → ${remaining} (trừ ${difference})`);
       item.updateCount(remaining);
     }
 
@@ -192,6 +199,8 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
+  // << XÓA HOẶC COMMENT CÁC HÀM XỬ LÝ THỪA THÃI NÀY >>
+  /*
   // Nhận sự kiện theo dõi kích hoạt power-up: nếu có mục tiêu dạng powerup_*, cập nhật luôn
   handlePowerupActivated(data) {
     const { type, count } = data;
@@ -201,6 +210,9 @@ export class UIScene extends Phaser.Scene {
       // Với mục tiêu đếm số lần kích hoạt, remaining giảm khi count tăng
       const initial = item.initialCount ?? item.currentCount;
       const remaining = Math.max(0, initial - count);
+      const oldCount = item.currentCount;
+      const difference = oldCount - remaining;
+      console.log(`[UIScene] Power-up activated: ${key} | ${oldCount} → ${remaining} (trừ ${difference}) | Total activated: ${count}`);
       item.updateCount(remaining);
     }
   }
@@ -211,44 +223,69 @@ export class UIScene extends Phaser.Scene {
     const key = `blocker_${type}`;
     const item = this.objectiveItems[key];
     if (item) {
+      const oldCount = item.currentCount;
+      const difference = oldCount - remaining;
+      console.log(`[UIScene] Blocker destroyed: ${key} | ${oldCount} → ${remaining} (trừ ${difference})`);
       item.updateCount(remaining);
     }
   }
+  */
 
   // Nhận tóm tắt một hành động match: cập nhật nhanh UI theo số liệu tổng
   handleMatchSummary(summary) {
-    // 1) Cập nhật đếm gem theo mục tiêu nếu có
+    console.log(`[UIScene] Match summary received:`, summary);
+    
+    // 1) Cập nhật đếm gem (Có thể giữ lại để làm hiệu ứng, nhưng an toàn hơn là bỏ)
+    // Để an toàn, chúng ta sẽ dựa hoàn toàn vào 'objectiveUpdated'
+    /* << TẠM THỜI VÔ HIỆU HÓA PHẦN NÀY >>
     if (summary.gemCounts) {
       Object.entries(summary.gemCounts).forEach(([color, destroyed]) => {
         const key = `gem_${color}`;
         const item = this.objectiveItems[key];
         if (item && item.currentCount > 0) {
+          const oldCount = item.currentCount;
           const remaining = Math.max(0, item.currentCount - destroyed);
+          const difference = oldCount - remaining;
+          console.log(`[UIScene] Gem destroyed: ${key} | ${oldCount} → ${remaining} (trừ ${difference}) | Destroyed: ${destroyed}`);
           item.updateCount(remaining);
         }
       });
     }
-    // 2) Đồng bộ blocker còn lại nếu có
+    */
+  
+    // 2) Đồng bộ blocker (Có thể giữ lại vì blocker được đồng bộ theo số còn lại, không phải số bị phá)
     if (summary.blockerCounts) {
       Object.entries(summary.blockerCounts).forEach(([type, remaining]) => {
         const key = `blocker_${type}`;
         const item = this.objectiveItems[key];
-        if (item) item.updateCount(remaining);
+        if (item) {
+          // So sánh để tránh cập nhật không cần thiết
+          if (item.currentCount !== remaining) {
+              const oldCount = item.currentCount;
+              const difference = oldCount - remaining;
+              console.log(`[UIScene] Blocker count synced from summary: ${key} | ${oldCount} → ${remaining} (trừ ${difference})`);
+              item.updateCount(remaining);
+          }
+        }
       });
     }
-    // 3) Hiển thị powerup vừa kích hoạt nếu có mục tiêu dạng powerup_*
+
+    // 3) << VÔ HIỆU HÓA HOÀN TOÀN PHẦN GÂY LỖI NÀY >>
+    /*
     if (summary.powerups) {
       summary.powerups.forEach(p => {
         const key = `powerup_${p === 0 ? 'bomb' : String(p).toLowerCase()}`;
         const item = this.objectiveItems[key];
         if (item) {
-          const initial = item.initialCount ?? item.currentCount;
-          // Tăng đếm tổng: lấy số đã kích hoạt từ sự kiện 'powerupActivated' là chuẩn, ở đây chỉ giảm 1 nếu có mục tiêu
           const remaining = Math.max(0, item.currentCount - 1);
+          const oldCount = item.currentCount;
+          const difference = oldCount - remaining;
+          console.log(`[UIScene] Power-up from match summary: ${key} | ${oldCount} → ${remaining} (trừ ${difference})`);
           item.updateCount(remaining);
         }
       });
     }
+    */
   }
 
   // Tính số sao dựa vào thời gian còn lại
@@ -267,13 +304,36 @@ export class UIScene extends Phaser.Scene {
   handleLevelCompleted() {
     // Ngắt chọn booster nếu có
     this.handleBoosterCleared();
-    // Tính sao và mở popup
-    const stars = this.calculateStars();
-    const gameScene = this.scene.get('GameScene');
-    const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+    
     if (this.levelCompletedShown) return;
     this.levelCompletedShown = true;
-    this.scene.launch('WinPopup', { levelId, stars });
+    
+    console.log(`[UIScene] Level completed! Waiting for UI to update...`);
+    
+    // Delay để UI cập nhật hoàn tất trước khi hiện popup
+    // Đảm bảo tất cả animation của objective items đã hoàn tất
+    this.time.delayedCall(800, () => {
+      // Kiểm tra lại để đảm bảo tất cả nhiệm vụ đã hoàn thành
+      if (this.areAllObjectivesCleared()) {
+        // Tính sao và mở popup
+        const stars = this.calculateStars();
+        const gameScene = this.scene.get('GameScene');
+        const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+        console.log(`[UIScene] Showing win popup after UI update delay - Level: ${levelId}, Stars: ${stars}`);
+        this.scene.launch('WinPopup', { levelId, stars });
+      } else {
+        console.log(`[UIScene] Objectives not fully cleared yet, retrying...`);
+        // Nếu chưa hoàn thành, thử lại sau 200ms
+        this.time.delayedCall(200, () => {
+          if (this.areAllObjectivesCleared()) {
+            const stars = this.calculateStars();
+            const gameScene = this.scene.get('GameScene');
+            const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+            this.scene.launch('WinPopup', { levelId, stars });
+          }
+        });
+      }
+    });
   }
 
   shutdown() {
@@ -284,8 +344,11 @@ export class UIScene extends Phaser.Scene {
     this.game.events.off('screenShake', this.handleScreenShake, this)
     this.game.events.off('objectiveUpdated', this.handleObjectiveUpdate, this); // << DỌN DẸP LISTENER
     this.game.events.off('levelCompleted', this.handleLevelCompleted, this);
-    this.game.events.off('powerupActivated', this.handlePowerupActivated, this)
-    this.game.events.off('blockerCountUpdated', this.handleBlockerCountUpdated, this)
+    
+    // << DỌN DẸP TƯƠNG ỨNG >>
+    // this.game.events.off('powerupActivated', this.handlePowerupActivated, this)
+    // this.game.events.off('blockerCountUpdated', this.handleBlockerCountUpdated, this)
+
     this.game.events.off('matchSummary', this.handleMatchSummary, this)
   }
 
