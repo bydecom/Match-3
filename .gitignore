@@ -31,3 +31,4 @@ pnpm-debug.log*
 tmp/
 MD.md
 *.zip
+*.psd

@@ -158,6 +158,39 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('pause_music', 'assets/images/ui/pause/music.png');
         this.load.image('pause_sound', 'assets/images/ui/pause/sound.png');
         
+        // Load Level Review UI assets
+        this.load.image('level_review_ui', 'assets/images/ui/level_review/UI.png');
+        
+        // Load Play button
+        this.load.image('play_button', 'assets/images/ui/level_review/play.png');
+        
+        // Load gem images for objectives
+        this.load.image(`gem_red`, 'assets/images/gameplay/gems/red.png');
+        this.load.image(`gem_green`, 'assets/images/gameplay/gems/green.png');
+        this.load.image(`gem_blue`, 'assets/images/gameplay/gems/blue.png');
+        this.load.image(`gem_purple`, 'assets/images/gameplay/gems/purple.png');
+        this.load.image(`gem_yellow`, 'assets/images/gameplay/gems/yellow.png');
+        this.load.image(`gem_orange`, 'assets/images/gameplay/gems/orange.png');
+        
+        // Load power-up images for objectives
+        this.load.image(`gem_bomb`, 'assets/images/gameplay/gems/bomb.png');
+        this.load.image(`gem_color_bomb`, 'assets/images/gameplay/gems/color_bomb.png');
+        this.load.image(`gem_stripe`, 'assets/images/gameplay/gems/stripe.png');
+        
+        // Load blocker images for objectives
+        this.load.image(`blocker_stone_1`, 'assets/images/gameplay/blockers/blocker_stone_2.png');
+        this.load.image(`blocker_stone_2`, 'assets/images/gameplay/blockers/blocker_stone_1.png');
+        this.load.image(`blocker_rope`, 'assets/images/gameplay/blockers/blocker_rope.png');
+        
+        // Load booster icons for Level Review
+        this.load.image('booster_hammer', 'assets/images/ui/booster_hammer.png');
+        this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
+        this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
+        this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
+        this.load.image('booster_background', 'assets/images/ui/level_review/booster_background.png');
+        this.load.image('quantity_background', 'assets/images/ui/level_review/quantity_background.png');
+        this.load.image('add_icon', 'assets/images/ui/level_review/add_icon.png');
+        
         // Load UI Progress Bar assets
         this.load.image('progress_bar_background', 'assets/images/ui/progress_bar_background.png');
         this.load.image('progress_bar_fill', 'assets/images/ui/progress_bar_fill.png');

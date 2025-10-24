@@ -14,30 +14,6 @@ export class LevelLoaderScene extends Phaser.Scene {
     preload() {
         console.log("LevelLoaderScene: Bắt đầu load assets gameplay...");
         
-        // Load gem images
-        this.load.image(`gem_red`, 'assets/images/gameplay/gems/red.png');
-        this.load.image(`gem_green`, 'assets/images/gameplay/gems/green.png');
-        this.load.image(`gem_blue`, 'assets/images/gameplay/gems/blue.png');
-        this.load.image(`gem_purple`, 'assets/images/gameplay/gems/purple.png');
-        this.load.image(`gem_yellow`, 'assets/images/gameplay/gems/yellow.png');
-        this.load.image(`gem_orange`, 'assets/images/gameplay/gems/orange.png');
-        
-        // Load power-up images
-        this.load.image(`gem_bomb`, 'assets/images/gameplay/gems/bomb.png');
-        this.load.image(`gem_color_bomb`, 'assets/images/gameplay/gems/color_bomb.png');
-        this.load.image(`gem_stripe`, 'assets/images/gameplay/gems/stripe.png');
-        
-        // Load blocker images (stone levels + rope)
-        this.load.image(`blocker_stone_1`, 'assets/images/gameplay/blockers/blocker_stone_2.png');
-        this.load.image(`blocker_stone_2`, 'assets/images/gameplay/blockers/blocker_stone_1.png');
-        this.load.image(`blocker_rope`, 'assets/images/gameplay/blockers/blocker_rope.png');
-        
-        // Load booster icons (UI)
-        this.load.image('booster_hammer', 'assets/images/ui/booster_hammer.png');
-        this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
-        this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
-        this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
-        
         // Load note images for Stripe effect
         this.load.image('note1', 'assets/images/vfx/note1.png');
         this.load.image('note2', 'assets/images/vfx/note2.png');

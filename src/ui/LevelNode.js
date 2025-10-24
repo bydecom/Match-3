@@ -74,10 +74,16 @@ export class LevelNode extends Phaser.GameObjects.Container {
         });
         
         this.button.on('pointerdown', () => {
-            this.scene.cameras.main.fadeOut(300, 0, 0, 0);
-            this.scene.cameras.main.once('camerafadeoutcomplete', () => {
-                this.scene.scene.start('LevelLoaderScene', { levelId: this.levelId });
+            // Load level data và mở Level Review Popup
+            this.scene.load.json(`level_${this.levelId}`, `assets/levels/level_${this.levelId}.json`);
+            this.scene.load.once('complete', () => {
+                const levelData = this.scene.cache.json.get(`level_${this.levelId}`);
+                this.scene.scene.launch('LevelReviewPopup', { 
+                    levelId: this.levelId, 
+                    levelData: levelData 
+                });
             });
+            this.scene.load.start();
         });
     }
     
