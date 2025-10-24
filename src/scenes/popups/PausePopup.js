@@ -34,7 +34,7 @@ export class PausePopup extends Phaser.Scene {
 
         // 4. Tạo nút đóng (X)
         // (Tăng depth để đảm bảo nó ở trên các thanh trượt nếu cần)
-        const closeButton = this.add.image(450, 200, 'pause_exit')
+        const closeButton = this.add.image(470, 270, 'pause_exit')
             .setOrigin(0.5)
             .setScale(0.4)
             .setInteractive({ useHandCursor: true })

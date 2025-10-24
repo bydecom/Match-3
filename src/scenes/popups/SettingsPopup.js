@@ -4,6 +4,8 @@ export class SettingsPopup extends Phaser.Scene {
     constructor() {
         super({ key: 'SettingsPopup' });
         this.levelId = 1; // Giá trị mặc định
+        this.musicVolume = 0.5; // Âm lượng nhạc mặc định
+        this.soundVolume = 0.5; // Âm lượng âm thanh mặc định
     }
 
     // Nhận dữ liệu từ GameScene
@@ -14,83 +16,244 @@ export class SettingsPopup extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
-        // 1. Tạm dừng các scene bên dưới để không thể tương tác
+        // 1. Tạm dừng các scene bên dưới
         this.scene.pause('GameScene');
         this.scene.pause('UIScene');
 
-        // 2. Tạo một lớp nền mờ che phủ toàn bộ màn hình
+        // 2. Tạo một lớp nền mờ
         const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
             .setOrigin(0)
-            .setInteractive();
+            .setInteractive()
+            .setDepth(1);
 
-        // 3. Tạo khung cho popup
-        const popupPanel = this.add.graphics();
-        popupPanel.fillStyle(0x2c3e50, 1);
-        popupPanel.fillRoundedRect(width / 2 - 200, height / 2 - 150, 400, 300, 16);
-        popupPanel.setDepth(1);
+        // 3. Tạo background UI
+        const uiBackground = this.add.image(width / 2, height / 2, 'setting_ui')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setDepth(2);
 
-        // 4. Thêm tiêu đề
-        this.add.text(width / 2, height / 2 - 100, 'Tạm dừng', {
-            fontFamily: 'Arial, Helvetica, sans-serif',
-            fontSize: '32px',
-            color: '#ffffff',
-            align: 'center'
-        }).setOrigin(0.5).setDepth(2);
+        // 4. Tạo nút đóng (X) ở góc trên bên phải
+        const closeButton = this.add.image(470, 270, 'setting_exit')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(5);
 
-        // --- TẠO CÁC NÚT CHỨC NĂNG ---
-        const buttonStyle = {
-            fontFamily: 'Arial, Helvetica, sans-serif',
-            fontSize: '24px',
-            color: '#ffffff',
-            padding: { x: 20, y: 10 }
-        };
-
-        // 5. Nút Chơi lại
-        const restartButton = this.add.text(width / 2, height / 2 - 20, 'Chơi lại', {
-            ...buttonStyle,
-            backgroundColor: '#3498db'
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(2);
-
-        restartButton.on('pointerdown', () => {
-            this.scene.stop('GameScene');
-            this.scene.stop('UIScene');
-            // Bắt đầu màn hình loading thay vì vào thẳng game
-            this.scene.start('LevelLoaderScene', { levelId: this.levelId });
-        });
-
-        // 6. Nút Về bản đồ
-        const backButton = this.add.text(width / 2, height / 2 + 40, 'Về bản đồ', {
-            ...buttonStyle,
-            backgroundColor: '#f1c40f'
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(2);
-
-        backButton.on('pointerdown', () => {
-            this.scene.stop('GameScene');
-            this.scene.stop('UIScene');
-            this.scene.start('MapScene');
-        });
-
-        // 7. Nút Tiếp tục
-        const continueButton = this.add.text(width / 2, height / 2 + 100, 'Tiếp tục', {
-            ...buttonStyle,
-            backgroundColor: '#2ecc71'
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(2);
-
-        continueButton.on('pointerdown', () => {
+        closeButton.on('pointerdown', () => {
             this.closePopup();
         });
 
-        // 8. Đảm bảo game resume khi popup tắt
+        // 5. Thêm dòng ID ở vị trí nút quit cũ (back to menu)
+        this.add.text(288, 798, 'ID:', {
+            fontFamily: 'UTMCookies',
+            fontSize: '15px',
+            color: '#b43827',
+            align: 'center'
+        }).setOrigin(0.5).setDepth(5);
+
+        // 6. Tạo thanh trượt âm nhạc
+        this.createMusicSlider(width, height);
+
+        // 7. Tạo thanh trượt âm thanh
+        this.createSoundSlider(width, height);
+
+        // 8. Tạo các nút chức năng
+        this.createActionButtons(width, height);
+
+        // 9. Đảm bảo game resume khi popup tắt
         this.events.on('shutdown', this.onResumeGame, this);
+    }
+
+    createMusicSlider(width, height) {
+        // Vị trí
+        const sliderX = 288;
+        const sliderY = 510;
+        const startX = 140;
+        const endX = 440;
+        const sliderWidth = endX - startX;
+        const maskY = sliderY - 30; // Vị trí Y và chiều cao của mask
+        const maskHeight = 60;
+
+        // 1. Tạo thanh bar DUY NHẤT
+        // Đây là thanh bar sẽ bị che (mask)
+        const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setDepth(3);
+
+        // 2. Tạo mask (một đối tượng Graphics)
+        // Mask định nghĩa vùng "HIỂN THỊ"
+        const musicMask = this.add.graphics();
+        musicMask.fillStyle(0xffffff);
+        
+        // 3. Áp dụng mask cho thanh bar
+        sliderBar.setMask(musicMask.createGeometryMask());
+
+        // 4. Vẽ mask ban đầu (từ startX đến vị trí volume hiện tại)
+        const initialFillWidth = (this.musicVolume * sliderWidth);
+        musicMask.fillRect(startX, maskY, initialFillWidth, maskHeight);
+
+        // 5. Tạo nút kéo thả
+        const musicHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_music')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(4); // Phải nằm trên thanh bar
+
+        // Lưu thông tin
+        this.musicSlider = {
+            bar: sliderBar,
+            mask: musicMask,
+            handle: musicHandle,
+            startX: startX,
+            endX: endX,
+            currentValue: this.musicVolume
+        };
+
+        // Thêm sự kiện kéo thả
+        this.input.setDraggable(musicHandle);
+        musicHandle.on('drag', (pointer, dragX, dragY) => {
+            const newX = Phaser.Math.Clamp(dragX, this.musicSlider.startX, this.musicSlider.endX);
+            musicHandle.setX(newX);
+            
+            this.musicVolume = (newX - this.musicSlider.startX) / (this.musicSlider.endX - this.musicSlider.startX);
+            this.musicSlider.currentValue = this.musicVolume;
+            
+            // 6. CẬP NHẬT MASK (vẽ lại phần HIỂN THỊ)
+            const fillWidth = newX - this.musicSlider.startX;
+            this.musicSlider.mask.clear();
+            this.musicSlider.mask.fillStyle(0xffffff);
+            this.musicSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
+            
+            console.log('Music Volume:', this.musicVolume);
+        });
+    }
+
+    createSoundSlider(width, height) {
+        // Vị trí
+        const sliderX = 288;
+        const sliderY = 590;
+        const startX = 140;
+        const endX = 440;
+        const sliderWidth = endX - startX;
+        const maskY = sliderY - 30;
+        const maskHeight = 60;
+
+        // 1. Tạo thanh bar DUY NHẤT
+        const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setDepth(3);
+
+        // 2. Tạo mask
+        const soundMask = this.add.graphics();
+        soundMask.fillStyle(0xffffff);
+
+        // 3. Áp dụng mask
+        sliderBar.setMask(soundMask.createGeometryMask());
+
+        // 4. Vẽ mask ban đầu
+        const initialFillWidth = (this.soundVolume * sliderWidth);
+        soundMask.fillRect(startX, maskY, initialFillWidth, maskHeight);
+
+        // 5. Tạo nút kéo thả
+        const soundHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_sound')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(4);
+
+        // Lưu thông tin
+        this.soundSlider = {
+            bar: sliderBar,
+            mask: soundMask,
+            handle: soundHandle,
+            startX: startX,
+            endX: endX,
+            currentValue: this.soundVolume
+        };
+
+        // Thêm sự kiện kéo thả
+        this.input.setDraggable(soundHandle);
+        soundHandle.on('drag', (pointer, dragX, dragY) => {
+            const newX = Phaser.Math.Clamp(dragX, this.soundSlider.startX, this.soundSlider.endX);
+            soundHandle.setX(newX);
+            
+            this.soundVolume = (newX - this.soundSlider.startX) / (this.soundSlider.endX - this.soundSlider.startX);
+            this.soundSlider.currentValue = this.soundVolume;
+            
+            // 6. CẬP NHẬT MASK (vẽ lại phần HIỂN THỊ)
+            const fillWidth = newX - this.soundSlider.startX;
+            this.soundSlider.mask.clear();
+            this.soundSlider.mask.fillStyle(0xffffff);
+            this.soundSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
+            
+            console.log('Sound Volume:', this.soundVolume);
+        });
+    }
+
+    createActionButtons(width, height) {
+        // 4 nút chức năng ở vị trí nút continue cũ (662)
+        const buttonY = 662;
+        const buttonSpacing = 80; // Khoảng cách giữa các nút
+        const startX = 288 - (buttonSpacing * 1.5); // Căn giữa 4 nút
+
+        // Nút Notice
+        const noticeButton = this.add.image(startX, buttonY, 'notice')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(3);
+
+        noticeButton.on('pointerdown', () => {
+            console.log('Notice clicked');
+        });
+
+        // Nút Email
+        const emailButton = this.add.image(startX + buttonSpacing, buttonY, 'email')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(3);
+
+        emailButton.on('pointerdown', () => {
+            console.log('Email clicked');
+        });
+
+        // Nút Information
+        const infoButton = this.add.image(startX + buttonSpacing * 2, buttonY, 'information')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(3);
+
+        infoButton.on('pointerdown', () => {
+            console.log('Information clicked');
+        });
+
+        // Nút Share
+        const shareButton = this.add.image(startX + buttonSpacing * 3, buttonY, 'share')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(3);
+
+        shareButton.on('pointerdown', () => {
+            console.log('Share clicked');
+        });
+
+        // Nút Facebook Connect ở vị trí cũ
+        const facebookButton = this.add.image(288, 745, 'facebook')
+            .setOrigin(0.5)
+            .setScale(0.4)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(3);
+
+        facebookButton.on('pointerdown', () => {
+            // Xử lý kết nối Facebook
+            console.log('Facebook Connect clicked');
+            // TODO: Thêm logic kết nối Facebook
+        });
     }
 
     closePopup() {

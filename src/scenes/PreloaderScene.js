@@ -158,6 +158,16 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('pause_music', 'assets/images/ui/pause/music.png');
         this.load.image('pause_sound', 'assets/images/ui/pause/sound.png');
         
+        // Load Setting UI assets
+        this.load.image('setting_ui', 'assets/images/ui/setting/Bang UI Setting.png');
+        this.load.image('facebook', 'assets/images/ui/setting/facebook.png');
+        this.load.image('share', 'assets/images/ui/setting/share.png');
+        this.load.image('information', 'assets/images/ui/setting/information.png');
+        this.load.image('email', 'assets/images/ui/setting/email.png');
+        this.load.image('notice', 'assets/images/ui/setting/notice.png');
+        this.load.image('setting_exit', 'assets/images/ui/setting/Nut X.png');
+        this.load.image('setting_energy_bar', 'assets/images/ui/setting/Thanh nawng luong.png');
+        
         // Load Level Review UI assets
         this.load.image('level_review_ui', 'assets/images/ui/level_review/UI.png');
         

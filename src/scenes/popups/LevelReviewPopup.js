@@ -38,7 +38,7 @@ export class LevelReviewPopup extends Phaser.Scene {
             .setDepth(2);
 
         // 4. Tạo nút đóng (X) - vị trí tương tự PausePopup
-        const closeButton = this.add.image(450, 200, 'pause_exit')
+        const closeButton = this.add.image(470, 270, 'pause_exit')
             .setOrigin(0.5)
             .setScale(0.4)
             .setInteractive({ useHandCursor: true })
@@ -132,7 +132,12 @@ export class LevelReviewPopup extends Phaser.Scene {
                 .setDepth(3);
 
             // Lấy số lượng từ inventory
-            const count = this.playerData.inventory.boosters[boosterInfo.type] || 0;
+            let count = this.playerData.inventory.boosters[boosterInfo.type] || 0;
+            
+            // Test: Set shuffle booster về 0 để hiển thị add_icon
+            if (boosterInfo.type === BOOSTER_TYPES.SHUFFLE) {
+                count = 0;
+            }
             
             // Tạo background cho quantity
             const quantityBg = this.add.image(position.x + 29, position.y + 31, 'quantity_background')
@@ -143,9 +148,9 @@ export class LevelReviewPopup extends Phaser.Scene {
             let countDisplay;
             if (count === 0) {
                 // Nếu số lượng = 0, hiển thị add_icon
-                countDisplay = this.add.image(position.x + 20, position.y + 20, 'add_icon')
+                countDisplay = this.add.image(position.x + 20, position.y + 18, 'add_icon')
                     .setOrigin(1, 1)
-                    .setScale(0.3)
+                    .setScale(0.4)
                     .setDepth(4);
             } else {
                 // Nếu có số lượng, hiển thị text
