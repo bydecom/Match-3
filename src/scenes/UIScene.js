@@ -193,10 +193,8 @@ export class UIScene extends Phaser.Scene {
       item.updateCount(remaining);
     }
 
-    // Dự phòng: nếu tất cả mục tiêu đều hoàn thành theo UI, phát sự kiện thắng một lần
-    if (!this.levelCompletedShown && this.areAllObjectivesCleared()) {
-      this.game.events.emit('levelCompleted');
-    }
+    // UIScene CHỈ CẬP NHẬT UI, KHÔNG TỰ Ý EMIT levelCompleted
+    // Sự kiện levelCompleted sẽ được BoardState emit khi boardBusy = false
   }
 
   // << XÓA HOẶC COMMENT CÁC HÀM XỬ LÝ THỪA THÃI NÀY >>

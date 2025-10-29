@@ -145,11 +145,11 @@ export class GameScene extends Phaser.Scene {
 
     // === PHẦN SỬA LỖI NẰM Ở ĐÂY ===
     // 2. GÁN DEPTH CHO LAYER ĐỂ KIỂM SOÁT THỨ TỰ RENDER
-    // Layer này sẽ nằm trên các cell (depth 1) và dưới border (depth 3)
-    this.gemLayer.setDepth(2)
+    // Layer này sẽ nằm trên các cell (depth 1) VÀ TRÊN BORDER (depth 3) để VFX không bị che
+    this.gemLayer.setDepth(4) // Tăng lên 4 để cao hơn border (3)
     // ===============================
 
-    // 3. TÍNH TOÁN KÍCH THƯỚC VÀ TẠO MẶT NẠ DỰA TRÊN gridLayout
+    // 3A. TẠO MASK KHÍT CHO GEM LAYER (board thật)
     const maskShape = this.make.graphics()
     maskShape.fillStyle(0xffffff)
 
@@ -166,18 +166,22 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    const mask = maskShape.createGeometryMask()
+    const gemMask = maskShape.createGeometryMask()
 
-    // 3. ÁP DỤNG MẶT NẠ CHỈ CHO LAYER GEM
-    this.gemLayer.setMask(mask)
+    // 3B. ÁP DỤNG MẶT NẠ CHỈ CHO LAYER GEM
+    this.gemLayer.setMask(gemMask)
     
     // 4. XÓA BỎ LỆNH GỌI setMask CHO CAMERA
-    // this.cameras.main.setMask(mask) // << XÓA HOẶC CHÚ THÍCH DÒNG NÀY
+    // this.cameras.main.setMask(gemMask) // << XÓA HOẶC CHÚ THÍCH DÒNG NÀY
+
+    // 5. TẠO LAYER RIÊNG CHO VFX (KHÔNG CÓ MASK - để VFX zoom to tự do)
+    this.vfxLayer = this.add.layer()
+    this.vfxLayer.setDepth(25) // Depth cao hơn gemLayer để VFX hiển thị trên cả
 
     // === KẾT THÚC PHẦN SỬA LỖI ===
 
-    // Tạo PowerupVFXManager và Board
-    this.powerupVFXManager = new PowerupVFXManager(this)
+    // Tạo PowerupVFXManager và truyền vfxLayer vào
+    this.powerupVFXManager = new PowerupVFXManager(this, this.vfxLayer)
     // Truyền layer vào cho Board (Board sẽ tự tạo mask riêng cho fake gem)
     this.board = new Board(this, boardOffsetX, boardOffsetY, cellSize, this.powerupVFXManager, this.gemLayer)
     

@@ -77,11 +77,7 @@ export class BoardState {
         key: key,
         remaining: this.objectives[key].remaining
       });
-      // Kiểm tra thắng sớm nếu tất cả mục tiêu đã hoàn thành và không có hiệu ứng đang chạy
-      // (vẫn có kiểm tra an toàn ở endOfTurn)
-      if (this.areAllObjectivesCompleted() && !this.isGravityEffectRunning && !this.boardBusy) {
-        this.maybeEmitLevelCompleted();
-      }
+      // KHÔNG kiểm tra thắng ở đây - chỉ kiểm tra ở endOfTurn khi board rảnh
     }
   }
 
@@ -299,46 +295,186 @@ export class BoardState {
     let isActionChainCompleted = false
     const onVFXComplete = () => {
       if (isActionChainCompleted) return
+
+      // --- BƯỚC MỚI: Thực hiện damageCell cho các vùng đã lưu SAU VFX ---
+      let finalGemsToRemove = new Set()
+      
+      // Xử lý Bomb+Bomb combo
+      const isBombCombo = powerupToActivate && otherGem && powerupToActivate.value === GEM_TYPES.BOMB && otherGem.value === GEM_TYPES.BOMB
+      if (isBombCombo && this.bombComboCenter) {
+        const center = this.bombComboCenter
+        for (let r = center.row - 2; r <= center.row + 2; r++) {
+          for (let c = center.col - 2; c <= center.col + 2; c++) {
+            const destroyedGem = this.damageCell(r, c)
+            if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+          }
+        }
+        finalGemsToRemove.add(powerupToActivate)
+        finalGemsToRemove.add(otherGem)
+        this.bombComboCenter = null
+      }
+      // Xử lý các power-up combo và đơn lẻ khác
+      else if (this.damageAreasAfterVFX) {
+        const area = this.damageAreasAfterVFX
+        
+        switch (area.type) {
+          case 'stripe_stripe': {
+            const { row, col } = area
+            for (let c = 0; c < GRID_SIZE; c++) {
+              const destroyedGem = this.damageCell(row, c)
+              if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+            }
+            for (let r = 0; r < GRID_SIZE; r++) {
+              if (r === row) continue
+              const destroyedGem = this.damageCell(r, col)
+              if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+            }
+            break
+          }
+          case 'bomb_stripe': {
+            const { row, col, direction } = area
+            if (direction === 'horizontal') {
+              for (let r = row - 1; r <= row + 1; r++) {
+                if (r < 0 || r >= GRID_SIZE) continue
+                for (let c = 0; c < GRID_SIZE; c++) {
+                  const destroyedGem = this.damageCell(r, c)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              }
+            } else {
+              for (let c = col - 1; c <= col + 1; c++) {
+                if (c < 0 || c >= GRID_SIZE) continue
+                for (let r = 0; r < GRID_SIZE; r++) {
+                  const destroyedGem = this.damageCell(r, c)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              }
+            }
+            break
+          }
+          case 'colorbomb_stripe': {
+            const { gems, directions } = area
+            gems.forEach(gem => {
+              const row = gem.sprite.getData('row')
+              const col = gem.sprite.getData('col')
+              const isHorizontal = directions.get(gem)
+              if (isHorizontal) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
+                  const destroyedGem = this.damageCellIgnoreBlocker(row, c)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              } else {
+                for (let r = 0; r < GRID_SIZE; r++) {
+                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
+                  const destroyedGem = this.damageCellIgnoreBlocker(r, col)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              }
+            })
+            break
+          }
+          case 'colorbomb_bomb': {
+            const { gems } = area
+            gems.forEach(gem => {
+              const r = gem.sprite.getData('row')
+              const c = gem.sprite.getData('col')
+              for (let rr = r - 1; rr <= r + 1; rr++) {
+                for (let cc = c - 1; cc <= c + 1; cc++) {
+                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
+                  const destroyedGem = this.damageCellIgnoreBlocker(rr, cc)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              }
+            })
+            break
+          }
+          case 'bomb_single': {
+            const { row, col } = area
+            for (let rr = row - 1; rr <= row + 1; rr++) {
+              for (let cc = col - 1; cc <= col + 1; cc++) {
+                if (rr === row && cc === col) continue
+                const destroyedGem = this.damageCell(rr, cc)
+                if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+              }
+            }
+            break
+          }
+          case 'colorbomb_single': {
+            const { targetColor, otherGem } = area
+            for (let r = 0; r < GRID_SIZE; r++) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const gem = this.grid[r][c]
+                if (gem && gem.type === 'gem' && !this.isPowerup(gem) && gem.value === targetColor) {
+                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
+                  const destroyedGem = this.damageCellIgnoreBlocker(r, c)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              }
+            }
+            // Dùng damageCellIgnoreBlocker cho otherGem
+            const destroyedOtherGem = this.damageCellIgnoreBlocker(otherGem.sprite.getData('row'), otherGem.sprite.getData('col'))
+            if (destroyedOtherGem) finalGemsToRemove.add(destroyedOtherGem)
+            break
+          }
+          case 'stripe_single': {
+            const { row, col, isHorizontal } = area
+            if (isHorizontal) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                if (c === col) continue
+                const destroyedGem = this.damageCell(row, c)
+                if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+              }
+            } else {
+              for (let r = 0; r < GRID_SIZE; r++) {
+                if (r === row) continue
+                const destroyedGem = this.damageCell(r, col)
+                if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+              }
+            }
+            break
+          }
+        }
+        
+        // Thêm các power-up gốc vào danh sách xóa
+        if (powerupToActivate) finalGemsToRemove.add(powerupToActivate)
+        if (otherGem && this.isPowerup(otherGem)) finalGemsToRemove.add(otherGem)
+        
+        this.damageAreasAfterVFX = null
+      }
+      // Không có power-up, chỉ có match thường
+      else {
+        finalGemsToRemove = allGemsToRemove
+      }
+
       isActionChainCompleted = true
 
-      // --- LOGIC ĐẾM GEM MỚI, CHÍNH XÁC HƠN ---
+      // --- Đếm gem thường để cập nhật objective ---
       const gemCounts = {}
-      const countedGems = new Set() // Dùng để chống đếm trùng
-
-      // 1. Đếm tất cả gem từ các match ban đầu (match-3, 4, 5...)
-      // Đây là bước quan trọng nhất để sửa lỗi của bạn.
-      // Nó sẽ đếm TẤT CẢ gem trong group, bao gồm cả gem sắp biến thành power-up.
+      const countedGems = new Set()
       if (initialMatchGroups.length > 0) {
         initialMatchGroups.forEach(group => {
           group.forEach(gem => {
             if (gem && gem.value && !this.isPowerup(gem)) {
               gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
-              countedGems.add(gem) // Đánh dấu đã đếm
+              countedGems.add(gem)
             }
           })
         })
       }
-
-      // 2. Đếm các gem "bị phá hủy ké" bởi power-up
-      // (chỉ đếm những gem chưa được đếm ở bước 1)
-      if (powerupToActivate) {
-        explosionSet.forEach(gem => {
-          // Chỉ đếm nếu gem này chưa được đếm, và nó là gem thường
-          if (gem && gem.value && !countedGems.has(gem) && !this.isPowerup(gem)) {
-            gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
-          }
-        })
-      }
-      
-      // 3. Cập nhật objective cho tất cả gem thường đã đếm
-      console.log("[Objective] Batch updating gems:", gemCounts)
+      finalGemsToRemove.forEach(gem => {
+        if (gem && gem.value && !countedGems.has(gem) && !this.isPowerup(gem)) {
+          gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
+        }
+      })
       for (const type in gemCounts) {
-          this.updateObjectiveProgress('gem', type, gemCounts[type])
+        this.updateObjectiveProgress('gem', type, gemCounts[type])
       }
-      
-      // --- Phần còn lại giữ nguyên ---
-      this.removeGemSprites(allGemsToRemove)
+
+      // Xóa sprite theo tập cuối cùng
+      this.removeGemSprites(finalGemsToRemove)
       this.createPowerupsAfterWiggle(powerupsToCreate)
+      this.recalculateBlockerCounts()
 
       if (this.scene && this.scene.game && this.scene.game.events) {
         this.scene.game.events.emit('matchSummary', {
@@ -347,7 +483,6 @@ export class BoardState {
           powerups: Array.from(activatedPowerups).map(p => p.value)
         })
       }
-
       this.scene.time.delayedCall(150, () => { this.applyGravityAndRefill() })
     }
 
@@ -372,6 +507,69 @@ export class BoardState {
                 // otherGem là viên gem ở vị trí đích (target)
                 this.powerupVFXManager.playDoubleBombEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
             } 
+            // COMBO COLOR BOMB + STRIPE
+            else if (
+              (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.STRIPE) ||
+              (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.COLOR_BOMB)
+            ) {
+              const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupToActivate : otherGem
+              const stripeGem = (colorBomb === powerupToActivate) ? otherGem : powerupToActivate
+              const gemsToTransform = this.gemsToTransformForVFX || new Set()
+              this.powerupVFXManager.playColorBombStripeComboEffect(
+                colorBomb,
+                stripeGem,
+                gemsToTransform,
+                allGemsToRemove,
+                onVFXComplete
+              )
+            }
+            // COMBO COLOR BOMB + BOMB
+            else if (
+              (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.BOMB) ||
+              (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.COLOR_BOMB)
+            ) {
+              const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupToActivate : otherGem
+              const bombGem = (colorBomb === powerupToActivate) ? otherGem : powerupToActivate
+              const gemsToTransform = this.gemsToTransformForVFX || new Set()
+              if (this.powerupVFXManager.playColorBombBombComboEffect) {
+                this.powerupVFXManager.playColorBombBombComboEffect(
+                  colorBomb,
+                  bombGem,
+                  gemsToTransform,
+                  allGemsToRemove,
+                  onVFXComplete
+                )
+              } else {
+                this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
+              }
+            }
+            // STRIPE + STRIPE
+            else if (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.STRIPE) {
+              if (this.powerupVFXManager.playDoubleStripeEffect) {
+                this.powerupVFXManager.playDoubleStripeEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
+              } else {
+                this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
+              }
+            }
+            // BOMB + STRIPE (VFX theo hướng và độ rộng 3 ô)
+            else if (
+              (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.STRIPE) ||
+              (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.BOMB)
+            ) {
+              const direction = this.comboVFXDirection || 'horizontal'
+              if (this.powerupVFXManager.playBombStripeComboEffect) {
+                this.powerupVFXManager.playBombStripeComboEffect(
+                  powerupToActivate,
+                  otherGem,
+                  direction,
+                  allGemsToRemove,
+                  onVFXComplete
+                )
+              } else {
+                this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
+              }
+              this.comboVFXDirection = null
+            }
             else {
                 // Nếu là các combo khác chưa có VFX, tạm thời dùng hiệu ứng wiggle cũ
                 this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
@@ -982,7 +1180,7 @@ applyGravityAndRefill() {
   }
 
   /**
-   * Tạo mask riêng cho layer fake gem
+   * Tạo mask riêng cho layer fake gem (gravity effect)
    * CHỈ che khu vực board thật (gridLayout !== null)
    * Vùng phía trên (cột giả) KHÔNG có trong mask -> gem ở đó bị che
    */
@@ -1252,6 +1450,15 @@ applyGravityAndRefill() {
 
   getPowerupActivationSet(powerupGem, otherGem) {
     const resultSet = new Set()
+    // Lưu các gem sẽ biến hình để VFX sử dụng (combo ColorBomb + Stripe)
+    if (!this.gemsToTransformForVFX) this.gemsToTransformForVFX = new Set();
+    this.gemsToTransformForVFX.clear();
+    // Lưu hướng combo cho VFX (ví dụ Bomb+Stripe)
+    this.comboVFXDirection = null;
+    // Lưu tâm cho Bomb+Bomb để damage sau VFX
+    this.bombComboCenter = null;
+    // << MỚI: Lưu danh sách vùng cần damage SAU VFX >>
+    this.damageAreasAfterVFX = null;
     if (this.isPowerup(otherGem)) {
       resultSet.add(powerupGem)
       resultSet.add(otherGem)
@@ -1264,20 +1471,167 @@ applyGravityAndRefill() {
           }
         }
       } else if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
-        // --- BẮT ĐẦU SỬA TỪ ĐÂY ---
-        // COMBO: BOMB + BOMB (Nổ 5x5)
-        // LƯU Ý QUAN TRỌNG:
-        // Hàm này được gọi SAU KHI swap đã xảy ra.
-        // `powerupGem` (quả bom được chọn) lúc này đã nằm ở vị trí của `otherGem`.
-        // Do đó, vị trí của `powerupGem` chính là tâm của vụ nổ.
-        
+        // COMBO: BOMB + BOMB (Nổ 5x5) – CHỈ xác định vùng và lưu tâm; damage sẽ chạy SAU VFX
         const centerRow = powerupGem.sprite.getData('row')
         const centerCol = powerupGem.sprite.getData('col')
-        
-        // Lấy tất cả gem trong bán kính 2 (tức là vùng 5x5) từ tâm mới này
-        const explosion = this.getGemsInArea(centerRow, centerCol, 2)
-        explosion.forEach(gem => resultSet.add(gem))
-        // --- KẾT THÚC SỬA Ở ĐÂY ---
+        this.bombComboCenter = { row: centerRow, col: centerCol }
+        for (let r = centerRow - 2; r <= centerRow + 2; r++) {
+          for (let c = centerCol - 2; c <= centerCol + 2; c++) {
+            if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+              const gem = this.grid[r]?.[c]
+              if (gem && gem.type === 'gem') { resultSet.add(gem) }
+            }
+          }
+        }
+        // Đảm bảo 2 quả bomb nằm trong set cho VFX
+        resultSet.add(powerupGem)
+        resultSet.add(otherGem)
+      }
+      // STRIPE + STRIPE: dấu + 1 ô, tâm là vị trí 2 (damage sau VFX)
+      else if (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.STRIPE) {
+        const r = powerupGem.sprite.getData('row')
+        const c = powerupGem.sprite.getData('col')
+        // Lưu vùng damage để thực hiện sau VFX
+        this.damageAreasAfterVFX = { type: 'stripe_stripe', row: r, col: c }
+        // Tạm thời thêm tất cả gem trong vùng (VFX cần biết)
+        for (let col = 0; col < GRID_SIZE; col++) {
+          const gem = this.grid[r]?.[col]
+          if (gem && gem.type === 'gem') resultSet.add(gem)
+        }
+        for (let row = 0; row < GRID_SIZE; row++) {
+          if (row === r) continue
+          const gem = this.grid[row]?.[c]
+          if (gem && gem.type === 'gem') resultSet.add(gem)
+        }
+      } else if (
+        (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.STRIPE) ||
+        (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.BOMB)
+      ) {
+        // COMBO: BOMB + STRIPE => 3 hàng hoặc 3 cột (rộng 3 ô) theo hướng swap (damage sau VFX)
+        const r2 = powerupGem.sprite.getData('row')
+        const c2 = powerupGem.sprite.getData('col')
+        const r1 = otherGem.sprite.getData('row')
+        const isHorizontalSwap = (r1 === r2)
+        this.comboVFXDirection = isHorizontalSwap ? 'horizontal' : 'vertical'
+        // Lưu vùng damage để thực hiện sau VFX
+        this.damageAreasAfterVFX = { type: 'bomb_stripe', row: r2, col: c2, direction: this.comboVFXDirection }
+        // Tạm thời thêm tất cả gem trong vùng (VFX cần biết)
+        if (isHorizontalSwap) {
+          for (let r = r2 - 1; r <= r2 + 1; r++) {
+            if (r < 0 || r >= GRID_SIZE) continue
+            for (let c = 0; c < GRID_SIZE; c++) {
+              const gem = this.grid[r]?.[c]
+              if (gem && gem.type === 'gem') resultSet.add(gem)
+            }
+          }
+        } else {
+          for (let c = c2 - 1; c <= c2 + 1; c++) {
+            if (c < 0 || c >= GRID_SIZE) continue
+            for (let r = 0; r < GRID_SIZE; r++) {
+              const gem = this.grid[r]?.[c]
+              if (gem && gem.type === 'gem') resultSet.add(gem)
+            }
+          }
+        }
+      }
+      // COMBO: COLOR_BOMB + STRIPE
+      else if (
+          (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.STRIPE) ||
+          (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.COLOR_BOMB)
+      ) {
+          const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupGem : otherGem
+          const stripeGem = (colorBomb === powerupGem) ? otherGem : powerupGem
+
+          // Chọn một màu ngẫu nhiên trong danh sách gem thường
+          const availableGems = (this.levelData?.availableGems || Object.values(GEM_TYPES))
+            .filter(t => t !== GEM_TYPES.BOMB && t !== GEM_TYPES.COLOR_BOMB && t !== GEM_TYPES.STRIPE)
+          const targetColor = Phaser.Math.RND.pick(availableGems)
+
+          // Tìm tất cả gem có màu đó
+          const gemsToActivate = []
+          for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+              const gem = this.grid[r][c]
+              if (gem && gem.type === 'gem' && gem.value === targetColor) {
+                gemsToActivate.push(gem)
+              }
+            }
+          }
+
+          // Lưu để VFX dùng biến hình
+          gemsToActivate.forEach(gem => this.gemsToTransformForVFX.add(gem))
+
+          // Lưu vùng damage để thực hiện sau VFX (với hướng ngẫu nhiên cho mỗi stripe)
+          const stripeDirections = new Map()
+          gemsToActivate.forEach(gem => {
+            stripeDirections.set(gem, Phaser.Math.RND.pick([true, false])) // true = horizontal
+          })
+          this.damageAreasAfterVFX = { type: 'colorbomb_stripe', gems: gemsToActivate, directions: stripeDirections }
+
+          // Tạm thời thêm tất cả gem trong vùng (VFX cần biết)
+          gemsToActivate.forEach(gem => {
+            const row = gem.sprite.getData('row')
+            const col = gem.sprite.getData('col')
+            const isHorizontal = stripeDirections.get(gem)
+            if (isHorizontal) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const g = this.grid[row]?.[c]
+                if (g && g.type === 'gem') resultSet.add(g)
+              }
+            } else {
+              for (let r = 0; r < GRID_SIZE; r++) {
+                const g = this.grid[r]?.[col]
+                if (g && g.type === 'gem') resultSet.add(g)
+              }
+            }
+          })
+
+          // Đảm bảo hai power-up cũng nằm trong tập kết quả
+          resultSet.add(colorBomb)
+          resultSet.add(stripeGem)
+      }
+      // COMBO: COLOR_BOMB + BOMB (mới)
+      else if (
+        (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.BOMB) ||
+        (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.COLOR_BOMB)
+      ) {
+        const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupGem : otherGem
+        const bombGem = (colorBomb === powerupGem) ? otherGem : powerupGem
+
+        const availableGems = (this.levelData?.availableGems || Object.values(GEM_TYPES))
+          .filter(t => t !== GEM_TYPES.BOMB && t !== GEM_TYPES.COLOR_BOMB && t !== GEM_TYPES.STRIPE)
+        const targetColor = Phaser.Math.RND.pick(availableGems)
+
+        const gemsToActivate = []
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const gem = this.grid[r][c]
+            if (gem && gem.type === 'gem' && gem.value === targetColor) {
+              gemsToActivate.push(gem)
+            }
+          }
+        }
+
+        // Lưu để VFX dùng biến hình
+        gemsToActivate.forEach(gem => this.gemsToTransformForVFX.add(gem))
+
+        // Lưu vùng damage để thực hiện sau VFX
+        this.damageAreasAfterVFX = { type: 'colorbomb_bomb', gems: gemsToActivate }
+
+        // Tạm thời thêm tất cả gem trong vùng 3x3 quanh mỗi bomb (VFX cần biết)
+        gemsToActivate.forEach(gem => {
+          const r = gem.sprite.getData('row')
+          const c = gem.sprite.getData('col')
+          for (let rr = r - 1; rr <= r + 1; rr++) {
+            for (let cc = c - 1; cc <= c + 1; cc++) {
+              const g = this.grid[rr]?.[cc]
+              if (g && g.type === 'gem') resultSet.add(g)
+            }
+          }
+        })
+
+        resultSet.add(colorBomb)
+        resultSet.add(bombGem)
       } else {
         const colorBomb = (type1 === GEM_TYPES.COLOR_BOMB) ? powerupGem : otherGem
         const bomb = (colorBomb === powerupGem) ? otherGem : powerupGem
@@ -1302,17 +1656,32 @@ applyGravityAndRefill() {
       resultSet.add(powerupGem)
       switch (powerupGem.value) {
         case GEM_TYPES.BOMB: {
-          const explosion = this.getGemsInArea(powerupGem.sprite.getData('row'), powerupGem.sprite.getData('col'), 1)
-          explosion.forEach(gem => resultSet.add(gem))
+          const r = powerupGem.sprite.getData('row')
+          const c = powerupGem.sprite.getData('col')
+          // Lưu vùng damage để thực hiện sau VFX
+          this.damageAreasAfterVFX = { type: 'bomb_single', row: r, col: c }
+          // Tạm thời thêm tất cả gem trong vùng 3x3 (VFX cần biết)
+          for (let rr = r - 1; rr <= r + 1; rr++) {
+            for (let cc = c - 1; cc <= c + 1; cc++) {
+              if (rr === r && cc === c) continue
+              const gem = this.grid[rr]?.[cc]
+              if (gem && gem.type === 'gem') resultSet.add(gem)
+            }
+          }
           break
         }
         case GEM_TYPES.COLOR_BOMB: {
           if (otherGem) {
             const targetColor = otherGem.value
+            // Lưu vùng damage để thực hiện sau VFX
+            this.damageAreasAfterVFX = { type: 'colorbomb_single', targetColor, otherGem }
+            // Tạm thời thêm tất cả gem cùng màu (VFX cần biết)
             for (let r = 0; r < GRID_SIZE; r++) {
               for (let c = 0; c < GRID_SIZE; c++) {
                 const gem = this.grid[r][c]
-                if (gem && gem.type === 'gem' && gem.value === targetColor) { resultSet.add(gem) }
+                if (gem && gem.type === 'gem' && !this.isPowerup(gem) && gem.value === targetColor) {
+                  resultSet.add(gem)
+                }
               }
             }
             resultSet.add(otherGem)
@@ -1332,17 +1701,21 @@ applyGravityAndRefill() {
             isHorizontal = (otherRow === stripeRow)
           }
           
+          // Lưu vùng damage để thực hiện sau VFX
+          this.damageAreasAfterVFX = { type: 'stripe_single', row: stripeRow, col: stripeCol, isHorizontal }
+          
+          // Tạm thời thêm tất cả gem trong hàng/cột (VFX cần biết)
           if (isHorizontal) {
-            // Xóa toàn bộ hàng
             for (let c = 0; c < GRID_SIZE; c++) {
-              const gem = this.grid[stripeRow][c]
-              if (gem && gem.type === 'gem') { resultSet.add(gem) }
+              if (c === stripeCol) continue
+              const gem = this.grid[stripeRow]?.[c]
+              if (gem && gem.type === 'gem') resultSet.add(gem)
             }
           } else {
-            // Xóa toàn bộ cột
             for (let r = 0; r < GRID_SIZE; r++) {
-              const gem = this.grid[r][stripeCol]
-              if (gem && gem.type === 'gem') { resultSet.add(gem) }
+              if (r === stripeRow) continue
+              const gem = this.grid[r]?.[stripeCol]
+              if (gem && gem.type === 'gem') resultSet.add(gem)
             }
           }
           break
@@ -1353,11 +1726,16 @@ applyGravityAndRefill() {
   }
 
   // Chỉ emit levelCompleted sau khi lượt đã kết thúc và chưa emit trước đó
+  // Phải đảm bảo board hoàn toàn rảnh (boardBusy = false) và không có gravity effect
   maybeEmitLevelCompleted() {
-    if (this.levelWon) return;
-    if (this.isGravityEffectRunning) return;
+    if (this.levelWon) return; // Đã thắng rồi, không emit lại
+    if (this.isGravityEffectRunning) return; // Gravity đang chạy
+    if (this.boardBusy) return; // Board đang bận, chưa tính xong điểm
+    
+    // Chỉ emit khi tất cả objectives hoàn thành VÀ board hoàn toàn rảnh
     if (this.areAllObjectivesCompleted()) {
       this.levelWon = true;
+      console.log('🎉 All objectives completed and board is ready - emitting levelCompleted');
       if (this.scene && this.scene.game && this.scene.game.events) {
         this.scene.game.events.emit('levelCompleted');
       }

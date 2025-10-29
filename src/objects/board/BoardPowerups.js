@@ -173,22 +173,73 @@ export class BoardPowerups {
     })
   }
   
-  // Hàm này giữ nguyên, nó hoạt động đúng cho các vụ nổ match-3 và bomb
+  /**
+   * Gây sát thương (1 điểm) lên một ô cụ thể (row, col) theo ưu tiên blocker.
+   * - Nếu có blocker: gọi takeDamage(). Nếu chưa vỡ -> dừng và trả về null (BẢO VỆ GEM).
+   * - Nếu không có blocker hoặc blocker vừa vỡ -> trả về gem (nếu có) để đưa vào danh sách xóa.
+   * @returns {object|null} gem bị phá hủy hoặc null nếu không có/không thể phá do blocker.
+   */
   damageCell(row, col) {
-    if (row < 0 || row >= 9 || col < 0 || col >= 9) return null
+    // Kiểm tra ô hợp lệ bằng helper sẵn có
+    if (!this.isValidCell || !this.isValidCell(row, col)) return null
+
+    // --- Ưu tiên xử lý Blocker ---
     const blocker = this.blockerGrid?.[row]?.[col]
     if (blocker) {
-      const destroyed = blocker.takeDamage()
-      if (destroyed) {
+      const blockerDestroyed = blocker.takeDamage()
+      if (blockerDestroyed) {
+        // Xóa blocker khỏi lưới
         this.blockerGrid[row][col] = null
+        // Cập nhật mục tiêu nếu có type
+        if (blocker.type) {
+          this.updateObjectiveProgress && this.updateObjectiveProgress('blocker', blocker.type)
+        }
         if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+        // Tiếp tục kiểm tra gem bên dưới
       } else {
-        return null // Dừng lại nếu blocker chưa bị phá hủy
+        // Blocker chưa bị phá -> dừng, không tác động gem (BẢO VỆ GEM)
+        return null
       }
     }
+
+    // --- Xử lý Gem ---
     const gem = this.grid[row]?.[col]
-    if (gem) {
-      return gem 
+    if (gem && gem.type === 'gem') {
+      return gem
+    }
+    return null
+  }
+
+  /**
+   * [MỚI] Gây sát thương blocker NHƯNG VẪN LẤY GEM (dùng cho Color Bomb và hiệu ứng hút).
+   * - Nếu có blocker: gọi takeDamage() (-1 HP), nhưng VẪN TIẾP TỤC lấy gem.
+   * - Trả về gem (nếu có) để xóa, bất kể blocker còn máu hay không.
+   * @returns {object|null} gem bị phá hủy hoặc null nếu không có gem.
+   */
+  damageCellIgnoreBlocker(row, col) {
+    // Kiểm tra ô hợp lệ
+    if (!this.isValidCell || !this.isValidCell(row, col)) return null
+
+    // --- Gây sát thương Blocker (nếu có) nhưng KHÔNG dừng ---
+    const blocker = this.blockerGrid?.[row]?.[col]
+    if (blocker) {
+      const blockerDestroyed = blocker.takeDamage()
+      if (blockerDestroyed) {
+        // Xóa blocker khỏi lưới
+        this.blockerGrid[row][col] = null
+        // Cập nhật mục tiêu nếu có type
+        if (blocker.type) {
+          this.updateObjectiveProgress && this.updateObjectiveProgress('blocker', blocker.type)
+        }
+        if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true
+      }
+      // QUAN TRỌNG: KHÔNG return null ở đây, tiếp tục lấy gem bên dưới
+    }
+
+    // --- Xử lý Gem (bất kể blocker còn máu hay không) ---
+    const gem = this.grid[row]?.[col]
+    if (gem && gem.type === 'gem') {
+      return gem
     }
     return null
   }
@@ -303,7 +354,7 @@ export class BoardPowerups {
     });
   }
   
-  // << CẬP NHẬT LUÔN HÀM useRocket ĐỂ DÙNG CHUNG LOGIC MỚI >>
+  // << SỬA LẠI HÀM useRocket ĐỂ CHỈ GÂY 1 DAMAGE VÀO BLOCKER >>
   useRocket(row, col) { // `row` không được sử dụng nhưng giữ để nhất quán
     if (this.boardBusy) return;
     this.boardBusy = true;
@@ -328,22 +379,46 @@ export class BoardPowerups {
     }
 
     // 2. Quét qua tất cả các cột bị ảnh hưởng
+    // SỬ DỤNG damageCell THAY VÌ forceDestroyCell - CHỈ GÂY 1 DAMAGE VÀO BLOCKER
+    const gemsToRemove = new Set();
     affectedColumns.forEach(currentCol => {
-      // Trong mỗi cột, quét từ trên xuống dưới và phá hủy mọi thứ
+      // Trong mỗi cột, quét từ trên xuống dưới
       for (let r = 0; r < GRID_SIZE; r++) {
-        this.forceDestroyCell(r, currentCol);
+        // damageCell sẽ:
+        // - Gây 1 damage vào blocker (nếu có)
+        // - Chỉ trả về gem nếu blocker bị phá hủy hoặc không có blocker
+        const destroyedGem = this.damageCell(r, currentCol);
+        if (destroyedGem) {
+          gemsToRemove.add(destroyedGem);
+        }
       }
     });
 
-    // 3. Kích hoạt gravity sau một khoảng trễ ngắn để animation kịp chạy
+    // 3. Xóa sprite của các gem đã bị phá hủy
+    this.removeGemSprites(gemsToRemove);
+
+    // 4. Tính lại blocker và kích hoạt gravity
     this.scene.time.delayedCall(250, () => {
+      // Đếm gem để cập nhật objective
+      const gemCounts = {};
+      gemsToRemove.forEach(gem => {
+        if (gem && gem.value && !this.isPowerup(gem)) {
+          gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1;
+        }
+      });
+      
+      // Cập nhật objective cho gem
+      for (const type in gemCounts) {
+        this.updateObjectiveProgress('gem', type, gemCounts[type]);
+      }
+
       // Tính lại blocker sau khi phá và phát tóm tắt cho UI
       this.recalculateBlockerCounts();
       if (this.scene && this.scene.game && this.scene.game.events) {
         this.scene.game.events.emit('matchSummary', {
-          gemCounts: this.turnStats.gemCounts,
+          gemCounts: gemCounts,
           blockerCounts: this.blockerCounts || {},
-          powerups: this.turnStats.powerups
+          powerups: this.turnStats.powerups || []
         })
       }
       this.applyGravityAndRefill();

@@ -219,7 +219,7 @@ export class MapVFXManager {
         // --- Tọa độ LOCAL (Lấy từ demo, 0,0 là góc trên trái của map_part1) ---
         const waterfallPos = { x: 120, y: 635 };
         const waterfallTopPos = { x: 115, y: 635 };
-        const waterfallMidPos = { x: 115, y: 635 };
+        const waterfallMidPos = { x: 128, y: 680 };
         const waterfallBasePos = { x: 115, y: 635 };
         const waterSurfacePos1 = { x: 115, y: 635 };
         const waterSurfacePos2 = { x: 115, y: 635 };
