@@ -16,7 +16,7 @@ class PlayerDataManager {
             "createdAt": "2024-07-01T09:00:00Z",
             
             "progression": {
-                "highestLevelUnlocked": 5,
+                "highestLevelUnlocked": 4,
                 "levelStars": {
                     "1": 3,
                     "2": 2,

@@ -72,27 +72,37 @@ export class MapScene extends Phaser.Scene {
         });
 
         const totalHeight = currentY; // Tổng chiều cao của toàn bộ map
+        console.log(`=== MAP INFO ===`);
+        console.log(`Total map height: ${totalHeight}`);
 
         // --- 2. TẠO LEVEL NODE VỚI TỌA ĐỘ LOCAL ---
         
         // *** FIX 2: Lấy offset của map_part1 (map ở dưới cùng) ***
         const map1Offset = this.getMapOffsetY('map_part1'); 
-        console.log(`Map part 'map_part1' (map đáy) bắt đầu tại Y: ${map1Offset}`);
+        console.log(`Map part 'map_part1' bắt đầu tại Y: ${map1Offset}, Height: ${this.mapRegistry.get('map_part1').displayHeight}`);
 
         // *** Dữ liệu vị trí level MỚI (dùng tọa độ local) ***
         // Tọa độ world cũ (1164-1990) rõ ràng là thuộc về map_part1.
         // y_local = y_world_cũ - offset_của_map_part1
+        
+        // Lấy offset của map_part2
+        const map2Offset = this.getMapOffsetY('map_part2');
+        console.log(`Map part 'map_part2' bắt đầu tại Y: ${map2Offset}, Height: ${this.mapRegistry.get('map_part2').displayHeight}`);
+        console.log(`=== LEVEL NODES ===`);
+        
         const localLevelPositions = [
-            // *** FIX 3: Gán các level này cho 'map_part1' và trừ đi 'map1Offset' ***
+            // Map Part 1 - Level 1 đến 4
             { id: 1, mapKey: 'map_part1', x: 223, y: (1990 - map1Offset) },
             { id: 2, mapKey: 'map_part1', x: 297, y: (1752 - map1Offset) },
             { id: 3, mapKey: 'map_part1', x: 296, y: (1563 - map1Offset) },
-            { id: 4, mapKey: 'map_part1', x: 288, y: (1300 - map1Offset) },
-            { id: 5, mapKey: 'map_part1', x: 286, y: (1164 - map1Offset) }
-
-            // Ví dụ: Nếu bạn có level 6 trên map_part2 (map ở trên)
-            // const map2Offset = this.getMapOffsetY('map_part2'); // Sẽ là 0
-            // { id: 6, mapKey: 'map_part2', x: 300, y: (500 - map2Offset) } // y_local = 500
+            { id: 4, mapKey: 'map_part1', x: 286, y: (1164 - map1Offset) }, // Level 4 lên vị trí cũ của level 5
+            
+            // Map Part 2 - Level 5 đến 9
+            { id: 5, mapKey: 'map_part2', x: 215, y: (900 - map2Offset) },
+            { id: 6, mapKey: 'map_part2', x: 310, y: (730 - map2Offset) },
+            { id: 7, mapKey: 'map_part2', x: 295, y: (520 - map2Offset) },
+            { id: 8, mapKey: 'map_part2', x: 320, y: (350 - map2Offset) },
+            { id: 9, mapKey: 'map_part2', x: 362, y: (180 - map2Offset) }
         ];
 
         localLevelPositions.forEach(level => {
@@ -104,10 +114,18 @@ export class MapScene extends Phaser.Scene {
             const worldX = level.x; // X không đổi
             const worldY = mapOffsetY + level.y; // Y (World) = Y (Offset) + Y (Local)
             
+            console.log(`Level ${level.id} (${level.mapKey}): Local Y=${level.y}, Map Offset=${mapOffsetY}, World Y=${worldY}, Locked=${isLocked}`);
+            
             const levelNode = new LevelNode(this, worldX, worldY, level.id, isLocked, stars);
             
-            // Đặt depth cho LevelNode để hiển thị trên map_part1 nhưng dưới map_part2
-            levelNode.setDepth(5);
+            // Đặt depth cho LevelNode dựa trên map
+            // Map_part1 (depth 0): LevelNode depth 5
+            // Map_part2 (depth 10): LevelNode depth 15 để hiển thị trên map_part2
+            if (level.mapKey === 'map_part2') {
+                levelNode.setDepth(15);
+            } else {
+                levelNode.setDepth(5);
+            }
             
             // *** SỬA Ở ĐÂY: Thêm levelNode trực tiếp vào Scene ***
             // Giả sử LevelNode là một GameObject, dùng this.add.existing

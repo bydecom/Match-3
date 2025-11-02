@@ -225,7 +225,7 @@ export class MapVFXManager {
         const waterSurfacePos2 = { x: 115, y: 635 };
         const decanterSpoutPos = { x: 445, y: 622 };
         const decanterBasePos = { x: 445, y: 622 };
-        const bambooPos = { x: 86, y: 205};
+        const bambooPos = { x: 100, y: -25};
         const bananaTreePos = { x: width * 0.15, y: height * 1 };
 
         // --- Nhóm VFX Thác nước (Steam) ---
@@ -565,12 +565,12 @@ export class MapVFXManager {
         this.createStaticOrTweenedImage(
             coords.x, coords.y, // Dùng tọa độ World đã tính
             'vfx_bambo_cay_tre',
-            { depth: 3}, // Đặt origin lên trên để xoay đúng
-            { props: { angle: 5 }, duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' } // Tween góc quay
+            { depth: 3, originX: 0.5, originY: 0}, // Đặt origin lên trên để xoay đúng
+            { props: { angle: 1 }, duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' } // Tween góc quay
         );
 
         // 2. Ảnh tĩnh mặt sau trống (nền)
-        coords = this.getWorldCoords(mapKey, 94, 327); // Chỉnh vị trí
+        coords = this.getWorldCoords(mapKey, 93, 323); // Chỉnh vị trí
         this.createStaticOrTweenedImage(
             coords.x, coords.y, // Dùng tọa độ World đã tính
             'vfx_bambo_mat_sau_quai_trong_dong',
@@ -682,39 +682,48 @@ export class MapVFXManager {
     }
 
     // ---------------------------------------------------
-    // --- HÀM MỚI CHO MAP_PART2 (VÍ DỤ) ---
+    // --- HÀM MỚI CHO MAP_PART2 ---
     // ---------------------------------------------------
     startMapPart2VFX() {
         console.log("Starting Map Part 2 VFX...");
-        const mapKey = 'map_part2';
+        const mapKey = 'map_part2'; // Chỉ định map key
+        const { width, height } = this.scene.scale;
 
-        // Ví dụ: thêm 1 hiệu ứng lấp lánh ở gần Level 5
-        // Tọa độ local của Level 5 trên map_part2 là (x: 286, y: 64) (giả sử offset là 1100)
-        
-        // Tạo 1 vùng lấp lánh *quanh* level 5 (tọa độ local)
-        const localArea = new Phaser.Geom.Rectangle(250, 20, 100, 100); // (quanh 286, 64)
-        
-        // Chuyển đổi vùng local -> vùng world
-        const worldTopLeft = this.getWorldCoords(mapKey, localArea.x, localArea.y);
-        const worldArea = new Phaser.Geom.Rectangle(
-            worldTopLeft.x,
-            worldTopLeft.y,
-            localArea.width,
-            localArea.height
+        // --- Tọa độ LOCAL (Lấy từ demo, 0,0 là góc trên trái của map_part2) ---
+        const cayChuoiPos = { x: 600, y: 950 };
+        const chumBapPos = { x: 200, y: 650 };
+        const laCayPos = { x: 590, y: 135 };
+
+        // --- Nhóm VFX Cây cối (Vegetation) ---
+
+        // 1. Cây chuối lắc lư nhẹ (tween angle)
+        let coords = this.getWorldCoords(mapKey, cayChuoiPos.x, cayChuoiPos.y);
+        this.createStaticOrTweenedImage(
+            coords.x, coords.y, // Dùng tọa độ World đã tính
+            'map_part2_cay_chuoi',
+            { depth: 12, originX: 1.0, originY: 0.5 }, // Đặt origin ở mép phải
+            { props: { angle: 3 }, duration: 2800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' } // Lắc lư
         );
 
-        // Tạm thời comment vì 'sparkle' có thể chưa được load
-        /*
-        this.createPeriodicSparkle(
-            worldArea, // Dùng tọa độ WORLD
-            'sparkle', // Texture bạn phải load trước
-            { delay: 700 },
-            { scaleFactor: 1.5, duration: 400 },
-            { initialScale: this.defaultScale * 0.5, depth: 15 } // Depth cao hơn để hiển thị trên map_part2
+        // 2. Chùm bắp lắc lư như quả treo (tween angle)
+        coords = this.getWorldCoords(mapKey, chumBapPos.x, chumBapPos.y);
+        this.createStaticOrTweenedImage(
+            coords.x, coords.y, // Dùng tọa độ World đã tính
+            'map_part2_chum_bap',
+            { depth: 12, originX: 0.5, originY: 0 }, // Đặt origin ở trên cùng để xoay đúng
+            { props: { angle: 5 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' } // Lắc mạnh hơn
         );
-        */
-        
-        console.log(`Added sparkle effect for Map 2 at world Y: ${worldTopLeft.y}`);
+
+        // 3. Lá cây lắc lư như cành cây (tween angle)
+        coords = this.getWorldCoords(mapKey, laCayPos.x, laCayPos.y);
+        this.createStaticOrTweenedImage(
+            coords.x, coords.y, // Dùng tọa độ World đã tính
+            'map_part2_la_cay',
+            { depth: 12, originX: 1.0, originY: 0.5 }, // Đặt origin ở mép phải (điểm nối)
+            { props: { angle: -3 }, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' } // Lắc lư
+        );
+
+        console.log(`Created ${this.activeVFX.length} VFX elements/timers/tweens for Map Part 2.`);
     }
 
     // Hàm dọn dẹp khi Scene bị shutdown

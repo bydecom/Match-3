@@ -1,0 +1,38 @@
+{
+  "levelId": 8,
+  "moves": 32,
+  "starTimes": {
+    "startTime": 120,
+    "threeStars": 90,
+    "twoStars": 60,
+    "oneStar": 30
+  },
+  "objectives": [
+    { "target": "blocker", "type": "rope", "count": 15 },
+    { "target": "blocker", "type": "stone", "count": 8 }
+  ],
+  "gridLayout": [
+    [0, 0, 0, null, null, null, 0, 0, 0],
+    [0, 0, 0, null, null, null, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [null, null, 0, 0, 0, 0, 0, null, null],
+    [null, null, 0, 0, 0, 0, 0, null, null],
+    [null, null, 0, 0, 0, 0, 0, null, null],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, null, null, null, 0, 0, 0],
+    [0, 0, 0, null, null, null, 0, 0, 0]
+  ],
+  "blockerLayout": [
+    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+    [1, 1, 1, 0, 0, 0, 1, 1, 1],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+    [0, 0, 3, 3, 0, 3, 3, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 3, 3, 0, 3, 3, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+    [1, 1, 1, 0, 0, 0, 1, 1, 1],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0]
+  ],
+  "availableGems": ["red", "green", "blue", "purple", "yellow", "orange"]
+}
+

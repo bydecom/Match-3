@@ -283,12 +283,21 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('vfx_banana_buong_chuoi', 'assets/images/map/vfx/banana/Buong chuoi.png');
         this.load.image('vfx_banana_cay_chuoi', 'assets/images/map/vfx/banana/Cay chuoi.png');
 
+        // VFX - map_part2 (cây cối)
+        this.load.image('map_part2_cay_chuoi', 'assets/images/map/vfx/map_part2/Cay chuoi.png');
+        this.load.image('map_part2_chum_bap', 'assets/images/map/vfx/map_part2/Chum bap.png');
+        this.load.image('map_part2_la_cay', 'assets/images/map/vfx/map_part2/La cay.png');
+
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
         this.load.json('level_2', 'assets/levels/level_2.json');
         this.load.json('level_3', 'assets/levels/level_3.json');
         this.load.json('level_4', 'assets/levels/level_4.json');
         this.load.json('level_5', 'assets/levels/level_5.json');
+        this.load.json('level_6', 'assets/levels/level_6.json');
+        this.load.json('level_7', 'assets/levels/level_7.json');
+        this.load.json('level_8', 'assets/levels/level_8.json');
+        this.load.json('level_9', 'assets/levels/level_9.json');
     }
 
     // Chờ font web sẵn sàng. Nếu trình duyệt không hỗ trợ, bỏ qua để không chặn preload

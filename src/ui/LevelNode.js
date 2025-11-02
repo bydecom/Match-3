@@ -22,27 +22,29 @@ export class LevelNode extends Phaser.GameObjects.Container {
         
         // Tạo button chính
         this.button = this.scene.add.image(0, 0, buttonTexture)
-            .setScale(0.4)
-            .setInteractive({ useHandCursor: !this.isLocked });
+            .setScale(0.4);
         
         this.add(this.button);
         
-        // Nếu level đã mở, hiển thị số level và các ngôi sao
+        // Hiển thị số level (cho cả level khóa và mở)
+        this.levelText = this.scene.add.text(0, -6, this.levelId, {
+            font: '28px UTMCookies',
+            fill: '#ffffff',
+        }).setOrigin(0.5).setDepth(1);
+        
+        this.add(this.levelText);
+        
+        // Nếu level đã mở, hiển thị các ngôi sao và thêm tương tác
         if (!this.isLocked) {
-            // Hiển thị số level
-            this.levelText = this.scene.add.text(0, -6, this.levelId, {
-                font: '28px UTMCookies',
-                fill: '#ffffff',
-            }).setOrigin(0.5).setDepth(1);
-            
-            this.add(this.levelText);
-            
             // Hiển thị các ngôi sao đạt được
             this.createStars();
             
-            // Thêm hiệu ứng và sự kiện click
+            // Thêm hiệu ứng và sự kiện click cho level đã mở
+            this.button.setInteractive({ useHandCursor: true });
             this.addButtonEvents();
         }
+        // Level bị khóa - KHÔNG thêm interactive, giữ như ảnh tĩnh
+        // Chỉ hiển thị số level, không có ngôi sao và không thể click
     }
     
     createStars() {
