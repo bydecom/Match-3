@@ -187,6 +187,71 @@ export class MapVFXManager {
         return image;
     }
 
+    /**
+     * Tạo hiệu ứng thác nước chảy với base và các lớp animation đè lên
+     * @param {string} mapKey Key của map (ví dụ: 'map_part2')
+     * @param {number} localX Tọa độ X local
+     * @param {number} localY Tọa độ Y local
+     * @param {object} config Cấu hình { baseDepth: 5, effectDepth: 6, frameRate: 4 }
+     * @returns {Array} Mảng chứa base image, animation sprite và frame 5 sprite
+     */
+    createWaterfallEffect(mapKey, localX, localY, config = {}) {
+        const baseDepth = config.baseDepth !== undefined ? config.baseDepth : 5;
+        const effectDepth = config.effectDepth !== undefined ? config.effectDepth : 6;
+        const frameRate = config.frameRate !== undefined ? config.frameRate : 4;
+        const scale = config.scale !== undefined ? config.scale : this.defaultScale;
+
+        // Chuyển đổi tọa độ local sang world
+        const coords = this.getWorldCoords(mapKey, localX, localY);
+
+        // 1. Tạo base (luôn tồn tại, nền dưới)
+        const baseImage = this.createStaticOrTweenedImage(
+            coords.x, coords.y,
+            'map_part2_steam_base',
+            { depth: baseDepth, scale: scale }
+        );
+
+        // 2. Tạo animation từ các frame 0-4 (flow liên tục) đè lên base
+        const animKey = `waterfall_flow_${mapKey}_${localX}_${localY}`;
+        const sprite = this.createLoopingAnimationFromFrames(
+            coords.x, coords.y,
+            animKey,
+            [
+                'map_part2_steam_0',
+                'map_part2_steam_1',
+                'map_part2_steam_2',
+                'map_part2_steam_3',
+                'map_part2_steam_4'
+            ],
+            frameRate,
+            { depth: effectDepth, scale: scale }
+        );
+
+        // 3. Tạo sprite riêng cho frame 5 (Nuoc chay 4) - tắt mở xen kẽ theo từng frame
+        // Tính thời gian mỗi frame dựa trên frameRate
+        const frameDuration = 3000 / frameRate; // ms per frame
+        const frame5Sprite = this.scene.add.image(coords.x, coords.y, 'map_part2_steam_5')
+            .setScale(scale)
+            .setDepth(effectDepth + 1) // Đè lên animation chính
+            .setAlpha(0); // Bắt đầu ẩn
+
+        // Tween alpha để tắt mở xen kẽ - hiện/ẩn theo từng frame (tắt mở xen kẽ)
+        const frame5Tween = this.scene.tweens.add({
+            targets: frame5Sprite,
+            alpha: 1, // Từ 0 lên 1
+            duration: frameDuration,
+            ease: 'Linear',
+            yoyo: true, // Quay lại từ 1 xuống 0
+            repeat: -1 // Lặp vô hạn
+        });
+
+        this.activeVFX.push(frame5Sprite); // Thêm vào danh sách quản lý
+        this.activeVFX.push(frame5Tween); // Thêm tween vào danh sách quản lý
+
+        console.log(`Created waterfall effect at World(${coords.x}, ${coords.y}) with scale ${scale}`);
+        return [baseImage, sprite, frame5Sprite];
+    }
+
 
     // ---------------------------------------------------
     // --- HÀM TRUNG TÂM ĐỂ KHỞI TẠO VFX CHO TẤT CẢ MAP ---
@@ -693,6 +758,7 @@ export class MapVFXManager {
         const cayChuoiPos = { x: 600, y: 950 };
         const chumBapPos = { x: 200, y: 650 };
         const laCayPos = { x: 590, y: 135 };
+        const waterfallPos = { x: 243, y: 270 }; // Vị trí thác nước
 
         // --- Nhóm VFX Cây cối (Vegetation) ---
 
@@ -721,6 +787,21 @@ export class MapVFXManager {
             'map_part2_la_cay',
             { depth: 12, originX: 1.0, originY: 0.5 }, // Đặt origin ở mép phải (điểm nối)
             { props: { angle: -3 }, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' } // Lắc lư
+        );
+
+        // --- Nhóm VFX Thác nước chảy (Waterfall) ---
+        // 4. Thác nước với base và animation (scale 0.4 mặc định)
+        // Depth phải cao hơn map_part2 (depth 10) để hiển thị trên map
+        this.createWaterfallEffect(
+            mapKey,
+            waterfallPos.x,
+            waterfallPos.y,
+            {
+                baseDepth: 11,    // Base ở dưới nhưng cao hơn map_part2
+                effectDepth: 12,  // Effect đè lên trên base
+                frameRate: 4,     // 4 frame mỗi giây
+                scale: 0.4        // Scale 0.4 như yêu cầu
+            }
         );
 
         console.log(`Created ${this.activeVFX.length} VFX elements/timers/tweens for Map Part 2.`);

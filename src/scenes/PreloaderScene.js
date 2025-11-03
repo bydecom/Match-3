@@ -288,6 +288,15 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('map_part2_chum_bap', 'assets/images/map/vfx/map_part2/Chum bap.png');
         this.load.image('map_part2_la_cay', 'assets/images/map/vfx/map_part2/La cay.png');
 
+        // VFX - map_part2 steam (thác nước chảy)
+        this.load.image('map_part2_steam_base', 'assets/images/map/vfx/map_part2/steam/base.png');
+        this.load.image('map_part2_steam_0', 'assets/images/map/vfx/map_part2/steam/0. Bot nuoc.png');
+        this.load.image('map_part2_steam_1', 'assets/images/map/vfx/map_part2/steam/1. Nuoc ban len.png');
+        this.load.image('map_part2_steam_2', 'assets/images/map/vfx/map_part2/steam/2. Nuoc chay 1.png');
+        this.load.image('map_part2_steam_3', 'assets/images/map/vfx/map_part2/steam/3. Nuoc chay 2.png');
+        this.load.image('map_part2_steam_4', 'assets/images/map/vfx/map_part2/steam/4. Nuoc chay 3.png');
+        this.load.image('map_part2_steam_5', 'assets/images/map/vfx/map_part2/steam/5. Nuoc chay 4.png');
+
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
         this.load.json('level_2', 'assets/levels/level_2.json');
