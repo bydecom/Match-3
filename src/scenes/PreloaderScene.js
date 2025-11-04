@@ -206,6 +206,11 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('progress_bar_fill', 'assets/images/ui/progress_bar_fill.png');
         this.load.image('star_off', 'assets/images/ui/star_off.png');
         this.load.image('star_on', 'assets/images/ui/star_on.png');
+        this.load.image('star_off_pgb', 'assets/images/ui/star_off_pgb.png');
+        this.load.image('star_on_pgb', 'assets/images/ui/star_on_pgb.png');
+        // Victory UI background
+        this.load.image('victory_background', 'assets/images/ui/victory/background.png');
+        this.load.image('lose_background', 'assets/images/ui/lose/background.png');
         
         // Load loading background images
         this.load.image('loading_background_1', 'assets/screen/loading_1.png');
@@ -233,7 +238,8 @@ export class PreloaderScene extends Phaser.Scene {
         // Load UI assets cho ResourceDisplay
         this.load.image('coin', 'assets/screen/coin.png');
         this.load.image('heart', 'assets/screen/heart.png'); 
-
+        this.load.image('spin', 'assets/images/ui/spin.png');
+        this.load.image('store', 'assets/images/ui/store.png');
         // VFX - steam
         this.load.image('vfx_steam_1_1_bot_nuoc', 'assets/images/map/vfx/steam/1.1. Bot nuoc.png');
         this.load.image('vfx_steam_1_2_bot_nuoc', 'assets/images/map/vfx/steam/1.2. Bot nuoc.png');
@@ -288,6 +294,18 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('map_part2_chum_bap', 'assets/images/map/vfx/map_part2/Chum bap.png');
         this.load.image('map_part2_la_cay', 'assets/images/map/vfx/map_part2/La cay.png');
 
+        // VFX - map_part2 fish (cá nhảy + splash)
+        this.load.image('map_part2_fish_1_1', 'assets/images/map/vfx/map_part2/fish/1.1.png');
+        this.load.image('map_part2_fish_1_2', 'assets/images/map/vfx/map_part2/fish/1.2.png');
+        this.load.image('map_part2_fish_2_1', 'assets/images/map/vfx/map_part2/fish/2.1.png');
+        this.load.image('map_part2_fish_2_2', 'assets/images/map/vfx/map_part2/fish/2.2.png');
+        this.load.image('map_part2_fish_3_1', 'assets/images/map/vfx/map_part2/fish/3.1.png');
+        this.load.image('map_part2_fish_3_2', 'assets/images/map/vfx/map_part2/fish/3.2.png');
+        this.load.image('map_part2_fish_4_1', 'assets/images/map/vfx/map_part2/fish/4.1.png');
+        this.load.image('map_part2_fish_4_2', 'assets/images/map/vfx/map_part2/fish/4.2.png');
+        this.load.image('map_part2_fish_4_3', 'assets/images/map/vfx/map_part2/fish/4.3.png');
+        this.load.image('map_part2_fish_4_4', 'assets/images/map/vfx/map_part2/fish/4.4.png');
+
         // VFX - map_part2 steam (thác nước chảy)
         this.load.image('map_part2_steam_base', 'assets/images/map/vfx/map_part2/steam/base.png');
         this.load.image('map_part2_steam_0', 'assets/images/map/vfx/map_part2/steam/0. Bot nuoc.png');
@@ -296,6 +314,18 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('map_part2_steam_3', 'assets/images/map/vfx/map_part2/steam/3. Nuoc chay 2.png');
         this.load.image('map_part2_steam_4', 'assets/images/map/vfx/map_part2/steam/4. Nuoc chay 3.png');
         this.load.image('map_part2_steam_5', 'assets/images/map/vfx/map_part2/steam/5. Nuoc chay 4.png');
+
+        //Spin popup
+        this.load.image('spin_background', 'assets/images/ui/spin/background.png');
+        this.load.image('spin_button', 'assets/images/ui/spin/button.png');
+        this.load.image('spin_pointer', 'assets/images/ui/spin/pointer.png');
+        this.load.image('spin_board', 'assets/images/ui/spin/board.png');
+        this.load.image('spin_center', 'assets/images/ui/spin/center.png');
+        this.load.image('spin_led', 'assets/images/ui/spin/led.png');
+        // Shop
+        this.load.image('shop_background', 'assets/images/ui/shop/background.png');
+        this.load.image('shop_price_background', 'assets/images/ui/shop/price_background.png');
+        this.load.image('shop_discount_40', 'assets/images/ui/shop/discount_40.png');
 
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');

@@ -8,12 +8,12 @@ export class UIScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UIScene' });
     this.selectedBoosterType = null; // Biến trạng thái booster đang chọn
-    // << XÓA BIẾN isBoardBusy Ở ĐÂY, UIScene không cần tự theo dõi nữa >>
-    // this.isBoardBusy = false; 
+    this.isBoardBusy = false; 
     this.boosterIcons = [];
     this.progressBar = null;
     this.objectiveItems = {}; // << THÊM ĐỂ LƯU TRỮ CÁC ITEM NHIỆM VỤ
     this.levelCompletedShown = false; // Cờ ngăn mở WinPopup nhiều lần
+    this.levelFailedShown = false; // Cờ ngăn mở LosePopup nhiều lần
   }
 
   create() {
@@ -128,9 +128,20 @@ export class UIScene extends Phaser.Scene {
     if (this.progressBar) {
       this.progressBar.setValue(currentTime)
     }
+
+    // Khi hết giờ và chưa mở Win/Lose
+    if ((currentTime ?? 0) <= 0 && !this.levelCompletedShown && !this.levelFailedShown) {
+      this.levelFailedShown = true;
+      const gameScene = this.scene.get('GameScene');
+      const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+      const objectives = gameScene?.levelData?.objectives || [];
+      const results = this.collectResultsFromObjectives(objectives);
+      this.showLosePopupWhenIdle(levelId, objectives, results);
+    }
   }
 
   handleBoardBusy(isBusy) {
+    this.isBoardBusy = isBusy;
     if (isBusy) {
       this.selectedBoosterType = null
       this.disableAllBoosters()
@@ -317,8 +328,8 @@ export class UIScene extends Phaser.Scene {
         const stars = this.calculateStars();
         const gameScene = this.scene.get('GameScene');
         const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
-        console.log(`[UIScene] Showing win popup after UI update delay - Level: ${levelId}, Stars: ${stars}`);
-        this.scene.launch('WinPopup', { levelId, stars });
+        console.log(`[UIScene] Ready to show win popup. Waiting boardBusy=false if needed...`);
+        this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
       } else {
         console.log(`[UIScene] Objectives not fully cleared yet, retrying...`);
         // Nếu chưa hoàn thành, thử lại sau 200ms
@@ -327,11 +338,61 @@ export class UIScene extends Phaser.Scene {
             const stars = this.calculateStars();
             const gameScene = this.scene.get('GameScene');
             const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
-            this.scene.launch('WinPopup', { levelId, stars });
+            this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
           }
         });
       }
     });
+  }
+
+  // Chỉ hiển thị WinPopup khi boardBusy=false
+  showWinPopupWhenIdle(levelId, stars, objectives) {
+    const launch = () => {
+      this.scene.launch('WinPopup', { levelId, stars, objectives });
+    };
+    if (!this.isBoardBusy) {
+      launch();
+      return;
+    }
+    const handler = (busy) => {
+      if (!busy) {
+        this.game.events.off('boardBusy', handler, this);
+        // Đợi một nhịp nhỏ để đảm bảo board đã nghỉ hẳn
+        this.time.delayedCall(50, () => launch());
+      }
+    };
+    this.game.events.on('boardBusy', handler, this);
+  }
+
+  // Thu thập kết quả đạt được từ UI ObjectiveItem (achieved = initial - remaining)
+  collectResultsFromObjectives(objectives) {
+    if (!objectives || !Array.isArray(objectives)) return [];
+    return objectives.map(obj => {
+      const key = `${obj.target}_${obj.type}`;
+      const item = this.objectiveItems[key];
+      const initial = item?.initialCount ?? obj.count ?? 0;
+      const remaining = item?.currentCount ?? obj.count ?? 0;
+      const achieved = Math.max(0, initial - remaining);
+      return { target: obj.target, type: obj.type, amount: achieved };
+    });
+  }
+
+  // Chỉ hiển thị LosePopup khi boardBusy=false
+  showLosePopupWhenIdle(levelId, objectives, results) {
+    const launch = () => {
+      this.scene.launch('LosePopup', { levelId, objectives, results });
+    };
+    if (!this.isBoardBusy) {
+      launch();
+      return;
+    }
+    const handler = (busy) => {
+      if (!busy) {
+        this.game.events.off('boardBusy', handler, this);
+        this.time.delayedCall(50, () => launch());
+      }
+    };
+    this.game.events.on('boardBusy', handler, this);
   }
 
   shutdown() {

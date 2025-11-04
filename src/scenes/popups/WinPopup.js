@@ -1,15 +1,20 @@
 import Phaser from 'phaser';
+import { ObjectiveItem } from '../../ui/ObjectiveItem';
 
 export class WinPopup extends Phaser.Scene {
   constructor() {
     super({ key: 'WinPopup' });
     this.levelId = 1;
     this.stars = 1;
+    this.objectives = null;
+    this.results = null; // [{ target, type, amount }]
   }
 
   init(data) {
     this.levelId = data?.levelId ?? 1;
     this.stars = Math.max(1, Math.min(3, data?.stars ?? 1));
+    this.objectives = data?.objectives ?? null;
+    this.results = data?.results ?? null;
   }
 
   create() {
@@ -24,32 +29,32 @@ export class WinPopup extends Phaser.Scene {
       .setOrigin(0)
       .setInteractive();
 
-    // Khung popup
-    const panelWidth = 440;
-    const panelHeight = 360;
-    const panelX = (width - panelWidth) / 2;
-    const panelY = (height - panelHeight) / 2 - 40;
-    const popupPanel = this.add.graphics();
-    popupPanel.fillStyle(0x2c3e50, 1);
-    popupPanel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 16);
-    popupPanel.setDepth(1);
-
-    // Tiêu đề
-    this.add.text(width / 2, panelY + 40, 'Chiến thắng!', {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontSize: '36px',
-      color: '#ffffff'
-    }).setOrigin(0.5).setDepth(2);
-
+    // Background UI Victory
+    const bg = this.add.image(width / 2, height / 2, 'victory_background')
+      .setOrigin(0.5)
+      .setDepth(1);
+    if (bg.width && bg.height) {
+      const bgScale = Math.min(width / bg.width, height / bg.height) * 0.95;
+      bg.setScale(bgScale);
+    }
+    // Hiển thị số level (chỉ số, không chữ), đặt hơi trên cụm sao
+    this.add.text(314, 345, `${this.levelId}`, {
+      fontFamily: 'UTMCookies',
+      fontSize: '18px',
+      color: '#ffffff',
+      stroke: '#b43827',
+      strokeThickness: 3,
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(5);
     // Hiển thị sao
-    const starY = panelY + 120;
-    const starSpacing = 80;
+    const starY = 445;
+    const starSpacing = 90;
     for (let i = 0; i < 3; i++) {
       const isOn = i < this.stars;
       const key = isOn ? 'star_on' : 'star_off';
       const star = this.add.image(width / 2 + (i - 1) * starSpacing, starY, key)
         .setOrigin(0.5)
-        .setScale(0.12)
+        .setScale(0.4)
         .setDepth(2)
         .setAlpha(isOn ? 1 : 0.7);
       if (isOn) {
@@ -57,44 +62,90 @@ export class WinPopup extends Phaser.Scene {
       }
     }
 
-    // Nút Chơi lại
-    const buttonStyle = {
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontSize: '24px',
-      color: '#ffffff',
-      padding: { x: 20, y: 10 }
-    };
-
-    const restartButton = this.add.text(width / 2, panelY + panelHeight - 110, 'Chơi lại', {
-      ...buttonStyle,
-      backgroundColor: '#3498db'
-    })
+    // Buttons dùng lại từ PreloaderScene assets (Pause UI)
+    const continueButton = this.add.image(width / 2, 685, 'pause_continue')
       .setOrigin(0.5)
+      .setScale(0.35)
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
-    restartButton.on('pointerdown', () => {
-      this.stopUnderScenes();
-      this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+    continueButton.on('pointerdown', () => {
+      this.goToMenu();
     });
 
-    // Nút Về bản đồ
-    const mapButton = this.add.text(width / 2, panelY + panelHeight - 50, 'Về bản đồ', {
-      ...buttonStyle,
-      backgroundColor: '#2ecc71'
-    })
+    const replayButton = this.add.image(width / 2, 760, 'pause_restart')
       .setOrigin(0.5)
+      .setScale(0.35)
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
-    mapButton.on('pointerdown', () => {
-      this.stopUnderScenes();
-      this.scene.start('MapScene');
+    replayButton.on('pointerdown', () => {
+      // Hành vi giống PausePopup: chơi lại level hiện tại
+      if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+      if (this.scene.isActive('UIScene')) this.scene.stop('UIScene');
+      if (this.scene.isActive('LevelLoaderScene')) this.scene.stop('LevelLoaderScene');
+      if (this.scene.isActive('PausePopup')) this.scene.stop('PausePopup');
+      if (this.scene.isActive('LevelReviewPopup')) this.scene.stop('LevelReviewPopup');
+      this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+      this.scene.stop();
+    });
+
+    // Hiển thị danh sách mission đã hoàn thành (giống LevelReviewPopup)
+    this.createObjectivesPanel(width, height, bg);
+  }
+
+  createObjectivesPanel(width, height, bg) {
+    if (!this.objectives || !Array.isArray(this.objectives)) return;
+
+    const missionY = 567;
+    const positions = [
+      { x: 188, y: missionY },
+      { x: 260, y: missionY },
+      { x: 334, y: missionY },
+      { x: 400, y: missionY }
+    ];
+
+    const findResult = (target, type) => {
+      if (!this.results) return null;
+      return this.results.find(r => r.target === target && r.type === type) || null;
+    };
+
+    this.objectives.forEach((objData, index) => {
+      if (index >= positions.length) return;
+      const pos = positions[index];
+      const item = new ObjectiveItem(this, pos.x, pos.y, objData);
+      item.setDepth(3);
+
+      // Với WinPopup, coi như đã hoàn thành: hiển thị số đã thu thập (nếu có)
+      const result = findResult(objData.target, objData.type);
+      if (result && item.countText) {
+        item.countText.setText(`${result.amount}`);
+      }
+      item.markAsCompleted();
     });
   }
 
   stopUnderScenes() {
     if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
     if (this.scene.isActive('UIScene')) this.scene.stop('UIScene');
+    if (this.scene.isActive('LevelLoaderScene')) this.scene.stop('LevelLoaderScene');
     this.scene.stop();
+  }
+
+  goToMenu() {
+    const scenesToStop = [
+      'GameScene',
+      'UIScene',
+      'LevelLoaderScene',
+      'PausePopup',
+      'LevelReviewPopup',
+      'WinPopup',
+      'LosePopup'
+    ];
+    scenesToStop.forEach(key => {
+      if (this.scene.isActive(key) || this.scene.isPaused(key)) {
+        this.scene.stop(key);
+      }
+    });
+    this.scene.start('MapScene');
   }
 }
 

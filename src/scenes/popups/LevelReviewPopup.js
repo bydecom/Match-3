@@ -48,6 +48,16 @@ export class LevelReviewPopup extends Phaser.Scene {
             this.closePopup();
         });
 
+        // 4.1. Dòng chữ Stage + số level ở giữa, cùng y với nút X
+        this.add.text(width / 2, 250, `Stage ${this.levelId}`, {
+            fontFamily: 'UTMCookies',
+            fontSize: '38px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 6,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(5);
+
         // 5. Tạo bảng nhiệm vụ
         this.createObjectivesPanel(width, height);
 

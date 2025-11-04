@@ -252,6 +252,137 @@ export class MapVFXManager {
         return [baseImage, sprite, frame5Sprite];
     }
 
+    /**
+     * Tạo hiệu ứng cá nhảy (cặp ảnh: cá + splash xuất hiện cùng lúc)
+     * variant 1-3: dùng {n.1 (cá)}, {n.2 (splash)}
+     * variant 4: dùng 4.1 (cá) và 4.2-4.4 (splash nối tiếp)
+     */
+    createFishJumpEffect(mapKey, localX, localY, variant = 1, config = {}) {
+        const depth = config.depth !== undefined ? config.depth : 12;
+        const scale = config.scale !== undefined ? config.scale : this.defaultScale;
+        const duration = config.duration !== undefined ? config.duration : 900; // tổng thời gian nhảy
+
+        const coords = this.getWorldCoords(mapKey, localX, localY);
+
+        // Key ảnh theo variant
+        const fishKey = variant === 4 ? 'map_part2_fish_4_1' : `map_part2_fish_${variant}_1`;
+        const splashKeys = variant === 4
+            ? ['map_part2_fish_4_2', 'map_part2_fish_4_3', 'map_part2_fish_4_4']
+            : [`map_part2_fish_${variant}_2`];
+
+        // Cá (chỉ hiển thị ảnh, không tween/di chuyển)
+        const fish = this.scene.add.image(coords.x, coords.y, fishKey)
+            .setScale(scale)
+            .setDepth(depth + 1)
+            .setAlpha(1);
+
+        this.activeVFX.push(fish);
+
+        // Splash cùng vị trí. Variant 1-3: 1 frame; Variant 4: 3 frame tuần tự
+        let splash;
+        if (variant === 4) {
+            splash = this.scene.add.image(coords.x, coords.y, splashKeys[0])
+                .setScale(scale)
+                .setDepth(depth)
+                .setAlpha(1);
+            this.activeVFX.push(splash);
+
+            // Thay texture tuần tự 4.2 -> 4.3 -> 4.4
+            const step = Math.max(60, Math.floor(duration / splashKeys.length));
+            let idx = 0;
+            const seq = this.scene.time.addEvent({
+                delay: step,
+                repeat: splashKeys.length - 1,
+                callback: () => {
+                    idx = Math.min(idx + 1, splashKeys.length - 1);
+                    splash.setTexture(splashKeys[idx]);
+                },
+                callbackScope: this,
+                onComplete: () => {
+                    // Tự hủy nhẹ nhàng
+                    splash.destroy();
+                    fish.destroy();
+                }
+            });
+            this.activeVFX.push(seq);
+        } else {
+            splash = this.scene.add.image(coords.x, coords.y, splashKeys[0])
+                .setScale(scale)
+                .setDepth(depth)
+                .setAlpha(1);
+            this.activeVFX.push(splash);
+
+            // Tự hủy sau duration, không tween
+            const t = this.scene.time.addEvent({
+                delay: duration,
+                callback: () => {
+                    splash.destroy();
+                    fish.destroy();
+                }
+            });
+            this.activeVFX.push(t);
+        }
+
+        return { fish, splash };
+    }
+
+    /**
+     * Phát toàn bộ hoạt ảnh cá: 1 -> 2 -> 3 -> 4 theo thứ tự.
+     * Mỗi bước chỉ thay texture: (n.1 cá + n.2 splash), riêng bước 4: (4.1 cá + 4.2->4.4 splash).
+     */
+    createFishJumpSequence(mapKey, localX, localY, config = {}) {
+        const depth = config.depth !== undefined ? config.depth : 12;
+        const scale = config.scale !== undefined ? config.scale : this.defaultScale;
+        const step = config.step !== undefined ? config.step : 140; // ms mỗi bước
+
+        // 1) Lưu tọa độ world gốc
+        const coords = this.getWorldCoords(mapKey, localX, localY);
+
+        // 2) Hai sprite cố định, sẽ thay texture và đặt lại vị trí mỗi frame
+        const fish = this.scene.add.image(coords.x, coords.y, 'map_part2_fish_1_1')
+            .setScale(scale).setDepth(depth + 1).setAlpha(1);
+        const splash = this.scene.add.image(coords.x, coords.y, 'map_part2_fish_1_2')
+            .setScale(scale).setDepth(depth).setAlpha(1);
+
+        this.activeVFX.push(fish);
+        this.activeVFX.push(splash);
+
+        // 3) Chuỗi frame (f: fish texture, s: splash texture, fx/fy/sx/sy: offset)
+        const sequence = [
+            { f: 'map_part2_fish_1_1', s: 'map_part2_fish_1_2', fx: 0,  fy: 0},
+            { f: 'map_part2_fish_2_1', s: 'map_part2_fish_2_2', fx: 0,  fy: 0},
+            { f: 'map_part2_fish_3_1', s: 'map_part2_fish_3_2', fx: 15, fy: -30},
+            { f: 'map_part2_fish_4_1', s: 'map_part2_fish_4_2', fx: 20, fy: -25 },
+            { f: 'map_part2_fish_4_1', s: 'map_part2_fish_4_3', fx: 25, fy: -20 },
+            { f: 'map_part2_fish_4_1', s: 'map_part2_fish_4_4', fx: 30, fy: -15}
+        ];
+
+        let idx = 0;
+        const timer = this.scene.time.addEvent({
+            delay: step,
+            loop: true,
+            callback: () => {
+                const frame = sequence[idx];
+                // 4) Cập nhật TEXTURE + POSITION theo offset từng frame
+                fish.setTexture(frame.f);
+                fish.setPosition(coords.x + frame.fx, coords.y + frame.fy);
+
+                splash.setTexture(frame.s);
+                splash.setPosition(coords.x + frame.fx, coords.y + frame.fy);
+
+                idx++;
+                if (idx >= sequence.length) {
+                    timer.remove();
+                    fish.destroy();
+                    splash.destroy();
+                }
+            }
+        });
+
+        this.activeVFX.push(timer);
+        return { fish, splash, timer };
+    }
+
 
     // ---------------------------------------------------
     // --- HÀM TRUNG TÂM ĐỂ KHỞI TẠO VFX CHO TẤT CẢ MAP ---
@@ -290,7 +421,7 @@ export class MapVFXManager {
         const waterSurfacePos2 = { x: 115, y: 635 };
         const decanterSpoutPos = { x: 445, y: 622 };
         const decanterBasePos = { x: 445, y: 622 };
-        const bambooPos = { x: 100, y: -25};
+        const bambooPos = { x: 100, y: -22};
         const bananaTreePos = { x: width * 0.15, y: height * 1 };
 
         // --- Nhóm VFX Thác nước (Steam) ---
@@ -758,7 +889,8 @@ export class MapVFXManager {
         const cayChuoiPos = { x: 600, y: 950 };
         const chumBapPos = { x: 200, y: 650 };
         const laCayPos = { x: 590, y: 135 };
-        const waterfallPos = { x: 243, y: 270 }; // Vị trí thác nước
+        const waterfallPos = { x: 243, y: 270 };
+        const fishPos = { x: 230, y: 960 }; // Vị trí thác nước
 
         // --- Nhóm VFX Cây cối (Vegetation) ---
 
@@ -803,6 +935,17 @@ export class MapVFXManager {
                 scale: 0.4        // Scale 0.4 như yêu cầu
             }
         );
+
+        // 5. Cá nhảy ngẫu nhiên quanh khu vực thác (timer định kỳ)
+        const fishTimer = this.scene.time.addEvent({
+            delay: 2500,
+            loop: true,
+            callback: () => {
+                this.createFishJumpSequence(mapKey, fishPos.x, fishPos.y, { depth: 20, scale: 0.4, step: 140 });
+            },
+            callbackScope: this
+        });
+        this.activeVFX.push(fishTimer);
 
         console.log(`Created ${this.activeVFX.length} VFX elements/timers/tweens for Map Part 2.`);
     }

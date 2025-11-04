@@ -11,6 +11,9 @@ import { SettingsPopup } from './scenes/popups/SettingsPopup';
 import { PausePopup } from './scenes/popups/PausePopup';
 import { WinPopup } from './scenes/popups/WinPopup';
 import { LevelReviewPopup } from './scenes/popups/LevelReviewPopup';
+import { LosePopup } from './scenes/popups/LosePopup';
+import { SpinPopup } from './scenes/popups/SpinPopup';
+import { ShopPopup } from './scenes/popups/ShopPopup';
 
 const config = {
   type: Phaser.AUTO,
@@ -22,7 +25,7 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene, DemoScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup, PausePopup, WinPopup, LevelReviewPopup] 
+  scene: [BootScene, PreloaderScene, DemoScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup, PausePopup, WinPopup, LosePopup, LevelReviewPopup, SpinPopup, ShopPopup] 
 };
 
 function initializeApp() {

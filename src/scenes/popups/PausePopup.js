@@ -189,7 +189,7 @@ export class PausePopup extends Phaser.Scene {
         // Nút Tiếp tục
         const continueButton = this.add.image(288, 662, 'pause_continue')
             .setOrigin(0.5)
-            .setScale(0.4)
+            .setScale(0.35)
             .setInteractive({ useHandCursor: true })
             .setDepth(3); // Giữ depth 3
 
@@ -200,7 +200,7 @@ export class PausePopup extends Phaser.Scene {
         // Nút Chơi lại
         const restartButton = this.add.image(288, 735, 'pause_restart')
             .setOrigin(0.5)
-            .setScale(0.4)
+            .setScale(0.35)
             .setInteractive({ useHandCursor: true })
             .setDepth(3); // Giữ depth 3
 
@@ -213,7 +213,7 @@ export class PausePopup extends Phaser.Scene {
         // Nút Thoát
         const quitButton = this.add.image(288, 798, 'pause_quit')
             .setOrigin(0.5)
-            .setScale(0.4)
+            .setScale(0.35)
             .setInteractive({ useHandCursor: true })
             .setDepth(3); // Giữ depth 3
 

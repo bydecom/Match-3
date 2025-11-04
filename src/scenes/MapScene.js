@@ -170,6 +170,45 @@ export class MapScene extends Phaser.Scene {
         // Tạo ResourceDisplay ở góc trên bên trái màn hình
         this.resourceDisplay = new ResourceDisplay(this, 20, 20, fullPlayerData);
         
+        // --- 6. TẠO NÚT SPIN VÀ STORE ---
+        // Vị trí (góc dưới bên trái và dưới bên phải)
+        const iconScale = 1; // Tùy chỉnh scale của icon
+        const iconDepth = 1000; // Đặt depth cao để nổi lên trên
+
+        // Tạo nút Spin (Vòng quay) - Góc dưới bên trái
+        const spinButton = this.add.image(50, 120, 'spin')
+            .setScale(iconScale)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(iconDepth)
+            .setScrollFactor(0); // <-- Đây là chìa khóa để "dính" vào màn hình
+
+        spinButton.on('pointerdown', () => {
+            console.log('Spin button clicked!');
+            this.scene.launch('SpinPopup');
+        });
+
+        // Tạo nút Store (Cửa hàng) - Góc dưới bên phải
+        const storeButton = this.add.image(50, 190, 'store')
+            .setScale(iconScale)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(iconDepth)
+            .setScrollFactor(0); // <-- Đây là chìa khóa để "dính" vào màn hình
+
+        storeButton.on('pointerdown', () => {
+            console.log('Store button clicked!');
+            this.scene.launch('ShopPopup');
+        });
+
+        // (Tùy chọn) Thêm hiệu ứng hover giống nút settings
+        [spinButton, storeButton].forEach(button => {
+            button.on('pointerover', () => {
+                this.tweens.add({ targets: button, scale: iconScale * 1.1, duration: 100 });
+            });
+
+            button.on('pointerout', () => {
+                this.tweens.add({ targets: button, scale: iconScale, duration: 100 });
+            });
+        });
         
         // Dọn dẹp VFX khi scene shutdown
         this.events.once('shutdown', () => {

@@ -46,7 +46,7 @@ export class ProgressBar extends Phaser.GameObjects.Container {
 
         starPositions.forEach((pos, index) => {
             const starX = this.barWidth * pos;
-            const star = this.scene.add.image(starX, 0, 'star_on').setOrigin(0.5, 0.5).setScale(0.2);
+            const star = this.scene.add.image(starX, 0, 'star_on_pgb').setOrigin(0.5, 0.5).setScale(0.2);
             this.add(star);
             this.stars[index] = star;
         });
@@ -75,7 +75,7 @@ export class ProgressBar extends Phaser.GameObjects.Container {
         if (!star || !star.active) return;
     
         const currentTexture = star.texture.key;
-        const newTexture = isEnabled ? 'star_on' : 'star_off';
+        const newTexture = isEnabled ? 'star_on_pgb' : 'star_off_pgb';
     
         if (currentTexture !== newTexture) {
             star.setTexture(newTexture);
