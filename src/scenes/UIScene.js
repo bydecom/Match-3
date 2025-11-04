@@ -19,6 +19,11 @@ export class UIScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
+    // << THÊM 2 DÒNG NÀY ĐỂ RESET TRẠNG THÁI KHI REPLAY >>
+    this.levelCompletedShown = false; 
+    this.levelFailedShown = false;
+    // << KẾT THÚC THÊM MỚI >>
+
     // === SỬ DỤNG DỮ LIỆU BẠN CUNG CẤP ===
     const gameScene = this.scene.get('GameScene');
     const levelData = gameScene?.levelData;
@@ -131,12 +136,38 @@ export class UIScene extends Phaser.Scene {
 
     // Khi hết giờ và chưa mở Win/Lose
     if ((currentTime ?? 0) <= 0 && !this.levelCompletedShown && !this.levelFailedShown) {
-      this.levelFailedShown = true;
+      
+      // << THAY ĐỔI CHÍNH BẮT ĐẦU TỪ ĐÂY >>
+      // 1. Lấy thông tin chung
       const gameScene = this.scene.get('GameScene');
       const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
       const objectives = gameScene?.levelData?.objectives || [];
-      const results = this.collectResultsFromObjectives(objectives);
-      this.showLosePopupWhenIdle(levelId, objectives, results);
+      // 2. Kiểm tra xem các mục tiêu trên UI đã hoàn thành chưa?
+      const objectivesAreComplete = this.areAllObjectivesCleared();
+      if (objectivesAreComplete) {
+        // TRƯỜNG HỢP 2: ĐÃ HOÀN THÀNH (Thắng 0 sao)
+        // (Mặc dù hết giờ, nhưng do auto-fill nên game chưa kịp gọi "levelCompleted")
+        console.warn("[UIScene] Hết giờ nhưng ĐÃ HOÀN THÀNH. Tính là Win (0 sao).");
+        
+        this.levelCompletedShown = true; // Đánh dấu là đã xử lý thắng
+        
+        // Gọi calculateStars (với currentTime=0) sẽ trả về 0 sao
+        const stars = this.calculateStars(); 
+        
+        // Hiển thị WinPopup khi board rảnh
+        this.showWinPopupWhenIdle(levelId, stars, objectives);
+      } else {
+        // TRƯỜNG HỢP 1: CHƯA HOÀN THÀNH (Thua)
+        console.log("[UIScene] Hết giờ và CHƯA HOÀN THÀNH. Tính là Lose.");
+        this.levelFailedShown = true; // Đánh dấu là đã xử lý thua
+        
+        // Thu thập kết quả (ví dụ: 7/10) để LosePopup hiển thị
+        const results = this.collectResultsFromObjectives(objectives);
+        
+        // Hiển thị LosePopup khi board rảnh
+        this.showLosePopupWhenIdle(levelId, objectives, results);
+      }
+      // << KẾT THÚC THAY ĐỔI >>
     }
   }
 
@@ -307,7 +338,10 @@ export class UIScene extends Phaser.Scene {
     if (currentTime >= threeStars) return 3;
     if (currentTime >= twoStars) return 2;
     if (currentTime >= oneStar) return 1;
-    return 1;
+    // << SỬA CHỖ NÀY >>
+    // return 1; // Lỗi: Luôn trả về 1 nếu thời gian < oneStar
+    return 0; // Sửa: Trả về 0 nếu hết giờ
+    // << KẾT THÚC SỬA >>
   }
 
   handleLevelCompleted() {

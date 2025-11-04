@@ -17,6 +17,7 @@ export class GameScene extends Phaser.Scene {
     this.lastHoveredCell = { row: -1, col: -1 }
     this.timer = null
     this.currentTime = 0
+    this.isTimerRunning = false
   }
 
   create(data) { // Cần nhận data từ LevelLoaderScene
@@ -89,23 +90,13 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.onPointerMove, this)
     this.input.on('pointerup', this.onPointerUp, this)
     // Lưới an toàn khi board bận: xóa preview ngay
-    this.game.events.on('boardBusy', (isBusy) => {
-      if (isBusy && this.boosterVFXManager) {
-        this.boosterVFXManager.clearPreview()
-      }
-    }, this)
+    this.game.events.on('boardBusy', this.handleBoardBusy, this)
 
     // Lắng nghe sự kiện hủy chọn từ UIScene
-    this.game.events.on('boosterSelectionCleared', () => {
-      // Khi UI báo hủy, GameScene cũng phải hủy theo
-      this.clearActiveBooster()
-    }, this)
+    this.game.events.on('boosterSelectionCleared', this.handleBoosterCleared, this)
 
-    // << THÊM LISTENER MỚI NÀY VÀO >>
-    this.game.events.on('screenShake', (shakeData) => {
-      this.cameras.main.shake(shakeData.duration, shakeData.intensity)
-    }, this)
-    // << KẾT THÚC THÊM MỚI >>
+    // Rung màn hình khi cần
+    this.game.events.on('screenShake', this.handleScreenShake, this)
 
     // Nút cài đặt
     const settingsButton = this.add.image(40, 40, 'setting_button')
@@ -255,6 +246,7 @@ export class GameScene extends Phaser.Scene {
 
   startTimer() {
     if (!this.levelData || !this.levelData.starTimes) return
+    this.isTimerRunning = true
     this.currentTime = this.levelData.starTimes.startTime
     this.timer = this.time.addEvent({ delay: 1000, callback: this.updateTimer, callbackScope: this, loop: true })
     // Chỉ emit nếu có UIScene quan tâm (tránh emit thừa cho level không có starTimes)
@@ -262,9 +254,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateTimer() {
+    if (!this.isTimerRunning) return
     this.currentTime = Math.max(0, this.currentTime - 1)
     this.game.events.emit('updateTimer', this.currentTime)
     if (this.currentTime <= 0) {
+      this.isTimerRunning = false
       this.timer.remove()
       console.log('Hết giờ!')
       // TODO: xử lý thua game
@@ -272,8 +266,40 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    this.isTimerRunning = false
+    // 1. Dừng timer nếu đang chạy
     if (this.timer) this.timer.remove()
-    this.game.events.off('updateTimer')
+
+    // 2. Dọn dẹp các listener mà GameScene đã đăng ký
+    this.game.events.off('boosterSelected', this.onBoosterSelected, this)
+    this.game.events.off('boosterActivated', this.onBoosterActivated, this)
+    this.game.events.off('boardBusy', this.handleBoardBusy, this)
+    this.game.events.off('boosterSelectionCleared', this.handleBoosterCleared, this)
+    this.game.events.off('screenShake', this.handleScreenShake, this)
+
+    // 3. Dọn dẹp input listeners
+    this.input.off('pointerdown', this.onPointerDown, this)
+    this.input.off('pointermove', this.onPointerMove, this)
+    this.input.off('pointerup', this.onPointerUp, this)
+
+    // 4. Dọn dẹp listener từ Board events
+    this.events.off('gemSelected', this.onGemSelected, this)
+    this.events.off('blockerSelected', this.onBlockerSelected, this)
+  }
+
+  // << THÊM CÁC HÀM HANDLER ĐƯỢC ĐẶT TÊN >>
+  handleBoardBusy(isBusy) {
+    if (isBusy && this.boosterVFXManager) {
+      this.boosterVFXManager.clearPreview()
+    }
+  }
+
+  handleBoosterCleared() {
+    this.clearActiveBooster()
+  }
+
+  handleScreenShake(shakeData) {
+    this.cameras.main.shake(shakeData.duration, shakeData.intensity)
   }
 
   onBoosterActivated(boosterType) {

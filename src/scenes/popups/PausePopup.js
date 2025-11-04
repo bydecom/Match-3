@@ -205,9 +205,16 @@ export class PausePopup extends Phaser.Scene {
             .setDepth(3); // Giữ depth 3
 
         restartButton.on('pointerdown', () => {
-            this.scene.stop('GameScene');
-            this.scene.stop('UIScene');
+            // << SỬA LẠI KHỐI NÀY >>
+            if (this.scene.isPaused('GameScene')) {
+                this.scene.stop('GameScene');
+            }
+            if (this.scene.isPaused('UIScene')) {
+                this.scene.stop('UIScene');
+            }
+            this.scene.stop(); // Dừng PausePopup
             this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+            // << KẾT THÚC SỬA ĐỔI >>
         });
 
         // Nút Thoát
@@ -218,9 +225,16 @@ export class PausePopup extends Phaser.Scene {
             .setDepth(3); // Giữ depth 3
 
         quitButton.on('pointerdown', () => {
-            this.scene.stop('GameScene');
-            this.scene.stop('UIScene');
+            // << SỬA LẠI KHỐI NÀY >>
+            if (this.scene.isPaused('GameScene')) {
+                this.scene.stop('GameScene');
+            }
+            if (this.scene.isPaused('UIScene')) {
+                this.scene.stop('UIScene');
+            }
+            this.scene.stop(); // Dừng PausePopup
             this.scene.start('MapScene');
+            // << KẾT THÚC SỬA ĐỔI >>
         });
     }
 

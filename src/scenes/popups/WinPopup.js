@@ -12,7 +12,13 @@ export class WinPopup extends Phaser.Scene {
 
   init(data) {
     this.levelId = data?.levelId ?? 1;
-    this.stars = Math.max(1, Math.min(3, data?.stars ?? 1));
+    // << SỬA CHỖ NÀY >>
+    // Lỗi: Math.max(1, ...) không bao giờ cho phép 0 sao
+    // this.stars = Math.max(1, Math.min(3, data?.stars ?? 1)); 
+    
+    // Sửa: Math.max(0, ...) cho phép 0 sao
+    this.stars = Math.max(0, Math.min(3, data?.stars ?? 0)); 
+    // << KẾT THÚC SỬA >>
     this.objectives = data?.objectives ?? null;
     this.results = data?.results ?? null;
   }
@@ -78,14 +84,17 @@ export class WinPopup extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
     replayButton.on('pointerdown', () => {
-      // Hành vi giống PausePopup: chơi lại level hiện tại
-      if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
-      if (this.scene.isActive('UIScene')) this.scene.stop('UIScene');
-      if (this.scene.isActive('LevelLoaderScene')) this.scene.stop('LevelLoaderScene');
-      if (this.scene.isActive('PausePopup')) this.scene.stop('PausePopup');
-      if (this.scene.isActive('LevelReviewPopup')) this.scene.stop('LevelReviewPopup');
+      // 1. Dừng các scene game đang bị tạm dừng (paused)
+      if (this.scene.isPaused('GameScene')) {
+        this.scene.stop('GameScene');
+      }
+      if (this.scene.isPaused('UIScene')) {
+        this.scene.stop('UIScene');
+      }
+      // 2. Dừng chính popup này
+      this.scene.stop(); 
+      // 3. Bắt đầu LevelLoaderScene
       this.scene.start('LevelLoaderScene', { levelId: this.levelId });
-      this.scene.stop();
     });
 
     // Hiển thị danh sách mission đã hoàn thành (giống LevelReviewPopup)
