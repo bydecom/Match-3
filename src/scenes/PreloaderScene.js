@@ -92,7 +92,7 @@ export class PreloaderScene extends Phaser.Scene {
         // Scale logo để không vượt quá 60% bề rộng màn hình
         const maxLogoWidth = gameWidth * 0.4;
         if (this.logo.width > 0 && this.logo.width > maxLogoWidth) {
-            const logoScale = 0.4;
+            const logoScale = 1;
             this.logo.setScale(logoScale);
         }
 
@@ -165,8 +165,6 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('information', 'assets/images/ui/setting/information.png');
         this.load.image('email', 'assets/images/ui/setting/email.png');
         this.load.image('notice', 'assets/images/ui/setting/notice.png');
-        this.load.image('setting_exit', 'assets/images/ui/setting/Nut X.png');
-        this.load.image('setting_energy_bar', 'assets/images/ui/setting/Thanh nawng luong.png');
         
         // Load Level Review UI assets
         this.load.image('level_review_ui', 'assets/images/ui/level_review/UI.png');

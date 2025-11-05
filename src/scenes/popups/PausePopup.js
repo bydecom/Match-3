@@ -29,14 +29,12 @@ export class PausePopup extends Phaser.Scene {
         // 3. Tạo background UI
         const uiBackground = this.add.image(width / 2, height / 2, 'pause_ui')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setDepth(2);
 
         // 4. Tạo nút đóng (X)
         // (Tăng depth để đảm bảo nó ở trên các thanh trượt nếu cần)
         const closeButton = this.add.image(470, 270, 'pause_exit')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(5); // Tăng depth
 
@@ -71,7 +69,6 @@ export class PausePopup extends Phaser.Scene {
         // Đây là thanh bar sẽ bị che (mask)
         const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setDepth(3);
 
         // 2. Tạo mask (một đối tượng Graphics)
@@ -89,7 +86,6 @@ export class PausePopup extends Phaser.Scene {
         // 5. Tạo nút kéo thả
         const musicHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_music')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(4); // Phải nằm trên thanh bar
 
@@ -135,7 +131,6 @@ export class PausePopup extends Phaser.Scene {
         // 1. Tạo thanh bar DUY NHẤT
         const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setDepth(3);
 
         // 2. Tạo mask
@@ -152,7 +147,6 @@ export class PausePopup extends Phaser.Scene {
         // 5. Tạo nút kéo thả
         const soundHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_sound')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(4);
 

@@ -29,13 +29,11 @@ export class SettingsPopup extends Phaser.Scene {
         // 3. Tạo background UI
         const uiBackground = this.add.image(width / 2, height / 2, 'setting_ui')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setDepth(2);
 
         // 4. Tạo nút đóng (X) ở góc trên bên phải
-        const closeButton = this.add.image(470, 270, 'setting_exit')
+        const closeButton = this.add.image(470, 270, 'pause_exit')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(5);
 
@@ -78,7 +76,6 @@ export class SettingsPopup extends Phaser.Scene {
         // Đây là thanh bar sẽ bị che (mask)
         const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setDepth(3);
 
         // 2. Tạo mask (một đối tượng Graphics)
@@ -96,7 +93,6 @@ export class SettingsPopup extends Phaser.Scene {
         // 5. Tạo nút kéo thả
         const musicHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_music')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(4); // Phải nằm trên thanh bar
 
@@ -142,7 +138,6 @@ export class SettingsPopup extends Phaser.Scene {
         // 1. Tạo thanh bar DUY NHẤT
         const sliderBar = this.add.image(sliderX, sliderY, 'pause_bar')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setDepth(3);
 
         // 2. Tạo mask
@@ -159,7 +154,7 @@ export class SettingsPopup extends Phaser.Scene {
         // 5. Tạo nút kéo thả
         const soundHandle = this.add.image(startX + initialFillWidth, sliderY, 'pause_sound')
             .setOrigin(0.5)
-            .setScale(0.4)
+
             .setInteractive({ useHandCursor: true })
             .setDepth(4);
 
@@ -201,7 +196,6 @@ export class SettingsPopup extends Phaser.Scene {
         // Nút Notice
         const noticeButton = this.add.image(startX, buttonY, 'notice')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(3);
 
@@ -212,7 +206,6 @@ export class SettingsPopup extends Phaser.Scene {
         // Nút Email
         const emailButton = this.add.image(startX + buttonSpacing, buttonY, 'email')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(3);
 
@@ -223,7 +216,6 @@ export class SettingsPopup extends Phaser.Scene {
         // Nút Information
         const infoButton = this.add.image(startX + buttonSpacing * 2, buttonY, 'information')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(3);
 
@@ -234,7 +226,6 @@ export class SettingsPopup extends Phaser.Scene {
         // Nút Share
         const shareButton = this.add.image(startX + buttonSpacing * 3, buttonY, 'share')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(3);
 
@@ -245,7 +236,6 @@ export class SettingsPopup extends Phaser.Scene {
         // Nút Facebook Connect ở vị trí cũ
         const facebookButton = this.add.image(288, 745, 'facebook')
             .setOrigin(0.5)
-            .setScale(0.4)
             .setInteractive({ useHandCursor: true })
             .setDepth(3);
 

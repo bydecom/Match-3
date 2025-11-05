@@ -27,7 +27,7 @@ export class ShopPopup extends Phaser.Scene {
         // 4) Nút đóng (X) dùng lại pause_exit
         const closeButton = this.add.image(470, 270, 'pause_exit')
             .setOrigin(0.5)
-            .setScale(0.4)
+
             .setInteractive({ useHandCursor: true })
             .setDepth(5);
         closeButton.on('pointerdown', () => this.close());
