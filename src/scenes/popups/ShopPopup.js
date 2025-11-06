@@ -1,9 +1,18 @@
 // src/scenes/popups/ShopPopup.js
 import Phaser from 'phaser';
+import APIManager from '../../managers/APIManager';
 
 export class ShopPopup extends Phaser.Scene {
     constructor() {
         super({ key: 'ShopPopup' });
+        this.itemsLayer = null;
+        this.currentPage = 0;
+        this.totalPages = 1;
+        this.shopData = null;
+        this.itemsPerPage = 6; // 2 hàng x 3 cột
+        this.prevBtn = null;
+        this.nextBtn = null;
+        this.pageText = null;
     }
 
     create() {
@@ -24,110 +33,186 @@ export class ShopPopup extends Phaser.Scene {
             .setScale(0.4)
             .setDepth(2);
 
-        // 4) Nút đóng (X) dùng lại pause_exit
+        // 4) Nút đóng (X)
         const closeButton = this.add.image(470, 270, 'pause_exit')
             .setOrigin(0.5)
-
             .setInteractive({ useHandCursor: true })
             .setDepth(5);
         closeButton.on('pointerdown', () => this.close());
 
-        // 5) Tạo lưới item (2 hàng x 3 cột)
-        // Toạ độ tương đối quanh tâm popup, có thể chỉnh sau cho khớp UI
-        const cols = 3;
-        const rows = 2;
-        const cellSpacingX = 125;
-        const cellSpacingY = 150;
-        const startX = width / 2 - cellSpacingX;  // 3 cột: -1, 0, +1
-        const startY = 432;           // hàng trên
+        // 5) Lớp chứa item để tiện xoá/vẽ lại khi đổi trang
+        this.itemsLayer = this.add.container(0, 0).setDepth(3);
 
-        // Các icon dùng tạm thời từ booster đã có sẵn
-        const icons = [
-            'booster_hammer', 'booster_swap', 'booster_rocket',
-            'booster_shuffle', 'booster_hammer', 'booster_rocket'
-        ];
-        const prices = [200, 300, 500, 250, 450, 600];
-        const discounts = [false, true, false, true, false, true];
+        // 6) Nút điều khiển prev/next + text trang
+        this.prevBtn = this.add.image(208, 755, 'previous_button')
+            .setOrigin(0.5)
+            .setDepth(5)
+            .setInteractive({ useHandCursor: true });
+        this.nextBtn = this.add.image(368, 755, 'next_button')
+            .setOrigin(0.5)
+            .setDepth(5)
+            .setInteractive({ useHandCursor: true });
+        this.pageText = this.add.text(288, 755, '1/1', {
+            fontFamily: 'UTMCookies',
+            fontSize: '22px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(5);
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const idx = r * cols + c;
-                const x = startX + c * cellSpacingX;
-                const y = startY + r * cellSpacingY;
+        this.prevBtn.on('pointerdown', () => {
+            if (this.currentPage <= 0) return;
+            this.currentPage -= 1;
+            this.renderPage(this.currentPage);
+        });
+        this.nextBtn.on('pointerdown', () => {
+            if (this.currentPage >= this.totalPages - 1) return;
+            this.currentPage += 1;
+            this.renderPage(this.currentPage);
+        });
 
-                const container = this.add.container(x, y).setDepth(3);
-
-                const icon = this.add.image(0, 0, icons[idx])
-                    .setOrigin(0.5)
-                    .setScale(0.18);
-                if (icons[idx] === 'booster_swap') {
-                    icon.y += 5; // dịch xuống 5px cho icon swap
-                }
-                container.add(icon);
-
-                // Price background + price text (thay cho số lượng)
-                const priceBg = this.add.image(0, 66, 'shop_price_background')
-                    .setOrigin(0.5)
-                    .setScale(1);
-                container.add(priceBg);
-
-                const priceText = this.add.text(5, 66, `${prices[idx]}`, {
-                    fontFamily: 'UTMCookies',
-                    fontSize: '20px',
-                    color: '#ffffff',
-                    stroke: '#000000',
-                    strokeThickness: 4,
-                    fontStyle: 'bold'
-                }).setOrigin(0.5);
-                container.add(priceText);
-
-                // Badge giảm giá ở góc trên phải (nếu có)
-                if (discounts[idx]) {
-                    const badge = this.add.image(34, -30, 'shop_discount_40')
-                        .setOrigin(0.5)
-                        .setScale(0.4);
-                    container.add(badge);
-
-                    // Hiển thị giá gốc (mờ hơn) + gạch ngang, và giá sau giảm (đè lên, xéo nhẹ)
-                    const originalPrice = Math.round(prices[idx] / 0.6); // 40% off => price = 60% original
-                    const originalText = this.add.text(5, 50, `${originalPrice}`, {
-                        fontFamily: 'UTMCookies',
-                        fontSize: '16px',
-                        color: '#ffffff',
-                        stroke: '#000000',
-                        strokeThickness: 3,
-                        fontStyle: 'bold'
-                    }).setOrigin(0.5).setAlpha(0.75);
-                    container.add(originalText);
-
-                    // Gạch ngang xéo một chút qua giá gốc
-                    const strike = this.add.graphics();
-                    strike.lineStyle(3, 0xff5555, 0.95);
-                    const halfW = (originalText.width / 2) + 8;
-                    strike.strokeLineShape(new Phaser.Geom.Line(-halfW, 0, halfW, 0));
-                    strike.setPosition(0, originalText.y);
-                    strike.setAngle(-12);
-                    container.add(strike);
-
-                    // Nhấn mạnh giá đã giảm: to hơn, màu tươi và xéo nhẹ
-                    priceText.setFontSize(22);
-                    priceText.setColor('#ffe066');
-                    priceText.setAngle(-6);
-                }
-
-                // Tương tác mua thử nghiệm (log ra console)
-                container.setSize(90, 90);
-                container.setInteractive({ useHandCursor: true });
-                container.on('pointerdown', () => {
-                    console.log(`[ShopPopup] Click item #${idx + 1} (${icons[idx]}), price=${prices[idx]}${discounts[idx] ? ' (discount 40%)' : ''}`);
-                });
-            }
-        }
+        // 7) Gọi API để lấy data và render
+        this.loadAndRenderShop();
 
         // Đảm bảo resume MapScene khi tắt
         this.events.on('shutdown', () => {
             if (this.scene.isPaused('MapScene')) this.scene.resume('MapScene');
         });
+    }
+
+    async loadAndRenderShop() {
+        const { width, height } = this.scale;
+        const loadingText = this.add.text(width / 2, height / 2, 'Loading Shop...', {
+            fontSize: '24px',
+            color: '#fff',
+            fontFamily: 'UTMCookies'
+        }).setOrigin(0.5).setDepth(10);
+
+        // vô hiệu hóa lúc đầu
+        this.updateButtons();
+        try {
+            this.shopData = await APIManager.getDailyShop();
+            if (!this.shopData || !this.shopData.items) {
+                throw new Error('Invalid shop data received');
+            }
+
+            this.totalPages = Math.max(1, Math.ceil(this.shopData.items.length / this.itemsPerPage));
+            this.currentPage = 0;
+            this.renderPage(this.currentPage);
+        } catch (error) {
+            console.error('Failed to load shop:', error);
+            loadingText.setText('Error. Please try again.');
+            return;
+        }
+
+        loadingText.destroy();
+    }
+
+    renderPage(pageIndex) {
+        this.itemsLayer.removeAll(true);
+
+        if (!this.shopData) {
+            this.updateButtons();
+            return;
+        }
+
+        const startIndex = pageIndex * this.itemsPerPage;
+        const endIndex = Math.min(startIndex + this.itemsPerPage, this.shopData.items.length);
+        const itemsToShow = this.shopData.items.slice(startIndex, endIndex);
+
+        // Lưới 2x3
+        const cols = 3;
+        const cellSpacingX = 125;
+        const cellSpacingY = 150;
+        const startX = this.scale.width / 2 - cellSpacingX;
+        const startY = 432;
+
+        itemsToShow.forEach((item, localIndex) => {
+            const r = Math.floor(localIndex / cols);
+            const c = localIndex % cols;
+            const x = startX + c * cellSpacingX;
+            const y = startY + r * cellSpacingY;
+
+            const container = this.add.container(x, y);
+            this.itemsLayer.add(container);
+
+            const icon = this.add.image(0, 0, item.icon)
+                .setOrigin(0.5)
+                .setScale(0.18);
+            if (item.icon === 'booster_swap') {
+                icon.y += 5;
+            }
+            container.add(icon);
+
+            const priceBg = this.add.image(0, 66, 'shop_price_background')
+                .setOrigin(0.5)
+                .setScale(1);
+            container.add(priceBg);
+
+            const priceText = this.add.text(5, 66, `${item.price}` , {
+                fontFamily: 'UTMCookies',
+                fontSize: '20px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4,
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            container.add(priceText);
+
+            if (item.isDiscounted) {
+                const badge = this.add.image(34, -30, 'shop_discount_40')
+                    .setOrigin(0.5)
+                    .setScale(0.4);
+                container.add(badge);
+
+                const originalText = this.add.text(5, 50, `${item.originalPrice}`, {
+                    fontFamily: 'UTMCookies',
+                    fontSize: '16px',
+                    color: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 3,
+                    fontStyle: 'bold'
+                }).setOrigin(0.5).setAlpha(0.75);
+                container.add(originalText);
+
+                const strike = this.add.graphics();
+                strike.lineStyle(3, 0xff5555, 0.95);
+                const halfW = (originalText.width / 2) + 8;
+                strike.strokeLineShape(new Phaser.Geom.Line(-halfW, 0, halfW, 0));
+                strike.setPosition(0, originalText.y);
+                strike.setAngle(-12);
+                container.add(strike);
+
+                priceText.setFontSize(22);
+                priceText.setColor('#ffe066');
+                priceText.setAngle(-6);
+            }
+
+            container.setSize(90, 90);
+            container.setInteractive({ useHandCursor: true });
+            container.on('pointerdown', () => {
+                console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
+                // TODO: APIManager.buyItem(item.id)
+            });
+        });
+
+        this.updateButtons();
+    }
+
+    updateButtons() {
+        const dataLoaded = !!this.shopData;
+        if (this.prevBtn) {
+            this.prevBtn.setAlpha(dataLoaded && this.currentPage > 0 ? 1 : 0.5)
+                .setInteractive(dataLoaded && this.currentPage > 0);
+        }
+        if (this.nextBtn) {
+            this.nextBtn.setAlpha(dataLoaded && this.currentPage < this.totalPages - 1 ? 1 : 0.5)
+                .setInteractive(dataLoaded && this.currentPage < this.totalPages - 1);
+        }
+        if (this.pageText) {
+            this.pageText.setText(dataLoaded ? `${this.currentPage + 1}/${this.totalPages}` : '-/-');
+        }
     }
 
     close() {

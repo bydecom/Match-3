@@ -129,15 +129,14 @@ export class LevelReviewPopup extends Phaser.Scene {
             // Điều chỉnh vị trí X cho từng loại booster
             let iconX = position.x;
             if (boosterInfo.type === BOOSTER_TYPES.HAMMER) {
-                iconX = position.x + 10;
+                iconX = position.x + 5;
             } else if (boosterInfo.type === BOOSTER_TYPES.SHUFFLE) {
-                iconX = position.x - 10;
+                iconX = position.x - 5;
             }
             
             // Tạo icon booster
             const icon = this.add.image(iconX, position.y - 15, boosterInfo.key)
                 .setOrigin(0.5)
-                .setScale(0.15)
                 .setDepth(3);
 
             // Lấy số lượng từ inventory

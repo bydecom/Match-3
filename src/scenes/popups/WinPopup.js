@@ -47,7 +47,7 @@ export class WinPopup extends Phaser.Scene {
     this.add.text(314, 345, `${this.levelId}`, {
       fontFamily: 'UTMCookies',
       fontSize: '18px',
-      color: '#ffffff',
+      color: '#fff5f4',
       stroke: '#b43827',
       strokeThickness: 3,
       fontStyle: 'bold'

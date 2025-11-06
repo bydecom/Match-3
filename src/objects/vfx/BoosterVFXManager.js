@@ -7,6 +7,7 @@ export class BoosterVFXManager {
     this.scene = scene
     this.board = board
     this.vfxObjects = []
+    this.swapSelectedSprite = null
   }
 
   // Chỉ dọn dẹp các đối tượng hình ảnh mà không phát sự kiện
@@ -14,6 +15,8 @@ export class BoosterVFXManager {
   clearCurrentVFX() {
     this.vfxObjects.forEach(obj => { if (obj && obj.destroy) obj.destroy() })
     this.vfxObjects = []
+    // Dọn cả hiệu ứng chọn của SWAP (nếu có)
+    this.clearSwapSelectionVisual()
   }
 
   // Dọn dẹp tất cả hiệu ứng VÀ báo cho hệ thống hủy chọn
@@ -26,6 +29,8 @@ export class BoosterVFXManager {
   clearPreview() {
     this.vfxObjects.forEach(obj => { if (obj && obj.destroy) obj.destroy() })
     this.vfxObjects = []
+    // Dọn hiệu ứng chọn SWAP nếu có
+    this.clearSwapSelectionVisual()
   }
 
 
@@ -50,7 +55,7 @@ playHammerEffect(row, col, onComplete) {
     const hammerSprite = this.scene.add.sprite(initialX, initialY, 'booster_hammer')
         .setAngle(initialAngle)
         .setOrigin(0.8, 0.8) // << THAY ĐỔI QUAN TRỌNG: Điểm xoay giờ ở gần ĐẦU BÚA
-        .setScale(0.18)      // Giữ nguyên scale hoặc chỉnh lại nếu cần
+        .setScale(1.2)      // Giữ nguyên scale hoặc chỉnh lại nếu cần
         .setDepth(10);
 
     // 4. CHUỖI ANIMATION ĐÃ ĐƯỢC CẬP NHẬT
@@ -89,15 +94,50 @@ playHammerEffect(row, col, onComplete) {
 
   // === SWAP ===
   showSwapPreview(row, col) {
-    this.clearPreview()
+    // Bỏ border, dùng hiệu ứng tween như chọn gem thường
+    this.clearSwapSelectionVisual()
     const gem = this.board.grid[row]?.[col]
-    if (!gem) return
-    const pos = this.board.getCellPosition(row, col)
-    const circle = this.scene.add.graphics().setDepth(4)
-    circle.lineStyle(4, 0xFFD700, 1)
-    circle.strokeCircle(pos.x, pos.y, this.board.cellSize * 0.5)
-    this.scene.tweens.add({ targets: circle, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 })
-    this.vfxObjects.push(circle)
+    if (!gem || !gem.sprite) return
+    this.applySwapSelectionVisual(gem.sprite)
+    this.swapSelectedSprite = gem.sprite
+  }
+
+  applySwapSelectionVisual(gemSprite) {
+    if (!gemSprite) return
+    if (!gemSprite.getData('swapOriginalScale')) {
+      gemSprite.setData('swapOriginalScale', gemSprite.scaleX)
+    }
+    const originalScale = gemSprite.getData('swapOriginalScale')
+    gemSprite.setScale(originalScale * 1.3)
+    gemSprite.setAngle(0)
+    const oldTween = gemSprite.getData('swapSelectTween')
+    if (oldTween) oldTween.stop()
+    const tween = this.scene.tweens.add({
+      targets: gemSprite,
+      angle: { from: -15, to: 15 },
+      duration: 250,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut'
+    })
+    gemSprite.setData('swapSelectTween', tween)
+  }
+
+  clearSwapSelectionVisual() {
+    const sprite = this.swapSelectedSprite
+    if (!sprite) return
+    const tween = sprite.getData('swapSelectTween')
+    if (tween) tween.stop()
+    if (sprite.data) {
+      sprite.data.remove('swapSelectTween')
+    }
+    const originalScale = sprite.getData('swapOriginalScale') || 1
+    if (sprite.data) {
+      sprite.data.remove('swapOriginalScale')
+    }
+    sprite.setScale(originalScale)
+    sprite.setAngle(0)
+    this.swapSelectedSprite = null
   }
 
   // === ROCKET ===
@@ -195,7 +235,7 @@ playHammerEffect(row, col, onComplete) {
     // Tạo MỘT tên lửa duy nhất
     const rocketSprite = this.scene.add.sprite(targetX, startY, 'booster_rocket')
         .setAngle(0) // << SỬA LỖI: -90 độ là hướng thẳng lên trên
-        .setScale(0.25) // Tăng kích thước lên một chút cho rõ hơn
+        .setScale(1.2) // Tăng kích thước lên một chút cho rõ hơn
         .setDepth(10);
 
     // Có thể thêm particle trail (vệt khói) đi theo tên lửa ở đây nếu muốn
@@ -264,7 +304,7 @@ playHammerEffect(row, col, onComplete) {
     
     // 2. Bình rượu bay vào
     const shufflePot = this.scene.add.sprite(boardCenterX, this.scene.scale.height + 100, 'booster_shuffle')
-      .setScale(0.25)
+      .setScale(1.2)
       .setDepth(15);
 
     this.scene.tweens.add({

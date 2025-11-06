@@ -48,16 +48,18 @@ export class SpinPopup extends Phaser.Scene {
             .setScale(0.4);
         this.boardContainer.add(board);
 
-        // 3.3. Tạo 8 items (booster + quantity) xung quanh board
-        const boosterTypes = [
-            'booster_hammer', // << ĐÃ TRÁO ĐỔI
-            'booster_shuffle', // << ĐÃ TRÁO ĐỔI
-            'booster_rocket',
-            'booster_swap',    // << ĐÃ TRÁO ĐỔI
-            'booster_hammer',
-            'booster_shuffle', // << ĐÃ TRÁO ĐỔI
-            'booster_rocket',
-            'booster_swap'     // << ĐÃ TRÁO ĐỔI
+        // 3.3. Tạo 8 items xung quanh board (bao gồm booster và item đặc biệt)
+        // - Booster: dùng icon booster mặc định khi x1, và _2 khi x2
+        // - Đặc biệt: coin_x2, heart_2 (luôn x2, texture riêng)
+        const wheelItems = [
+            { kind: 'booster', baseKey: 'booster_hammer', texture: 'hammer_2', quantity: 2 },
+            { kind: 'booster', baseKey: 'booster_shuffle', texture: 'shuffle_2', quantity: 2 },
+            { kind: 'special', rewardType: 'coin', texture: 'coin_x2', quantity: 1 },
+            { kind: 'booster', baseKey: 'booster_rocket', texture: 'rocket_2', quantity: 2 },
+            { kind: 'special', rewardType: 'heart', texture: 'heart_2', quantity: 2 },
+            { kind: 'booster', baseKey: 'booster_shuffle', texture: 'shuffle_2', quantity: 2 },
+            { kind: 'booster', baseKey: 'booster_rocket', texture: 'rocket_2', quantity: 2 },
+            { kind: 'booster', baseKey: 'booster_swap', texture: 'swap_2', quantity: 2 }
         ];
 
         const itemCount = 8;
@@ -80,26 +82,38 @@ export class SpinPopup extends Phaser.Scene {
             // (angle là góc vị trí, + Math.PI / 2 là +90 độ để hướng "lên" của item trùng với hướng ra tâm)
             itemContainer.setRotation(angle + (Math.PI / 2));
 
-            // Icon booster
-            const boosterIcon = this.add.image(0, 0, boosterTypes[i])
+            // Chọn texture và quantity theo loại item
+            const def = wheelItems[i];
+            const keyMap2 = {
+                booster_hammer: 'hammer_2',
+                booster_shuffle: 'shuffle_2',
+                booster_rocket: 'rocket_2',
+                booster_swap: 'swap_2'
+            };
+            let quantity;
+            let textureKey;
+            let rewardType;
+            let baseKey = null;
+            if (def.kind === 'special') {
+                quantity = def.quantity;
+                textureKey = def.texture;
+                rewardType = def.rewardType; // 'coin' | 'heart'
+            } else {
+                baseKey = def.baseKey;
+                quantity = Phaser.Math.Between(1, 2);
+                textureKey = quantity === 2 ? (keyMap2[baseKey] || baseKey) : baseKey;
+                rewardType = baseKey;
+            }
+
+            const boosterIcon = this.add.image(0, 0, textureKey)
                 .setOrigin(0.5)
-                .setScale(0.15);
+            if (baseKey === 'booster_swap') {
+                boosterIcon.y += 5;
+            }
             itemContainer.add(boosterIcon);
 
-            // Text số lượng (tạm thời random, sẽ thay bằng dữ liệu thực sau)
-            const quantity = Math.floor(Math.random() * 10) + 1;
-            const quantityText = this.add.text(0, 30, `${quantity}`, {
-                fontFamily: 'UTMCookies',
-                fontSize: '20px',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4,
-                fontWeight: 'bold'
-            }).setOrigin(0.5);
-            itemContainer.add(quantityText);
-
             // Lưu dữ liệu phần thưởng trên item
-            const reward = { type: boosterTypes[i], quantity, index: i };
+            const reward = { type: rewardType, quantity, index: i };
             itemContainer.setData('reward', reward);
 
             this.boardContainer.add(itemContainer);

@@ -148,11 +148,13 @@ export class BoardState {
       .setInteractive()
       .setDepth(2)
     gem.setData({ row, col, type: gemType, isGem: true })
-    gem.on('pointerdown', () => {
-      const currentRow = gem.getData('row')
-      const currentCol = gem.getData('col')
-      this.handleGemClick(currentRow, currentCol)
-    })
+    // Input click được xử lý tập trung tại GameScene (tap/swipe router)
+    // Vô hiệu hóa handler cũ để tránh dẫm chân nhau
+    // gem.on('pointerdown', () => {
+    //   const currentRow = gem.getData('row')
+    //   const currentCol = gem.getData('col')
+    //   this.handleGemClick(currentRow, currentCol)
+    // })
     this.gems.push(gem)
     return gem
   }
@@ -824,168 +826,6 @@ export class BoardState {
     }
   }
 
-  
-// applyGravityAndRefill() {
-//     const speed = 0.5;
-//     let totalTweens = 0;
-//     let tweensCompleted = 0;
-
-//     const onTweenComplete = () => {
-//         tweensCompleted++;
-//         if (tweensCompleted === totalTweens) {
-//             this.checkForNewMatches();
-//         }
-//     };
-
-//     // BƯỚC 1: TÁI CẤU TRÚC LƯỚI LOGIC (ĐÃ SỬA LỖI GEM CHỒNG GEM)
-//     const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
-//     const newBlockerGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
-
-//     for (let col = 0; col < GRID_SIZE; col++) {
-//         let writeRow = GRID_SIZE - 1;
-//         for (let readRow = GRID_SIZE - 1; readRow >= 0; readRow--) {
-//             // Bỏ qua các ô không thể chứa item (lỗ hổng)
-//             if (this.levelData.gridLayout[readRow][col] === null) continue;
-
-//             const blocker = this.blockerGrid[readRow][col];
-//             const gem = this.grid[readRow][col];
-
-//             // Nếu ô đang đọc không có gì thì bỏ qua
-//             if (!blocker && !gem) continue;
-            
-//             // Tìm vị trí ghi hợp lệ tiếp theo, bỏ qua các lỗ hổng
-//             while (writeRow >= 0 && this.levelData.gridLayout[writeRow][col] === null) {
-//                 writeRow--;
-//             }
-//             if (writeRow < 0) break;
-            
-//             // === LOGIC XỬ LÝ BLOCKER TĨNH (QUAN TRỌNG NHẤT) ===
-//             if (blocker && (blocker.type === 'stone' || blocker.type === 'rope')) {
-//                 // Blocker tĩnh luôn được đặt vào vị trí CŨ của nó trong lưới mới
-//                 newBlockerGrid[readRow][col] = blocker;
-
-//                 // Nếu có gem bị kẹt dưới blocker, gem đó cũng đứng yên
-//                 if (gem) {
-//                     newGrid[readRow][col] = gem;
-//                 }
-                
-//                 // Cập nhật writeRow để các gem bên trên không rơi đè lên ô này.
-//                 // Điều này áp dụng cho cả stone và rope KHI CÓ GEM BÊN DƯỚI.
-//                 // Nếu rope rỗng thì gem trên vẫn có thể rơi vào.
-//                 if (blocker.type === 'stone' || (blocker.type === 'rope' && gem)) {
-//                     writeRow = readRow - 1;
-//                 }
-//                 continue; // Chuyển sang ô đọc tiếp theo
-//             }
-//             // =======================================================
-            
-//             // Nếu chỉ có gem (không có blocker tĩnh), cho nó rơi xuống
-//             if (gem) {
-//                 newGrid[writeRow][col] = gem;
-//                 writeRow--;
-//             }
-//         }
-//     }
-    
-//     this.grid = newGrid;
-//     this.blockerGrid = newBlockerGrid;
-
-//     // BƯỚC 2 & 3: TẠO ANIMATION VỚI HIỆU ỨNG "CỘT GIẢ NỐI LIỀN"
-//     for (let col = 0; col < GRID_SIZE; col++) {
-//       let fallInfos = [];
-//       let refillCount = 0;
-
-//       // --- PASS 1: Thu thập thông tin gem cũ và đếm số ô cần refill ---
-//       for (let row = GRID_SIZE - 1; row >= 0; row--) {
-//           if (this.levelData.gridLayout[row][col] === null) continue;
-
-//           const gem = this.grid[row][col];
-//           const endY = this.offsetY + row * this.cellSize + this.cellSize / 2;
-
-//           if (gem) {
-//               // Nếu là gem cũ cần rơi
-//               if (gem.sprite.y !== endY) {
-//                   fallInfos.push({
-//                       target: gem.sprite,
-//                       startY: gem.sprite.y,
-//                       endY: endY,
-//                       isNew: false,
-//                       newRow: row
-//                   });
-//               }
-//           } else {
-//               // Nếu là ô trống, tăng biến đếm
-//               const blocker = this.blockerGrid[row][col];
-//               if (!blocker || blocker.type !== 'stone') {
-//                   refillCount++;
-//               }
-//           }
-//       }
-      
-//       // --- PASS 2: Tạo gem mới cho "cột giả" và thêm vào danh sách rơi ---
-//       let lastRefillY = (this.offsetY - 0.5 * this.cellSize); // Vị trí Y bắt đầu của gem mới cao nhất
-//       for (let i = 0; i < refillCount; i++) {
-//           const newRow = refillCount - 1 - i;
-//           if(this.grid[newRow][col]) continue; // An toàn: nếu ô đã có gem thì bỏ qua
-
-//           const startY = lastRefillY - (i + 1) * this.cellSize;
-//           const endY = this.offsetY + newRow * this.cellSize + this.cellSize / 2;
-
-//           const randomGemType = Phaser.Math.RND.pick(this.levelData.availableGems || Object.values(GEM_TYPES));
-//           const newGemSprite = this.createGemAt(newRow, col, randomGemType, startY);
-//           newGemSprite.setAlpha(0); // Ẩn đi lúc đầu
-          
-//           this.grid[newRow][col] = { type: 'gem', value: randomGemType, sprite: newGemSprite };
-
-//           fallInfos.push({
-//               target: newGemSprite,
-//               startY: startY,
-//               endY: endY,
-//               isNew: true
-//           });
-//       }
-      
-//       // --- PASS 3: Tính toán và tạo Tweens ---
-//       if (fallInfos.length > 0) {
-//           let maxDuration = 0;
-
-//           // Tính duration lớn nhất cho cả cột
-//           fallInfos.forEach(info => {
-//               const distance = Math.abs(info.endY - info.startY);
-//               const duration = distance / speed;
-//               if (duration > maxDuration) {
-//                   maxDuration = duration;
-//               }
-//           });
-
-//           totalTweens += fallInfos.length;
-
-//           // Tạo tween cho tất cả item trong cột với cùng duration
-//           fallInfos.forEach(info => {
-//               const tweenConfig = {
-//                   targets: info.target,
-//                   y: info.endY,
-//                   duration: maxDuration,
-//                   ease: 'Cubic.easeIn',
-//                   onComplete: onTweenComplete
-//               };
-
-//               if (info.isNew) {
-//                   tweenConfig.onStart = () => info.target.setAlpha(1);
-//               } else {
-//                   // Cập nhật data cho gem cũ
-//                   info.target.setData('row', info.newRow);
-//               }
-
-//               this.scene.tweens.add(tweenConfig);
-//           });
-//       }
-//   }
-
-//   if (totalTweens === 0) {
-//       this.checkForNewMatches();
-//   }
-// }
 applyGravityAndRefill() {
   // BƯỚC 1: TÁI CẤU TRÚC LƯỚI LOGIC (ĐÃ SỬA LỖI GEM CHỒNG GEM)
   const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));

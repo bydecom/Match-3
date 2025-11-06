@@ -191,10 +191,14 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image(`blocker_rope`, 'assets/images/gameplay/blockers/blocker_rope.png');
         
         // Load booster icons for Level Review
-        this.load.image('booster_hammer', 'assets/images/ui/booster_hammer.png');
-        this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
-        this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
-        this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
+        // this.load.image('booster_hammer', 'assets/images/ui/booster_hammer.png');
+        // this.load.image('booster_swap', 'assets/images/ui/booster_swap.png');
+        // this.load.image('booster_rocket', 'assets/images/ui/booster_rocket.png');
+        // this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle.png');
+        this.load.image('booster_hammer', 'assets/images/ui/booster_hammer_15.png');
+        this.load.image('booster_swap', 'assets/images/ui/booster_swap_15.png');
+        this.load.image('booster_rocket', 'assets/images/ui/booster_rocket_15.png');
+        this.load.image('booster_shuffle', 'assets/images/ui/booster_shuffle_15.png');
         this.load.image('booster_background', 'assets/images/ui/level_review/booster_background.png');
         this.load.image('quantity_background', 'assets/images/ui/level_review/quantity_background.png');
         this.load.image('add_icon', 'assets/images/ui/level_review/add_icon.png');
@@ -320,10 +324,18 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('spin_board', 'assets/images/ui/spin/board.png');
         this.load.image('spin_center', 'assets/images/ui/spin/center.png');
         this.load.image('spin_led', 'assets/images/ui/spin/led.png');
+        this.load.image('heart_2', 'assets/images/ui/shop/heart_2.png');
+        this.load.image('coin_x2', 'assets/images/ui/shop/coin_x2.png');
+        this.load.image('shuffle_2', 'assets/images/ui/shop/shuffle_2.png');
+        this.load.image('rocket_2', 'assets/images/ui/shop/rocket_2.png');
+        this.load.image('hammer_2', 'assets/images/ui/shop/hammer_2.png');
+        this.load.image('swap_2', 'assets/images/ui/shop/swap_2.png');
         // Shop
         this.load.image('shop_background', 'assets/images/ui/shop/background.png');
         this.load.image('shop_price_background', 'assets/images/ui/shop/price_background.png');
         this.load.image('shop_discount_40', 'assets/images/ui/shop/discount_40.png');
+        this.load.image('next_button', 'assets/images/ui/shop/next.png');
+        this.load.image('previous_button', 'assets/images/ui/shop/previous.png');
 
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');

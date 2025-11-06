@@ -18,6 +18,19 @@ export class GameScene extends Phaser.Scene {
     this.timer = null
     this.currentTime = 0
     this.isTimerRunning = false
+    // --- THUỘC TÍNH CHO SWIPE/TAP ---
+    this.swipeState = {
+      isDown: false,
+      downX: 0,
+      downY: 0,
+      downTime: 0,
+      downObject: null,
+      downRow: -1,
+      downCol: -1,
+    }
+    this.SWIPE_THRESHOLD = 50
+    this.TAP_THRESHOLD = 15
+    this.TAP_MAX_TIME = 300
   }
 
   create(data) { // Cần nhận data từ LevelLoaderScene
@@ -345,6 +358,26 @@ export class GameScene extends Phaser.Scene {
 
   onPointerDown(pointer) {
     this.isPointerDown = true
+    // --- LOGIC MỚI CHO SWIPE STATE ---
+    this.swipeState.isDown = true
+    this.swipeState.downX = pointer.x
+    this.swipeState.downY = pointer.y
+    this.swipeState.downTime = pointer.time
+
+    const listToCheck = this.children.list.concat(this.gemLayer.list)
+    const clickedObject = this.input.manager.hitTest(pointer, listToCheck, this.cameras.main)
+      .find(obj => obj.getData('isGem') || obj.getData('isCell'))
+    if (clickedObject) {
+      this.swipeState.downObject = clickedObject
+      this.swipeState.downRow = clickedObject.getData('row')
+      this.swipeState.downCol = clickedObject.getData('col')
+    } else {
+      this.swipeState.downObject = null
+      this.swipeState.downRow = -1
+      this.swipeState.downCol = -1
+    }
+
+    // Logic cũ cho Rocket booster (giữ nguyên)
     if (!this.activeBooster || !this.board || this.board.boardBusy) return
     if (this.activeBooster === BOOSTER_TYPES.ROCKET) {
       this.onPointerMove(pointer)
@@ -378,105 +411,179 @@ export class GameScene extends Phaser.Scene {
   }
 
 
+  /**
+   * [HÀM MỚI] Xử lý khi phát hiện một cử chỉ swipe
+   */
+  handleSwipe(startRow, startCol, direction) {
+    // Dọn mọi selection/tween cũ nếu có trước khi thực hiện swap bằng swipe
+    if (this.board && typeof this.board.clearSelection === 'function') {
+      this.board.clearSelection()
+    }
+    const gem1 = this.board.grid[startRow][startCol]
+    if (!gem1 || gem1.type !== 'gem') {
+      console.log('Swipe failed: No gem at start pos')
+      return
+    }
+
+    const neighbor = this.board.getNeighborCell(startRow, startCol, direction)
+    if (!neighbor) {
+      console.log('Swipe failed: Invalid neighbor')
+      return
+    }
+    const { row: targetRow, col: targetCol } = neighbor
+
+    if (this.board.isCellBlockedForMovement(targetRow, targetCol)) {
+      console.log('Swipe failed: Target cell is blocked')
+      return
+    }
+
+    const gem2 = this.board.grid[targetRow][targetCol]
+    if (!gem2 || gem2.type !== 'gem') {
+      console.log('Swipe failed: No gem at target pos')
+      return
+    }
+    console.log(`Input: SWIPE Action - Swapping [${startRow},${startCol}] with [${targetRow},${targetCol}]`)
+    this.board.swapGems(gem1, gem2)
+  }
+
   onPointerUp(pointer) {
     this.isPointerDown = false
 
-    if (this.board.boardBusy) return
+    const wasDown = this.swipeState.isDown
+    this.swipeState.isDown = false
 
-    const listToCheck = this.children.list.concat(this.gemLayer.list)
-    const gameObjects = this.input.manager.hitTest(pointer, listToCheck, this.cameras.main)
-    const clickedObject = gameObjects.find(obj => obj.getData('isGem') || obj.getData('isCell'))
-
-    // Nếu không có booster nào đang được chọn, không làm gì cả
-    if (!this.activeBooster) return
-
-    // --- LOGIC CHO SWAP BOOSTER ---
-    if (this.activeBooster === BOOSTER_TYPES.SWAP) {
-      if (!clickedObject) return
-      const row = clickedObject.getData('row')
-      const col = clickedObject.getData('col')
-      const clickedGem = this.board.grid[row]?.[col]
-      if (!clickedGem || clickedGem.type !== 'gem') return
-
-      if (!this.firstSwapGem) {
-        this.firstSwapGem = clickedGem
-        this.boosterVFXManager?.showSwapPreview(row, col)
-      } else {
-        if (this.firstSwapGem !== clickedGem) {
-          this.game.events.emit('boardBusy', true)
-          this.board.useSwap(this.firstSwapGem, clickedGem)
-        }
-        this.clearActiveBooster()
-      }
+    // Chỉ thoát nếu board bận hoặc chưa nhấn; bỏ check downObject để tránh race condition
+    if (this.board.boardBusy || !wasDown) {
+      this.clearActiveBooster()
+      this.swipeState.downObject = null
       return
     }
-    
-    // --- LOGIC CHO CÁC BOOSTER CÒN LẠI ---
-    const boosterToUse = this.activeBooster
-    this.clearActiveBooster()
 
-    const row = clickedObject?.getData('row')
-    const col = clickedObject?.getData('col')
+    const upX = pointer.x
+    const upY = pointer.y
+    const upTime = pointer.time
+    const deltaX = upX - this.swipeState.downX
+    const deltaY = upY - this.swipeState.downY
+    const deltaTime = upTime - this.swipeState.downTime
 
-    switch (boosterToUse) {
-      case BOOSTER_TYPES.HAMMER:
-        if (row !== undefined) {
-          this.game.events.emit('boardBusy', true)
-          this.boosterVFXManager.playHammerEffect(row, col, () => {
-            this.board.useHammer(row, col)
-          })
+    // HitTest tại vị trí UP (dùng cho Tap và Booster)
+    const listToCheck = this.children.list.concat(this.gemLayer.list)
+    const clickedObjectUp = this.input.manager.hitTest(pointer, listToCheck, this.cameras.main)
+      .find(obj => obj.getData('isGem') || obj.getData('isCell'))
+
+    // Ưu tiên xử lý Booster bằng đối tượng tại UP
+    if (this.activeBooster) {
+      console.log('Input: Processing BOOSTER action')
+
+      if (this.activeBooster === BOOSTER_TYPES.SWAP) {
+        if (!clickedObjectUp) {
+          this.clearActiveBooster()
+          this.swipeState.downObject = null
+          return
         }
-        break
-
-      case BOOSTER_TYPES.ROCKET:
-        if (row !== undefined) {
-          this.game.events.emit('boardBusy', true)
-          this.boosterVFXManager.playRocketEffect(col, () => {
-            this.board.useRocket(row, col)
-          })
+        const targetRow = clickedObjectUp.getData('row')
+        const targetCol = clickedObjectUp.getData('col')
+        const clickedGem = this.board.grid[targetRow]?.[targetCol]
+        if (!clickedGem || clickedGem.type !== 'gem') return
+        if (!this.firstSwapGem) {
+          this.firstSwapGem = clickedGem
+          this.boosterVFXManager?.showSwapPreview(targetRow, targetCol)
+        } else {
+          if (this.firstSwapGem !== clickedGem) {
+            this.game.events.emit('boardBusy', true)
+            this.board.useSwap(this.firstSwapGem, clickedGem)
+          }
+          this.clearActiveBooster()
         }
-        break
+        this.swipeState.downObject = null
+        return
+      }
 
-      // << PHIÊN BẢN ĐÚNG ĐỂ CLONE CẢ BLOCKER >>
-      case BOOSTER_TYPES.SHUFFLE:
-        if (clickedObject) {
-            this.game.events.emit('boardBusy', true);
-
-            // 1. Thu thập sprite của cả Gem và Blocker
-            const allGemSprites = [];
-            const allBlockerSprites = [];
+      const boosterToUse = this.activeBooster
+      this.clearActiveBooster()
+      const targetRow = clickedObjectUp?.getData('row')
+      const targetCol = clickedObjectUp?.getData('col')
+      switch (boosterToUse) {
+        case BOOSTER_TYPES.HAMMER:
+          if (targetRow !== undefined) {
+            this.game.events.emit('boardBusy', true)
+            this.boosterVFXManager.playHammerEffect(targetRow, targetCol, () => {
+              this.board.useHammer(targetRow, targetCol)
+            })
+          }
+          break
+        case BOOSTER_TYPES.ROCKET:
+          if (targetRow !== undefined) {
+            this.game.events.emit('boardBusy', true)
+            this.boosterVFXManager.playRocketEffect(targetCol, () => {
+              this.board.useRocket(targetRow, targetCol)
+            })
+          }
+          break
+        case BOOSTER_TYPES.SHUFFLE:
+          if (clickedObjectUp) {
+            this.game.events.emit('boardBusy', true)
+            const allGemSprites = []
+            const allBlockerSprites = []
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
-                    const gem = this.board.grid[r]?.[c];
-                    if (gem && gem.sprite) {
-                        allGemSprites.push(gem.sprite);
-                    }
-                    const blocker = this.board.blockerGrid[r]?.[c];
-                    if (blocker) {
-                        allBlockerSprites.push(blocker);
-                    }
-                }
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const gem = this.board.grid[r]?.[c]
+                if (gem && gem.sprite) allGemSprites.push(gem.sprite)
+                const blocker = this.board.blockerGrid[r]?.[c]
+                if (blocker) allBlockerSprites.push(blocker)
+              }
             }
-            
-            // 2. Chạy logic thật (nhưng bị ẩn)
-            this.board.useShuffle();
-
-            // 3. Chạy hiệu ứng giả, truyền vào cả danh sách blocker
+            this.board.useShuffle()
             this.boosterVFXManager.playFakeShuffleEffect(allGemSprites, allBlockerSprites, () => {
-                // 4. Khi hiệu ứng kết thúc, hiển thị lại mọi thứ
-                allGemSprites.forEach(gem => {
-                    if (gem && gem.active) gem.setVisible(true);
-                });
-                allBlockerSprites.forEach(blocker => {
-                    if (blocker && blocker.active) blocker.setVisible(true);
-                });
+              allGemSprites.forEach(gem => { if (gem && gem.active) gem.setVisible(true) })
+              allBlockerSprites.forEach(blocker => { if (blocker && blocker.active) blocker.setVisible(true) })
+              this.board.checkForNewMatches()
+            })
+          }
+          break
+      }
 
-                // 5. Tiếp tục game
-                this.board.checkForNewMatches();
-            });
-        }
-        break;
+      this.swipeState.downObject = null
+      return
     }
+
+    // Tap dựa trên vị trí UP
+    const isTap = Math.abs(deltaX) < this.TAP_THRESHOLD && Math.abs(deltaY) < this.TAP_THRESHOLD && deltaTime < this.TAP_MAX_TIME
+    if (isTap) {
+      if (!clickedObjectUp) {
+        this.swipeState.downObject = null
+        return
+      }
+      const targetRow = clickedObjectUp.getData('row')
+      const targetCol = clickedObjectUp.getData('col')
+      console.log('Input: Detected TAP')
+      this.board.handleInput({ type: 'gem_click', row: targetRow, col: targetCol })
+      this.swipeState.downObject = null
+      return
+    }
+
+    // Swipe dựa trên vị trí DOWN; nếu bắt đầu từ khoảng không thì bỏ qua
+    const isSwipe = Math.max(Math.abs(deltaX), Math.abs(deltaY)) > this.SWIPE_THRESHOLD && deltaTime < 500
+    if (isSwipe) {
+      if (!this.swipeState.downObject) {
+        console.log('Input: Ignored SWIPE (started from empty space or fast click race condition)')
+        this.swipeState.downObject = null
+        return
+      }
+      const startRow = this.swipeState.downRow
+      const startCol = this.swipeState.downCol
+      console.log('Input: Detected SWIPE')
+      let direction = null
+      if (Math.abs(deltaX) > Math.abs(deltaY)) direction = deltaX > 0 ? 'right' : 'left'
+      else direction = deltaY > 0 ? 'down' : 'up'
+      if (direction) this.handleSwipe(startRow, startCol, direction)
+      this.swipeState.downObject = null
+      return
+    }
+
+    // Drag
+    console.log('Input: Ignored (drag, not tap or swipe)')
+    this.swipeState.downObject = null
   }
 
   onGemSelected(data) {
