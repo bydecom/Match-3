@@ -1,6 +1,6 @@
 {
   "levelId": 6,
-  "moves": 30,
+  "maxMoves": 22,
   "starTimes": {
     "startTime": 120,
     "threeStars": 90,

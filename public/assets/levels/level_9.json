@@ -1,7 +1,7 @@
 {
   "levelId": 9,
   "playgroundTheme": "2",
-  "moves": 35,
+  "maxMoves": 26,
   "starTimes": {
     "startTime": 120,
     "threeStars": 90,

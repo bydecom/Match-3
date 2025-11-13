@@ -11,6 +11,10 @@ export class UIScene extends Phaser.Scene {
     this.isBoardBusy = false; 
     this.boosterIcons = [];
     this.progressBar = null;
+    this.movesLabel = null; // << THÊM: Label "Moves"
+    this.movesText = null; // << THÊM: Text hiển thị số move còn lại
+    this.scoreText = null; // << THÊM: Text hiển thị điểm số
+    this.scoreLabel = null;
     this.objectiveItems = {}; // << THÊM ĐỂ LƯU TRỮ CÁC ITEM NHIỆM VỤ
     this.levelCompletedShown = false; // Cờ ngăn mở WinPopup nhiều lần
     this.levelFailedShown = false; // Cờ ngăn mở LosePopup nhiều lần
@@ -27,31 +31,93 @@ export class UIScene extends Phaser.Scene {
     // === SỬ DỤNG DỮ LIỆU BẠN CUNG CẤP ===
     const gameScene = this.scene.get('GameScene');
     const levelData = gameScene?.levelData;
+    
+    // Vị trí mặc định cho thanh thời gian
+    let timeY = 322;
+    
+    // KHỐI 1: Hiển thị số move (nếu có maxMoves)
+    if (levelData && levelData.maxMoves !== undefined && levelData.maxMoves !== null) {
+      // Tạo label "Moves" và số lượt còn lại ở dưới
+      const moveX = 455;
+      const moveLabelY = 183;
+      const moveValueY = moveLabelY + 35;
+
+      this.movesLabel = this.add.text(moveX, moveLabelY, 'Moves', {
+        fontSize: '24px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
+      })
+      .setOrigin(0.5)
+      .setDepth(10);
+
+      this.movesText = this.add.text(moveX, moveValueY, `${levelData.maxMoves}`, {
+        fontSize: '28px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
+      })
+      .setOrigin(0.5)
+      .setDepth(10);
+      
+      // Đăng ký listener để cập nhật số move
+      this.game.events.on('moveUpdated', this.handleMoveUpdated, this);
+    }
+    
+    // KHỐI 2: Hiển thị thanh thời gian (nếu có starTimes)
     if (levelData && levelData.starTimes) {
       // 2) Kích thước thực tế trên màn hình
-      const barWidth = 295; // dùng chiều rộng mong muốn cố định theo yêu cầu
+      const barWidth = 295;
       const barHeight = 119*0.20;
-      // 3) Vị trí theo debug: căn giữa theo chiều ngang, y theo phần trăm
-      const barX = 139; // căn giữa
-      const barY = 322; // vị trí Y cố định
+      // 3) Vị trí (có thể đã được điều chỉnh bởi khối move ở trên)
+      const barX = 139;
+      const barY = timeY;
 
       // 4) Tạo progress bar với thông số chính xác
-      // Truyền CHỈ width; ProgressBar sẽ tự tính height theo tỉ lệ texture
       this.progressBar = new ProgressBar(this, barX, barY, barWidth, barHeight, levelData.starTimes);
+      
+      // Đăng ký listener để cập nhật timer
+      this.game.events.on('updateTimer', this.handleUpdateTimer, this);
     }
     else {
-      // Không có cấu hình thời gian: tránh đăng ký cập nhật thanh tiến trình
+      // Không có cấu hình thời gian
       this.progressBar = null;
     }
 
     // === PHẦN MỚI: TẠO BẢNG NHIỆM VỤ ===
     this.createObjectivesPanel(levelData);
 
-    // Đăng ký listener qua handler tách riêng để dễ off khi shutdown
-    // Chỉ đăng ký nếu có progressBar (tức là có starTimes)
-    if (levelData && levelData.starTimes) {
-      this.game.events.on('updateTimer', this.handleUpdateTimer, this)
-    }
+    // === TẠO HIỂN THỊ ĐIỂM ===
+    const scoreX = 455;
+    const scoreLabelY = 90;
+    const scoreValueY = scoreLabelY + 35;
+
+    this.scoreLabel = this.add.text(scoreX, scoreLabelY, 'Score', {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5).setDepth(10);
+
+    this.scoreText = this.add.text(scoreX, scoreValueY, '0', {
+      fontSize: '28px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5).setDepth(10);
+
+    this.game.events.on('scoreUpdated', this.handleScoreUpdated, this);
+
+    // Đăng ký listener cho levelFailed
+    this.game.events.on('levelFailed', this.handleLevelFailed, this);
 
     // --- DANH SÁCH CÁC NÚT VỚI VỊ TRÍ VÀ SCALE CỤ THỂ ---
     // Dữ liệu được lấy trực tiếp từ các hình ảnh bạn đã cung cấp.
@@ -137,7 +203,9 @@ export class UIScene extends Phaser.Scene {
     // Khi hết giờ và chưa mở Win/Lose
     if ((currentTime ?? 0) <= 0 && !this.levelCompletedShown && !this.levelFailedShown) {
       
-      // << THAY ĐỔI CHÍNH BẮT ĐẦU TỪ ĐÂY >>
+      // Đặt cờ thua để ngăn handleLevelFailed chạy
+      this.levelFailedShown = true;
+      
       // 1. Lấy thông tin chung
       const gameScene = this.scene.get('GameScene');
       const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
@@ -159,7 +227,6 @@ export class UIScene extends Phaser.Scene {
       } else {
         // TRƯỜNG HỢP 1: CHƯA HOÀN THÀNH (Thua)
         console.log("[UIScene] Hết giờ và CHƯA HOÀN THÀNH. Tính là Lose.");
-        this.levelFailedShown = true; // Đánh dấu là đã xử lý thua
         
         // Thu thập kết quả (ví dụ: 7/10) để LosePopup hiển thị
         const results = this.collectResultsFromObjectives(objectives);
@@ -167,7 +234,6 @@ export class UIScene extends Phaser.Scene {
         // Hiển thị LosePopup khi board rảnh
         this.showLosePopupWhenIdle(levelId, objectives, results);
       }
-      // << KẾT THÚC THAY ĐỔI >>
     }
   }
 
@@ -429,6 +495,53 @@ export class UIScene extends Phaser.Scene {
     this.game.events.on('boardBusy', handler, this);
   }
 
+  // Xử lý cập nhật số move còn lại
+  handleMoveUpdated(moves) {
+    if (this.movesText) {
+      this.movesText.setText(`${moves}`);
+    }
+  }
+
+  /**
+   * [HÀM MỚI] Cập nhật điểm số hiển thị trên UI
+   */
+  handleScoreUpdated(newScore) {
+    if (!this.scoreText) return;
+
+    this.scoreText.setText(`${newScore}`);
+    this.tweens.killTweensOf(this.scoreText);
+    this.tweens.add({
+      targets: this.scoreText,
+      scale: 1.15,
+      duration: 80,
+      yoyo: true,
+      ease: 'Quad.easeOut'
+    });
+  }
+ 
+  // Xử lý thua do hết move
+  handleLevelFailed() {
+    // Ngắt chọn booster nếu có
+    this.handleBoosterCleared();
+    
+    // Kiểm tra cờ tránh mở popup nhiều lần
+    if (this.levelCompletedShown || this.levelFailedShown) return;
+    this.levelFailedShown = true;
+    
+    console.log('[UIScene] Level failed - out of moves');
+    
+    // Lấy thông tin level
+    const gameScene = this.scene.get('GameScene');
+    const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+    const objectives = gameScene?.levelData?.objectives || [];
+    
+    // Thu thập kết quả đã đạt được
+    const results = this.collectResultsFromObjectives(objectives);
+    
+    // Hiển thị LosePopup khi board rảnh
+    this.showLosePopupWhenIdle(levelId, objectives, results);
+  }
+
   shutdown() {
     console.log('UIScene is shutting down, removing global listeners...')
     this.game.events.off('updateTimer', this.handleUpdateTimer, this)
@@ -437,6 +550,9 @@ export class UIScene extends Phaser.Scene {
     this.game.events.off('screenShake', this.handleScreenShake, this)
     this.game.events.off('objectiveUpdated', this.handleObjectiveUpdate, this); // << DỌN DẸP LISTENER
     this.game.events.off('levelCompleted', this.handleLevelCompleted, this);
+    this.game.events.off('moveUpdated', this.handleMoveUpdated, this); // << DỌN DẸP LISTENER MỚI
+    this.game.events.off('levelFailed', this.handleLevelFailed, this); // << DỌN DẸP LISTENER MỚI
+    this.game.events.off('scoreUpdated', this.handleScoreUpdated, this);
     
     // << DỌN DẸP TƯƠNG ỨNG >>
     // this.game.events.off('powerupActivated', this.handlePowerupActivated, this)

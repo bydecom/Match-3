@@ -1,5 +1,6 @@
 // src/scenes/popups/SpinPopup.js
 import Phaser from 'phaser';
+import APIManager from '../../managers/APIManager';
 
 export class SpinPopup extends Phaser.Scene {
     constructor() {
@@ -63,7 +64,7 @@ export class SpinPopup extends Phaser.Scene {
         ];
 
         const itemCount = 8;
-        const radius = 180; // Bán kính vòng tròn (tính theo scale 0.4)
+        const radius = 170; // Bán kính vòng tròn (tính theo scale 0.4)
         const angleStep = (360 / itemCount) * (Math.PI / 180); // Góc giữa mỗi item (radian)
 
         // Chuyển độ lệch gốc sang Radian
@@ -82,26 +83,16 @@ export class SpinPopup extends Phaser.Scene {
             // (angle là góc vị trí, + Math.PI / 2 là +90 độ để hướng "lên" của item trùng với hướng ra tâm)
             itemContainer.setRotation(angle + (Math.PI / 2));
 
-            // Chọn texture và quantity theo loại item
+            // Lấy trực tiếp dữ liệu từ mảng wheelItems, không random
             const def = wheelItems[i];
-            const keyMap2 = {
-                booster_hammer: 'hammer_2',
-                booster_shuffle: 'shuffle_2',
-                booster_rocket: 'rocket_2',
-                booster_swap: 'swap_2'
-            };
-            let quantity;
-            let textureKey;
+            const quantity = def.quantity;
+            const textureKey = def.texture;
             let rewardType;
             let baseKey = null;
             if (def.kind === 'special') {
-                quantity = def.quantity;
-                textureKey = def.texture;
                 rewardType = def.rewardType; // 'coin' | 'heart'
             } else {
                 baseKey = def.baseKey;
-                quantity = Phaser.Math.Between(1, 2);
-                textureKey = quantity === 2 ? (keyMap2[baseKey] || baseKey) : baseKey;
                 rewardType = baseKey;
             }
 
@@ -222,7 +213,7 @@ export class SpinPopup extends Phaser.Scene {
     /**
      * Bắt đầu quá trình quay và xác định người thắng
      */
-    startSpin() {
+    async startSpin() {
         this.isSpinning = true;
         this.spinButton.disableInteractive();
         this.spinButton.setAlpha(0.7);
@@ -237,9 +228,34 @@ export class SpinPopup extends Phaser.Scene {
             repeat: 40
         });
 
-        // Chọn item trúng thưởng ngẫu nhiên
-        const winningIndex = Phaser.Math.Between(0, this.items.length - 1);
-        const reward = this.items[winningIndex].getData('reward');
+        let winningIndex = 0;
+        try {
+            console.log("Đang chờ kết quả spin từ backend...");
+            const response = await APIManager.spinWheel();
+
+            if (response && response.success) {
+                const prizeId = response.prizeId;
+                console.log(`Backend trả về giải: ${prizeId}`);
+
+                const foundIndex = this.items.findIndex(item => {
+                    const reward = item.getData('reward');
+                    return reward && reward.type === prizeId;
+                });
+
+                if (foundIndex !== -1) {
+                    winningIndex = foundIndex;
+                } else {
+                    console.warn(`Không tìm thấy item cho ID: ${prizeId}. Mặc định trúng ô 0.`);
+                    winningIndex = 0;
+                }
+            } else {
+                console.error('Lỗi khi spin từ BE, mặc định trúng ô 0.');
+                winningIndex = 0;
+            }
+        } catch (error) {
+            console.error('Lỗi nghiêm trọng khi gọi API spin:', error);
+            winningIndex = 0;
+        }
 
         // Tính toán góc quay cần đạt (độ)
         const angleStepDegrees = 360 / this.items.length;
@@ -261,8 +277,12 @@ export class SpinPopup extends Phaser.Scene {
                 this.isSpinning = false;
                 this.spinButton.setInteractive();
                 this.spinButton.setAlpha(1);
-                console.log('--- SPIN DONE ---');
+
+                const reward = this.items[winningIndex].getData('reward');
+                console.log('--- SPIN DONE (Theo BE) ---');
                 console.log('Reward:', reward);
+
+                // TODO: Gửi thông tin xác nhận nhận thưởng về BE và cập nhật inventory
             }
         });
     }

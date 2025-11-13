@@ -1,4 +1,5 @@
 // src/managers/APIManager.js
+import Phaser from 'phaser';
 import { BOOSTER_TYPES } from '../utils/constants';
 
 /**
@@ -90,6 +91,37 @@ class APIManager {
 
         // Nếu không có data, hoặc data đã hết hạn -> Tạo mới
         return this._generateNewShopData();
+    }
+
+    /**
+     * GIẢ LẬP BE: Người chơi nhấn nút spin, BE tính toán và trả về ID giải thưởng
+     * @returns {Promise<object>} Đối tượng chứa { success: true, prizeId: "ID_GIAI_THUONG" }
+     */
+    async spinWheel() {
+        console.log("CLIENT: Requesting wheel spin...");
+        await this._simulateNetworkDelay(200 + Math.random() * 400); // Giả lập độ trễ 0.2-0.6s
+
+        // BE logic: chọn ngẫu nhiên một giải
+        // Đây là các "ID" (reward.type) mà BE có thể trả về,
+        // dựa trên mảng wheelItems CỐ ĐỊNH trong SpinPopup.js
+        const possiblePrizes = [
+            'booster_hammer',   // Ứng với hammer_2
+            'booster_shuffle',  // Ứng với shuffle_2
+            'coin',             // Ứng với coin_x2
+            'booster_rocket',   // Ứng với rocket_2
+            'heart',            // Ứng với heart_2
+            'booster_shuffle',
+            'booster_rocket',
+            'booster_swap'      // Ứng với swap_2
+        ];
+
+        // BE chọn ngẫu nhiên 1 giải và trả về ID
+        const prizeId = Phaser.Math.RND.pick(possiblePrizes);
+
+        console.log("SERVER SIM: Returning prize ID:", prizeId);
+
+        // Trả về cấu trúc chuẩn mà FE sẽ dùng
+        return { success: true, prizeId: prizeId };
     }
 }
 

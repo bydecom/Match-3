@@ -38,10 +38,10 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
         this.add(this.coinIcon);
         
         // Tạo text hiển thị số coin
-        this.coinText = this.scene.add.text(280, 30, this.playerData.currency.coins.toString(), {
+        this.coinText = this.scene.add.text(285, 33, this.playerData.currency.coins.toString(), {
             fontSize: '20px',
             color: '#FFD700',
-            fontFamily: 'Arial',
+            fontFamily: 'Nabila',
             stroke: '#000000',
             strokeThickness: 2
         });
@@ -56,10 +56,10 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
         this.add(this.heartIcon);
         
         // Tạo text hiển thị số heart
-        this.heartText = this.scene.add.text(80, 30, this.playerData.currency.lives.toString(), {
+        this.heartText = this.scene.add.text(105, 33, this.playerData.currency.lives.toString(), {
             fontSize: '20px',
             color: '#FF6B6B',
-            fontFamily: 'Arial',
+            fontFamily: 'Nabila',
             stroke: '#000000',
             strokeThickness: 2
         });

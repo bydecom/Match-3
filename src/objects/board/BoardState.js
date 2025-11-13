@@ -1,5 +1,5 @@
 // src/objects/board/BoardState.js
-import { GEM_TYPES, GRID_SIZE } from '../../utils/constants'
+import { GEM_TYPES, GRID_SIZE, SCORE_VALUES } from '../../utils/constants'
 
 export class BoardState {
   initGrid() {
@@ -11,6 +11,11 @@ export class BoardState {
     this.powerupActivations = {}; // { bomb: n, stripe: n, color_bomb: n }
     this.blockerCounts = {}; // { stone: n, rope: n, ... }
     this.levelWon = false; // Cờ thắng để tránh emit nhiều lần
+    // Theo dõi move
+    this.movesRemaining = null;
+    this.isMoveBasedLevel = false;
+    this.levelFailed = false; // Cờ thua để tránh emit nhiều lần
+    this.chainLevel = 1; // Đếm chuỗi phản ứng hiện tại
     for (let row = 0; row < GRID_SIZE; row++) {
       this.grid[row] = []
       this.blockerGrid[row] = []
@@ -45,15 +50,29 @@ export class BoardState {
   }
 
   // << THÊM HÀM MỚI: Khởi tạo bộ theo dõi nhiệm vụ >>
-  initializeObjectives(levelObjectives) {
+  initializeObjectives(levelData) {
     this.objectives = {};
-    if (!levelObjectives) return;
+    if (!levelData) return;
 
-    levelObjectives.forEach(obj => {
-      const key = `${obj.target}_${obj.type}`;
-      this.objectives[key] = { ...obj, remaining: obj.count };
-    });
-    console.log('Objectives initialized:', this.objectives);
+    const levelObjectives = levelData.objectives;
+    if (levelObjectives) {
+      levelObjectives.forEach(obj => {
+        const key = `${obj.target}_${obj.type}`;
+        this.objectives[key] = { ...obj, remaining: obj.count };
+      });
+      console.log('Objectives initialized:', this.objectives);
+    }
+
+    // Khởi tạo move-based level nếu có maxMoves
+    if (levelData.maxMoves !== undefined && levelData.maxMoves !== null) {
+      this.movesRemaining = levelData.maxMoves;
+      this.isMoveBasedLevel = true;
+      console.log('Move-based level initialized with', this.movesRemaining, 'moves');
+      // Emit sự kiện để UI cập nhật
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('moveUpdated', this.movesRemaining);
+      }
+    }
 
     // Cập nhật đếm blocker hiện có trên bảng ngay khi khởi tạo mục tiêu
     this.recalculateBlockerCounts();
@@ -269,6 +288,13 @@ export class BoardState {
       return
     }
 
+    // Swap hợp lệ: trừ move (nếu không phải booster)
+    if (!options.isBooster) {
+      this.decrementMove();
+    }
+
+    this.chainLevel = 1;
+
     this.startActionChain(matchGroups, powerupToActivate, otherGem, swapPosition)
   }
 
@@ -471,6 +497,26 @@ export class BoardState {
       })
       for (const type in gemCounts) {
         this.updateObjectiveProgress('gem', type, gemCounts[type])
+      }
+
+      // --- Tính điểm cho lượt hiện tại ---
+      let pointsThisTurn = 0
+      const multiplier = Math.pow(SCORE_VALUES.CHAIN_MULTIPLIER, Math.max(0, this.chainLevel - 1))
+      const totalGemsRemoved = Object.values(gemCounts).reduce((sum, value) => sum + value, 0)
+
+      pointsThisTurn += totalGemsRemoved * SCORE_VALUES.GEM_MATCH * multiplier
+
+      if (powerupToActivate) {
+        if (otherGem && this.isPowerup(otherGem)) {
+          pointsThisTurn += SCORE_VALUES.POWERUP_ACTIVATE_COMBO * multiplier
+        } else {
+          pointsThisTurn += SCORE_VALUES.POWERUP_ACTIVATE_SINGLE * multiplier
+        }
+      }
+
+      if (pointsThisTurn > 0 && this.scene && this.scene.game && this.scene.game.events) {
+        console.log(`Chain ${this.chainLevel}: Adding ${pointsThisTurn} points! (Gems: ${totalGemsRemoved}, Multiplier: x${multiplier})`)
+        this.scene.game.events.emit('addScore', pointsThisTurn)
       }
 
       // Xóa sprite theo tập cuối cùng
@@ -717,6 +763,13 @@ export class BoardState {
           this.blockerGrid[r][c] = null;
           blockerDestroyedThisPass = true;
           if (blocker.type === 'rope') this.ropeDestroyedThisTurn = true;
+
+          const multiplier = Math.pow(SCORE_VALUES.CHAIN_MULTIPLIER, Math.max(0, this.chainLevel - 1));
+          const points = SCORE_VALUES.BLOCKER_DESTROY * multiplier;
+          if (this.scene && this.scene.game && this.scene.game.events) {
+            console.log(`Chain ${this.chainLevel}: Blocker destroyed, +${points} points!`);
+            this.scene.game.events.emit('addScore', points);
+          }
         }
       }
     });
@@ -962,7 +1015,7 @@ applyGravityAndRefill() {
 
   // BƯỚC 4: CHẠY HIỆU ỨNG RƠI GIẢ
   this.playFakeGravityEffect(() => {
-      this.checkForNewMatches();
+      this.checkForNewMatches(this.chainLevel);
   });
 }
 
@@ -1244,7 +1297,7 @@ applyGravityAndRefill() {
     }
   }
 
-  checkForNewMatches() {
+  checkForNewMatches(currentChainLevel = 1) {
     // Chặn auto match nếu gravity effect đang chạy
     if (this.isGravityEffectRunning) {
       console.log('Gravity effect is running, skipping auto match')
@@ -1254,6 +1307,7 @@ applyGravityAndRefill() {
     const newMatchGroups = this.findAllMatches()
     if (newMatchGroups.length > 0) {
       console.log('Found new matches after refill, processing...')
+      this.chainLevel = currentChainLevel + 1
       this.startActionChain(newMatchGroups, null, null, null)
     } else {
       this.endOfTurn()
@@ -1278,6 +1332,7 @@ applyGravityAndRefill() {
     }
     // Reset cờ cho lượt tiếp theo và bật input
     this.ropeDestroyedThisTurn = false
+    this.chainLevel = 1
     this.boardBusy = false
     this.scene.input.enabled = true
     // Báo cho UI biết board đã rảnh
@@ -1286,6 +1341,11 @@ applyGravityAndRefill() {
     }
     // Sau khi hiệu ứng và refill hoàn tất, kiểm tra và emit thắng nếu đủ điều kiện
     this.maybeEmitLevelCompleted()
+    
+    // Kiểm tra thua do hết move (nếu chưa thắng)
+    if (!this.levelWon && this.isMoveBasedLevel && this.movesRemaining <= 0) {
+      this.handleLevelFailed();
+    }
   }
 
   getPowerupActivationSet(powerupGem, otherGem) {
@@ -1579,6 +1639,32 @@ applyGravityAndRefill() {
       if (this.scene && this.scene.game && this.scene.game.events) {
         this.scene.game.events.emit('levelCompleted');
       }
+    }
+  }
+
+  // Trừ số move còn lại và emit sự kiện
+  decrementMove() {
+    if (!this.isMoveBasedLevel) return;
+    
+    this.movesRemaining--;
+    console.log('Move used. Moves remaining:', this.movesRemaining);
+    
+    // Emit sự kiện để UI cập nhật
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('moveUpdated', this.movesRemaining);
+    }
+  }
+
+  // Xử lý thua game do hết move
+  handleLevelFailed() {
+    if (this.levelFailed) return; // Đã thua rồi, không emit lại
+    
+    this.levelFailed = true;
+    console.log('❌ Level failed - out of moves');
+    
+    // Emit sự kiện để UI hiển thị popup thua
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('levelFailed');
     }
   }
 }

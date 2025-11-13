@@ -18,6 +18,7 @@ export class GameScene extends Phaser.Scene {
     this.timer = null
     this.currentTime = 0
     this.isTimerRunning = false
+    this.currentScore = 0
     // --- THUỘC TÍNH CHO SWIPE/TAP ---
     this.swipeState = {
       isDown: false,
@@ -130,6 +131,10 @@ export class GameScene extends Phaser.Scene {
     })
     // Khởi động timer UI nếu có cấu hình
     this.startTimer()
+
+    // --- LOGIC TÍNH ĐIỂM ---
+    this.game.events.on('addScore', this.handleAddScore, this)
+    this.game.events.emit('scoreUpdated', this.currentScore)
   }
 
   // XÓA HÀM createGameGrid() nếu còn (vì không dùng)
@@ -193,7 +198,7 @@ export class GameScene extends Phaser.Scene {
     if (this.levelData) {
         this.board.loadLevel(this.levelData)
         // << GỌI HÀM KHỞI TẠO NHIỆM VỤ CỦA BOARD >>
-        this.board.initializeObjectives(this.levelData.objectives);
+        this.board.initializeObjectives(this.levelData);
     }
     
     // Lắng nghe sự kiện từ Board
@@ -215,7 +220,7 @@ export class GameScene extends Phaser.Scene {
     
     // << GỌI HÀM KHỞI TẠO NHIỆM VỤ CỦA BOARD >>
     if (this.board) {
-      this.board.initializeObjectives(this.levelData.objectives);
+      this.board.initializeObjectives(this.levelData);
     }
   }
 
@@ -289,6 +294,7 @@ export class GameScene extends Phaser.Scene {
     this.game.events.off('boardBusy', this.handleBoardBusy, this)
     this.game.events.off('boosterSelectionCleared', this.handleBoosterCleared, this)
     this.game.events.off('screenShake', this.handleScreenShake, this)
+    this.game.events.off('addScore', this.handleAddScore, this)
 
     // 3. Dọn dẹp input listeners
     this.input.off('pointerdown', this.onPointerDown, this)
@@ -499,47 +505,55 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      const boosterToUse = this.activeBooster
-      this.clearActiveBooster()
+      // Kiểm tra xem click có hợp lệ không
       const targetRow = clickedObjectUp?.getData('row')
       const targetCol = clickedObjectUp?.getData('col')
+      
+      // Shuffle chỉ cần click trúng board, không cần row/col cụ thể
+      const isValidClick = (targetRow !== undefined) || (this.activeBooster === BOOSTER_TYPES.SHUFFLE && clickedObjectUp)
+
+      if (!isValidClick) {
+        // Click không trúng gì (click ra ngoài) -> GIỮ NGUYÊN booster, không làm gì
+        console.log('Booster click missed target. Keeping booster selected.')
+        this.swipeState.downObject = null
+        return
+      }
+
+      // Click hợp lệ -> Tiêu thụ booster và thực thi
+      const boosterToUse = this.activeBooster
+      this.clearActiveBooster()
+      
       switch (boosterToUse) {
         case BOOSTER_TYPES.HAMMER:
-          if (targetRow !== undefined) {
-            this.game.events.emit('boardBusy', true)
-            this.boosterVFXManager.playHammerEffect(targetRow, targetCol, () => {
-              this.board.useHammer(targetRow, targetCol)
-            })
-          }
+          this.game.events.emit('boardBusy', true)
+          this.boosterVFXManager.playHammerEffect(targetRow, targetCol, () => {
+            this.board.useHammer(targetRow, targetCol)
+          })
           break
         case BOOSTER_TYPES.ROCKET:
-          if (targetRow !== undefined) {
-            this.game.events.emit('boardBusy', true)
-            this.boosterVFXManager.playRocketEffect(targetCol, () => {
-              this.board.useRocket(targetRow, targetCol)
-            })
-          }
+          this.game.events.emit('boardBusy', true)
+          this.boosterVFXManager.playRocketEffect(targetCol, () => {
+            this.board.useRocket(targetRow, targetCol)
+          })
           break
         case BOOSTER_TYPES.SHUFFLE:
-          if (clickedObjectUp) {
-            this.game.events.emit('boardBusy', true)
-            const allGemSprites = []
-            const allBlockerSprites = []
-            for (let r = 0; r < GRID_SIZE; r++) {
-              for (let c = 0; c < GRID_SIZE; c++) {
-                const gem = this.board.grid[r]?.[c]
-                if (gem && gem.sprite) allGemSprites.push(gem.sprite)
-                const blocker = this.board.blockerGrid[r]?.[c]
-                if (blocker) allBlockerSprites.push(blocker)
-              }
+          this.game.events.emit('boardBusy', true)
+          const allGemSprites = []
+          const allBlockerSprites = []
+          for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+              const gem = this.board.grid[r]?.[c]
+              if (gem && gem.sprite) allGemSprites.push(gem.sprite)
+              const blocker = this.board.blockerGrid[r]?.[c]
+              if (blocker) allBlockerSprites.push(blocker)
             }
-            this.board.useShuffle()
-            this.boosterVFXManager.playFakeShuffleEffect(allGemSprites, allBlockerSprites, () => {
-              allGemSprites.forEach(gem => { if (gem && gem.active) gem.setVisible(true) })
-              allBlockerSprites.forEach(blocker => { if (blocker && blocker.active) blocker.setVisible(true) })
-              this.board.checkForNewMatches()
-            })
           }
+          this.board.useShuffle()
+          this.boosterVFXManager.playFakeShuffleEffect(allGemSprites, allBlockerSprites, () => {
+            allGemSprites.forEach(gem => { if (gem && gem.active) gem.setVisible(true) })
+            allBlockerSprites.forEach(blocker => { if (blocker && blocker.active) blocker.setVisible(true) })
+            this.board.checkForNewMatches()
+          })
           break
       }
 
@@ -626,5 +640,16 @@ export class GameScene extends Phaser.Scene {
       console.error('Error loading level:', error)
       return null
     }
+  }
+
+  /**
+   * [HÀM MỚI] Xử lý khi nhận điểm từ BoardState
+   */
+  handleAddScore(points) {
+    if (typeof points !== 'number') return
+    if (points <= 0) return
+
+    this.currentScore += points
+    this.game.events.emit('scoreUpdated', this.currentScore)
   }
 }
