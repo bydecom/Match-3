@@ -40,8 +40,11 @@ export class PreloaderScene extends Phaser.Scene {
             }, MIN_LOAD_TIME);
         });
 
-        // Chờ font web sẵn sàng (UTMCookies) để tránh giật font khi vào scene tiếp theo
-        const fontLoadPromise = this.waitForFont('UTMCookies');
+        // Chờ font web sẵn sàng (UTMCookies và NABILA) để tránh giật font khi vào scene tiếp theo
+        const fontLoadPromise = Promise.all([
+            this.waitForFont('UTMCookies'),
+            this.waitForFont('NABILA')
+        ]);
 
         Promise.all([minTimePromise, loadCompletePromise, fontLoadPromise]).then(() => {
             if (!this.scene.isActive()) {
@@ -239,7 +242,8 @@ export class PreloaderScene extends Phaser.Scene {
         
         // Load UI assets cho ResourceDisplay
         this.load.image('coin', 'assets/screen/coin.png');
-        this.load.image('heart', 'assets/screen/heart.png'); 
+        this.load.image('heart', 'assets/screen/heart.png');
+        this.load.image('ticket', 'assets/images/ui/ticket.png');
         this.load.image('spin', 'assets/images/ui/spin.png');
         this.load.image('store', 'assets/images/ui/store.png');
         // VFX - steam

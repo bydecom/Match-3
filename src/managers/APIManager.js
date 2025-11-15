@@ -12,6 +12,7 @@ class APIManager {
     constructor() {
         console.log("Mock API Manager Initialized.");
         this.MOCK_USER_SHOP_KEY = 'mockUserShop';
+        this.MOCK_PURCHASED_ITEMS_KEY = 'mockPurchasedItems';
     }
 
     /**
@@ -31,6 +32,7 @@ class APIManager {
         
         // Danh sách tất cả vật phẩm có thể bán
         const allPossibleItems = [
+            { id: 'ticket', icon: 'ticket', price: 50, isDiscounted: false, originalPrice: 50 },
             { id: 'hammer_1', icon: 'booster_hammer', price: 100, isDiscounted: false, originalPrice: 100 },
             { id: 'swap_1', icon: 'booster_swap', price: 100, isDiscounted: false, originalPrice: 100 },
             { id: 'rocket_1', icon: 'booster_rocket', price: 150, isDiscounted: false, originalPrice: 150 },
@@ -39,7 +41,7 @@ class APIManager {
             { id: 'swap_pack_3', icon: 'booster_swap', price: 250, isDiscounted: true, originalPrice: 300 },
             { id: 'rocket_pack_3', icon: 'booster_rocket', price: 400, isDiscounted: true, originalPrice: 450 },
             { id: 'shuffle_pack_3', icon: 'booster_shuffle', price: 400, isDiscounted: true, originalPrice: 450 },
-            { id: 'coins_small', icon: 'coin', price: 0.99, isDiscounted: false, originalPrice: 0.99 }, // Ví dụ item IAP
+            { id: 'ticket_pack_3', icon: 'ticket', price: 120, isDiscounted: true, originalPrice: 150 },
             { id: 'lives_full', icon: 'heart', price: 100, isDiscounted: false, originalPrice: 100 }
         ];
 
@@ -122,6 +124,134 @@ class APIManager {
 
         // Trả về cấu trúc chuẩn mà FE sẽ dùng
         return { success: true, prizeId: prizeId };
+    }
+
+    /**
+     * API mua item từ shop
+     * @param {string} itemId - ID của item cần mua
+     * @param {number} price - Giá của item
+     * @returns {Promise<object>} { success: boolean, message: string, reward: object }
+     */
+    async buyItem(itemId, price) {
+        console.log(`CLIENT: Requesting to buy item ${itemId} for ${price} coins...`);
+        await this._simulateNetworkDelay(200 + Math.random() * 300);
+
+        // Import PlayerDataManager để kiểm tra và trừ tiền
+        const PlayerDataManager = (await import('./PlayerDataManager')).default;
+        const playerData = PlayerDataManager.getUserData();
+
+        // Kiểm tra đủ coin không
+        if (playerData.currency.coins < price) {
+            console.log("SERVER SIM: Not enough coins!");
+            return { 
+                success: false, 
+                message: 'Không đủ coin để mua item này!' 
+            };
+        }
+
+        // Kiểm tra xem item đã được mua chưa
+        const purchasedItems = this._getPurchasedItemsFromStorage();
+        if (purchasedItems.includes(itemId)) {
+            console.log("SERVER SIM: Item already purchased!");
+            return { 
+                success: false, 
+                message: 'Item này đã được mua rồi!' 
+            };
+        }
+
+        // Trừ tiền
+        playerData.currency.coins -= price;
+
+        // Xác định loại reward và cập nhật inventory
+        let reward = null;
+        
+        if (itemId.startsWith('ticket')) {
+            const quantity = itemId === 'ticket' ? 1 : this._extractQuantityFromId(itemId);
+            playerData.currency.tickets = (playerData.currency.tickets || 0) + quantity;
+            reward = { type: 'ticket', quantity };
+        } else if (itemId.startsWith('hammer_')) {
+            const quantity = this._extractQuantityFromId(itemId);
+            playerData.inventory.boosters.hammer = (playerData.inventory.boosters.hammer || 0) + quantity;
+            reward = { type: 'booster_hammer', quantity };
+        } else if (itemId.startsWith('swap_')) {
+            const quantity = this._extractQuantityFromId(itemId);
+            playerData.inventory.boosters.swap = (playerData.inventory.boosters.swap || 0) + quantity;
+            reward = { type: 'booster_swap', quantity };
+        } else if (itemId.startsWith('rocket_')) {
+            const quantity = this._extractQuantityFromId(itemId);
+            playerData.inventory.boosters.rocket = (playerData.inventory.boosters.rocket || 0) + quantity;
+            reward = { type: 'booster_rocket', quantity };
+        } else if (itemId.startsWith('shuffle_')) {
+            const quantity = this._extractQuantityFromId(itemId);
+            playerData.inventory.boosters.shuffle = (playerData.inventory.boosters.shuffle || 0) + quantity;
+            reward = { type: 'booster_shuffle', quantity };
+        } else if (itemId === 'lives') {
+            playerData.currency.lives = (playerData.currency.lives || 0) + 3;
+            reward = { type: 'lives', quantity: 3 };
+        }
+
+        // Lưu item vào danh sách đã mua
+        purchasedItems.push(itemId);
+        this._savePurchasedItemsToStorage(purchasedItems);
+
+        console.log(`SERVER SIM: Item ${itemId} purchased successfully!`, reward);
+        return { 
+            success: true, 
+            message: 'Mua thành công!',
+            reward: reward
+        };
+    }
+
+    /**
+     * Lấy danh sách item đã mua trong shop hiện tại
+     * @returns {Array<string>} Mảng ID các item đã mua
+     */
+    getPurchasedItems() {
+        return this._getPurchasedItemsFromStorage();
+    }
+
+    /**
+     * Lấy danh sách item đã mua từ localStorage
+     * @returns {Array<string>}
+     */
+    _getPurchasedItemsFromStorage() {
+        const stored = localStorage.getItem(this.MOCK_PURCHASED_ITEMS_KEY);
+        if (stored) {
+            try {
+                const data = JSON.parse(stored);
+                // Kiểm tra xem danh sách có thuộc về shop hiện tại không
+                const shopData = JSON.parse(localStorage.getItem(this.MOCK_USER_SHOP_KEY) || '{}');
+                if (data.shopExpires === shopData.expires_at) {
+                    return data.items || [];
+                }
+            } catch (e) {
+                console.error("Failed to parse purchased items", e);
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Lưu danh sách item đã mua vào localStorage
+     * @param {Array<string>} items
+     */
+    _savePurchasedItemsToStorage(items) {
+        const shopData = JSON.parse(localStorage.getItem(this.MOCK_USER_SHOP_KEY) || '{}');
+        const data = {
+            shopExpires: shopData.expires_at,
+            items: items
+        };
+        localStorage.setItem(this.MOCK_PURCHASED_ITEMS_KEY, JSON.stringify(data));
+    }
+
+    /**
+     * Trích xuất số lượng từ itemId (ví dụ: "hammer_pack_3" -> 3, "hammer_1" -> 1)
+     * @param {string} itemId
+     * @returns {number}
+     */
+    _extractQuantityFromId(itemId) {
+        const match = itemId.match(/(\d+)$/);
+        return match ? parseInt(match[1]) : 1;
     }
 }
 

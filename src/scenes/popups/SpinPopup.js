@@ -1,6 +1,7 @@
 // src/scenes/popups/SpinPopup.js
 import Phaser from 'phaser';
 import APIManager from '../../managers/APIManager';
+import PlayerDataManager from '../../managers/PlayerDataManager';
 
 export class SpinPopup extends Phaser.Scene {
     constructor() {
@@ -104,7 +105,7 @@ export class SpinPopup extends Phaser.Scene {
             itemContainer.add(boosterIcon);
 
             // Lưu dữ liệu phần thưởng trên item
-            const reward = { type: rewardType, quantity, index: i };
+            const reward = { type: rewardType, quantity, index: i, texture: textureKey };
             itemContainer.setData('reward', reward);
 
             this.boardContainer.add(itemContainer);
@@ -163,15 +164,38 @@ export class SpinPopup extends Phaser.Scene {
             if (this.isSpinning) return;
             this.startSpin();
         });
+        
+        // 6.1. Hiển thị số ticket còn lại
+        const playerData = PlayerDataManager.getUserData();
+        this.ticketCountText = this.add.text(width / 2+20, 980, `x${playerData.currency.tickets}`, {
+            fontFamily: 'NABILA',
+            fontSize: '32px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 6,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(5);
+        
+        // 6.2. Thêm icon ticket nhỏ bên cạnh
+        this.ticketIcon = this.add.image(width / 2 -20, 980, 'ticket')
+            .setOrigin(0.5)
+            .setDepth(5);
 
-        // Hiệu ứng hover cho spin button
+        // Hiệu ứng hover cho spin button (chỉ khi enabled)
         this.spinButton.on('pointerover', () => {
-            this.tweens.add({ targets: this.spinButton, scale: 0.42, duration: 100 });
+            if (!this.isSpinning && this.spinButton.input && this.spinButton.input.enabled) {
+                this.tweens.add({ targets: this.spinButton, scale: 0.42, duration: 100 });
+            }
         });
 
         this.spinButton.on('pointerout', () => {
-            this.tweens.add({ targets: this.spinButton, scale: 0.4, duration: 100 });
+            if (!this.isSpinning && this.spinButton.input && this.spinButton.input.enabled) {
+                this.tweens.add({ targets: this.spinButton, scale: 0.4, duration: 100 });
+            }
         });
+        
+        // Kiểm tra và cập nhật trạng thái nút spin ban đầu
+        this.updateSpinButtonState();
 
         // 7. Đảm bảo MapScene resume khi popup tắt
         this.events.on('shutdown', this.onResumeMap, this);
@@ -211,9 +235,42 @@ export class SpinPopup extends Phaser.Scene {
     }
 
     /**
+     * Cập nhật trạng thái nút spin (enable/disable) dựa trên số vé
+     */
+    updateSpinButtonState() {
+        const playerData = PlayerDataManager.getUserData();
+        const hasEnoughTickets = playerData.currency.tickets >= 1;
+        
+        if (hasEnoughTickets) {
+            this.spinButton.setInteractive({ useHandCursor: true });
+            this.spinButton.setAlpha(1);
+        } else {
+            this.spinButton.disableInteractive();
+            this.spinButton.setAlpha(0.5);
+        }
+    }
+    
+    /**
+     * Cập nhật ResourceDisplay trong MapScene
+     */
+    updateResourceDisplay() {
+        const mapScene = this.scene.get('MapScene');
+        if (mapScene && mapScene.resourceDisplay) {
+            mapScene.resourceDisplay.updateDisplay();
+        }
+    }
+    
+    /**
      * Bắt đầu quá trình quay và xác định người thắng
      */
     async startSpin() {
+        // Kiểm tra xem người chơi có đủ ticket không
+        const playerData = PlayerDataManager.getUserData();
+        if (playerData.currency.tickets < 1) {
+            console.log('Không đủ ticket để quay!');
+            return;
+        }
+        
         this.isSpinning = true;
         this.spinButton.disableInteractive();
         this.spinButton.setAlpha(0.7);
@@ -260,29 +317,98 @@ export class SpinPopup extends Phaser.Scene {
         // Tính toán góc quay cần đạt (độ)
         const angleStepDegrees = 360 / this.items.length;
         const winningItemInitialAngle = (winningIndex * angleStepDegrees) + this.baseRotation;
-        const targetAngle = this.pointerTargetAngle;
-        let finalBoardRotation = targetAngle - winningItemInitialAngle;
-        finalBoardRotation += 360 * 5; // quay thêm 5 vòng
-
+        const targetPointerAngle = this.pointerTargetAngle;
+        const rotationOffset = 180; // Bánh xe đang bị ngược, cần xoay thêm 180 độ
+        
+        // 1. Lấy góc hiện tại của board (ví dụ: 0, 1690, 3335...)
         const currentBoardAngle = this.getBoardRotation();
+        
+        // 2. Tính "góc hiệu dụng" (0-360) của board hiện tại
+        // Phép toán (+ 360) % 360 để đảm bảo kết quả luôn dương
+        const currentEffectiveAngle = (currentBoardAngle % 360 + 360) % 360;
+        
+        // 3. Tính "góc hiệu dụng" (0-360) mà chúng ta muốn dừng lại
+        // Đây là góc mà item trúng thưởng (winningItemInitialAngle)
+        // nằm ngay dưới con trỏ (targetPointerAngle)
+        const targetWheelAngle = targetPointerAngle - winningItemInitialAngle - rotationOffset;
+        const targetEffectiveAngle = (targetWheelAngle % 360 + 360) % 360;
+        
+        // 4. Tính toán "khoảng chênh lệch" cần quay thêm (chính là phần "trừ hao" bạn nói)
+        // Chúng ta cần quay từ currentEffectiveAngle -> targetEffectiveAngle
+        const spinDifference = (targetEffectiveAngle - currentEffectiveAngle + 360) % 360;
+        
+        // 5. Tính tổng số độ sẽ quay trong *lần này*
+        // Gồm 5 vòng quay đầy đủ + phần chênh lệch để "trừ hao"
+        const totalSpinThisTurn = (360 * 5) + spinDifference;
+        
+        // 6. Tính góc "đích" cuối cùng mà boardContainer sẽ đạt tới
+        // Bằng góc hiện tại + tổng số độ quay lần này
+        const finalTargetAngle = currentBoardAngle + totalSpinThisTurn;
 
+        // Trừ 1 ticket ngay khi bắt đầu quay
+        PlayerDataManager.getUserData().currency.tickets -= 1;
+        this.updateResourceDisplay();
+        
+        // Cập nhật hiển thị số ticket trong popup
+        if (this.ticketCountText) {
+            this.ticketCountText.setText(`x${PlayerDataManager.getUserData().currency.tickets}`);
+        }
+        
+        // Cập nhật trạng thái nút spin sau khi trừ vé
+        this.updateSpinButtonState();
+        
         this.tweens.add({
             targets: this.boardContainer,
-            angle: currentBoardAngle + finalBoardRotation,
+            // Sử dụng góc đích cuối cùng đã được tính toán chính xác
+            angle: finalTargetAngle,
             duration: 4000,
             ease: 'Cubic.easeOut',
             onComplete: () => {
                 pointerTween.stop();
                 this.pointer.setAngle(0);
                 this.isSpinning = false;
-                this.spinButton.setInteractive();
-                this.spinButton.setAlpha(1);
+                
+                // Cập nhật trạng thái nút spin (có thể disable nếu hết vé)
+                this.updateSpinButtonState();
 
                 const reward = this.items[winningIndex].getData('reward');
                 console.log('--- SPIN DONE (Theo BE) ---');
                 console.log('Reward:', reward);
 
                 // TODO: Gửi thông tin xác nhận nhận thưởng về BE và cập nhật inventory
+                this.playRewardFlyAnimation(reward);
+            }
+        });
+    }
+
+    playRewardFlyAnimation(reward) {
+        if (!reward) return;
+        const textureKey = reward.texture || reward.type;
+        const startX = this.boardContainer ? this.boardContainer.x : this.scale.width / 2;
+        const startY = (this.boardContainer ? this.boardContainer.y : this.scale.height / 2) + 100;
+
+        const icon = this.add.image(startX, startY, textureKey)
+            .setOrigin(0.5)
+            .setScale(1)
+            .setDepth(10)
+            .setAlpha(0);
+
+        this.tweens.add({
+            targets: icon,
+            alpha: 1,
+            y: startY - 150,
+            scale: 0.8,
+            duration: 700,
+            ease: 'Back.Out',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: icon,
+                    alpha: 0,
+                    y: startY - 220,
+                    duration: 400,
+                    ease: 'Quad.In',
+                    onComplete: () => icon.destroy()
+                });
             }
         });
     }

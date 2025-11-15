@@ -29,6 +29,7 @@ class PlayerDataManager {
                 "coins": 1500,
                 "gems": 50,
                 "lives": 5,
+                "tickets": 3,
                 "lastLifeRefillTimestamp": 1721644200000 
             },
             

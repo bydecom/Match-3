@@ -41,7 +41,7 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
         this.coinText = this.scene.add.text(285, 33, this.playerData.currency.coins.toString(), {
             fontSize: '20px',
             color: '#FFD700',
-            fontFamily: 'Nabila',
+            fontFamily: 'NABILA',
             stroke: '#000000',
             strokeThickness: 2
         });
@@ -59,14 +59,13 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
         this.heartText = this.scene.add.text(105, 33, this.playerData.currency.lives.toString(), {
             fontSize: '20px',
             color: '#FF6B6B',
-            fontFamily: 'Nabila',
+            fontFamily: 'NABILA',
             stroke: '#000000',
             strokeThickness: 2
         });
         this.heartText.setOrigin(0, 0.5);
         this.add(this.heartText);
     }
-    
     createSettingsButton() {
         const { width } = this.scene.scale;
         
@@ -113,7 +112,7 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
     }
     
     updateDisplay() {
-        // Cập nhật số coin và heart từ playerData
+        // Cập nhật số coin, heart và ticket từ playerData
         this.coinText.setText(this.playerData.currency.coins.toString());
         this.heartText.setText(this.playerData.currency.lives.toString());
     }

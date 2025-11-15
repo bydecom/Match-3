@@ -28,7 +28,7 @@ export class LevelNode extends Phaser.GameObjects.Container {
         
         // Hiển thị số level (cho cả level khóa và mở)
         this.levelText = this.scene.add.text(0, -6, this.levelId, {
-            font: '28px Nabila',
+            font: '28px NABILA',
             fill: '#ffffff',
         }).setOrigin(0.5).setDepth(1);
         

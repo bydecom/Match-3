@@ -1,6 +1,7 @@
 // src/scenes/popups/ShopPopup.js
 import Phaser from 'phaser';
 import APIManager from '../../managers/APIManager';
+import PlayerDataManager from '../../managers/PlayerDataManager';
 
 export class ShopPopup extends Phaser.Scene {
     constructor() {
@@ -13,6 +14,8 @@ export class ShopPopup extends Phaser.Scene {
         this.prevBtn = null;
         this.nextBtn = null;
         this.pageText = null;
+        this.purchasedItems = []; // Danh sách item đã mua
+        this.coinDisplay = null; // Hiển thị số coin hiện tại
     }
 
     create() {
@@ -39,6 +42,20 @@ export class ShopPopup extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .setDepth(5);
         closeButton.on('pointerdown', () => this.close());
+
+        // 4.1) Hiển thị số coin hiện tại
+        const playerData = PlayerDataManager.getUserData();
+        const coinIcon = this.add.image(width / 2 - 60, 310, 'coin')
+            .setScale(0.3)
+            .setDepth(5);
+        this.coinDisplay = this.add.text(width / 2 - 30, 310, `${playerData.currency.coins}`, {
+            fontFamily: 'NABILA',
+            fontSize: '28px',
+            color: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold'
+        }).setOrigin(0, 0.5).setDepth(5);
 
         // 5) Lớp chứa item để tiện xoá/vẽ lại khi đổi trang
         this.itemsLayer = this.add.container(0, 0).setDepth(3);
@@ -86,7 +103,7 @@ export class ShopPopup extends Phaser.Scene {
         const loadingText = this.add.text(width / 2, height / 2, 'Loading Shop...', {
             fontSize: '24px',
             color: '#fff',
-            fontFamily: 'UTMCookies'
+            fontFamily: 'NABILA'
         }).setOrigin(0.5).setDepth(10);
 
         // vô hiệu hóa lúc đầu
@@ -96,6 +113,10 @@ export class ShopPopup extends Phaser.Scene {
             if (!this.shopData || !this.shopData.items) {
                 throw new Error('Invalid shop data received');
             }
+
+            // Load danh sách item đã mua
+            this.purchasedItems = APIManager.getPurchasedItems();
+            console.log('Purchased items:', this.purchasedItems);
 
             this.totalPages = Math.max(1, Math.ceil(this.shopData.items.length / this.itemsPerPage));
             this.currentPage = 0;
@@ -137,37 +158,56 @@ export class ShopPopup extends Phaser.Scene {
             const container = this.add.container(x, y);
             this.itemsLayer.add(container);
 
+            // Lưu itemData vào container để sử dụng sau
+            container.setData('itemData', item);
+
+            // Kiểm tra xem item đã được mua chưa
+            const isPurchased = this.purchasedItems.includes(item.id);
+
             const icon = this.add.image(0, 0, item.icon)
                 .setOrigin(0.5)
-                .setScale(0.18);
             if (item.icon === 'booster_swap') {
                 icon.y += 5;
             }
+            
+            // Nếu đã mua, thêm overlay màu xám
+            if (isPurchased) {
+                icon.setTint(0x666666); // Màu xám
+                icon.setAlpha(0.5);
+            }
+            
             container.add(icon);
 
             const priceBg = this.add.image(0, 66, 'shop_price_background')
                 .setOrigin(0.5)
                 .setScale(1);
+            
+            // Nếu đã mua, làm mờ priceBg
+            if (isPurchased) {
+                priceBg.setTint(0x666666);
+                priceBg.setAlpha(0.5);
+            }
+            
             container.add(priceBg);
 
-            const priceText = this.add.text(5, 66, `${item.price}` , {
-                fontFamily: 'UTMCookies',
-                fontSize: '20px',
-                color: '#ffffff',
+            const priceText = this.add.text(5, 66, isPurchased ? 'ĐÃ MUA' : `${item.price}`, {
+                fontFamily: 'NABILA',
+                fontSize: isPurchased ? '18px' : '20px',
+                color: isPurchased ? '#999999' : '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 4,
                 fontStyle: 'bold'
             }).setOrigin(0.5);
             container.add(priceText);
 
-            if (item.isDiscounted) {
+            if (item.isDiscounted && !isPurchased) {
                 const badge = this.add.image(34, -30, 'shop_discount_40')
                     .setOrigin(0.5)
                     .setScale(0.4);
                 container.add(badge);
 
                 const originalText = this.add.text(5, 50, `${item.originalPrice}`, {
-                    fontFamily: 'UTMCookies',
+                    fontFamily: 'NABILA',
                     fontSize: '16px',
                     color: '#ffffff',
                     stroke: '#000000',
@@ -189,12 +229,36 @@ export class ShopPopup extends Phaser.Scene {
                 priceText.setAngle(-6);
             }
 
-            container.setSize(90, 90);
-            container.setInteractive({ useHandCursor: true });
-            container.on('pointerdown', () => {
-                console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
-                // TODO: APIManager.buyItem(item.id)
-            });
+            // Đặt hitArea để bao gồm cả icon và price
+            // Icon ở y=0, price ở y=66, nên vùng click từ y=-40 đến y=85
+            const hitAreaWidth = 100;
+            const hitAreaHeight = 130;
+            
+            // Chỉ cho phép click nếu chưa mua
+            if (!isPurchased) {
+                container.setSize(hitAreaWidth, hitAreaHeight);
+                container.setInteractive(
+                    new Phaser.Geom.Rectangle(-hitAreaWidth/2, -hitAreaHeight/2, hitAreaWidth, hitAreaHeight), 
+                    Phaser.Geom.Rectangle.Contains,
+                    { useHandCursor: true }
+                );
+                
+                container.on('pointerdown', () => {
+                    console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
+                    this.handleBuyItem(item);
+                });
+                
+                // Thêm hiệu ứng hover
+                container.on('pointerover', () => {
+                    this.tweens.add({ targets: container, scale: 1.05, duration: 100 });
+                });
+                container.on('pointerout', () => {
+                    this.tweens.add({ targets: container, scale: 1, duration: 100 });
+                });
+            } else {
+                // Nếu đã mua, vẫn set size để tránh lỗi
+                container.setSize(hitAreaWidth, hitAreaHeight);
+            }
         });
 
         this.updateButtons();
@@ -212,6 +276,176 @@ export class ShopPopup extends Phaser.Scene {
         }
         if (this.pageText) {
             this.pageText.setText(dataLoaded ? `${this.currentPage + 1}/${this.totalPages}` : '-/-');
+        }
+    }
+    
+    async handleBuyItem(item) {
+        // Disable tất cả interaction trong lúc đang xử lý
+        this.setShopInteractionEnabled(false);
+        
+        try {
+            // Gọi API mua item thông qua APIManager
+            const result = await APIManager.buyItem(item.id, item.price);
+            
+            if (result.success) {
+                // Mua thành công
+                console.log(`Đã mua ${item.id} thành công!`, result.reward);
+                
+                // Thêm item vào danh sách đã mua
+                this.purchasedItems.push(item.id);
+                
+                // Cập nhật hiển thị coin
+                const playerData = PlayerDataManager.getUserData();
+                if (this.coinDisplay) {
+                    this.coinDisplay.setText(`${playerData.currency.coins}`);
+                }
+                
+                // Cập nhật ResourceDisplay
+                this.updateResourceDisplay();
+                
+                // Hiển thị thông báo thành công
+                this.showPurchaseSuccessMessage(item, result.reward);
+                
+                // Render lại trang hiện tại để cập nhật màu xám
+                this.renderPage(this.currentPage);
+            } else {
+                // Mua thất bại
+                console.log(`Không thể mua ${item.id}: ${result.message}`);
+                this.showErrorMessage(result.message);
+                
+                // Enable lại interaction nếu thất bại
+                this.setShopInteractionEnabled(true);
+            }
+            
+        } catch (error) {
+            console.error('Lỗi khi mua item:', error);
+            this.showErrorMessage('Có lỗi xảy ra. Vui lòng thử lại!');
+            
+            // Enable lại interaction nếu có lỗi
+            this.setShopInteractionEnabled(true);
+        }
+    }
+    
+    setShopInteractionEnabled(enabled) {
+        const hitAreaWidth = 100;
+        const hitAreaHeight = 130;
+        
+        // Disable/enable tất cả container trong itemsLayer
+        this.itemsLayer.each((container) => {
+            if (enabled) {
+                // Chỉ enable nếu item chưa được mua
+                const itemData = container.getData('itemData');
+                if (itemData && !this.purchasedItems.includes(itemData.id)) {
+                    container.setInteractive(
+                        new Phaser.Geom.Rectangle(-hitAreaWidth/2, -hitAreaHeight/2, hitAreaWidth, hitAreaHeight), 
+                        Phaser.Geom.Rectangle.Contains,
+                        { useHandCursor: true }
+                    );
+                }
+            } else {
+                container.disableInteractive();
+            }
+        });
+        
+        // Disable/enable nút prev/next
+        if (this.prevBtn) {
+            if (enabled && this.currentPage > 0) {
+                this.prevBtn.setInteractive();
+            } else {
+                this.prevBtn.disableInteractive();
+            }
+        }
+        
+        if (this.nextBtn) {
+            if (enabled && this.currentPage < this.totalPages - 1) {
+                this.nextBtn.setInteractive();
+            } else {
+                this.nextBtn.disableInteractive();
+            }
+        }
+    }
+    
+    showErrorMessage(message) {
+        const { width, height } = this.scale;
+        const messageText = this.add.text(width / 2, height / 2, message, {
+            fontFamily: 'NABILA',
+            fontSize: '28px',
+            color: '#ffffff',
+            stroke: '#ff0000',
+            strokeThickness: 6,
+            align: 'center',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(100);
+        
+        // Hiệu ứng scale + fade out
+        this.tweens.add({
+            targets: messageText,
+            scale: 1.1,
+            duration: 200,
+            yoyo: true,
+            onComplete: () => {
+                this.tweens.add({
+                    targets: messageText,
+                    alpha: 0,
+                    duration: 500,
+                    delay: 1000,
+                    onComplete: () => messageText.destroy()
+                });
+            }
+        });
+    }
+    
+    showPurchaseSuccessMessage(item, reward) {
+        const { width, height } = this.scale;
+        
+        // Tạo text động dựa trên reward
+        let rewardText = '';
+        if (reward) {
+            if (reward.type === 'ticket') {
+                rewardText = '\n+1 Vé Quay';
+            } else if (reward.type.startsWith('booster_')) {
+                const boosterName = reward.type.replace('booster_', '').toUpperCase();
+                rewardText = `\n+${reward.quantity} ${boosterName}`;
+            } else if (reward.type === 'lives') {
+                rewardText = '\n❤️ Hồi đầy Lives';
+            } else if (reward.type === 'coins') {
+                rewardText = `\n+${reward.quantity} Coins`;
+            }
+        }
+        
+        const messageText = this.add.text(width / 2, height / 2, `Mua thành công!${rewardText}`, {
+            fontFamily: 'NABILA',
+            fontSize: '28px',
+            color: '#00ff00',
+            stroke: '#000000',
+            strokeThickness: 6,
+            align: 'center',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(100);
+        
+        // Hiệu ứng bounce + fade out
+        this.tweens.add({
+            targets: messageText,
+            scale: 1.2,
+            duration: 200,
+            ease: 'Back.easeOut',
+            yoyo: true,
+            onComplete: () => {
+                this.tweens.add({
+                    targets: messageText,
+                    alpha: 0,
+                    duration: 500,
+                    delay: 1500,
+                    onComplete: () => messageText.destroy()
+                });
+            }
+        });
+    }
+    
+    updateResourceDisplay() {
+        const mapScene = this.scene.get('MapScene');
+        if (mapScene && mapScene.resourceDisplay) {
+            mapScene.resourceDisplay.updateDisplay();
         }
     }
 
