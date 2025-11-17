@@ -1,6 +1,21 @@
 // src/ui/LevelNode.js
 import Phaser from 'phaser';
 
+// Mapping tọa độ cứng cho các số từ 1 đến 9 (và số mặc định)
+// Bạn hãy tinh chỉnh từng số x, y ở đây cho đến khi vừa mắt trong game
+const NUMBER_OFFSETS = {
+    '1': { x: 0, y: -12 }, // Số 1 thường hẹp, có thể cần x thụt vào
+    '2': { x: 0, y: -12 },
+    '3': { x: 0, y: -14 },
+    '4': { x: 0, y: -14 },
+    '5': { x: 0, y: -13 },
+    '6': { x: 0, y: -12 },
+    '7': { x: 1, y: -13 },
+    '8': { x: 0, y: -10 },
+    '9': { x: 0, y: -11 },
+    'default': { x: 0, y: -12 } // Dùng cho số > 9 hoặc số 0
+};
+
 export class LevelNode extends Phaser.GameObjects.Container {
     constructor(scene, x, y, levelId, isLocked = false, stars = 0) {
         super(scene, x, y);
@@ -27,12 +42,19 @@ export class LevelNode extends Phaser.GameObjects.Container {
         this.add(this.button);
         
         // Hiển thị số level (cho cả level khóa và mở)
-        this.levelText = this.scene.add.text(0, -6, this.levelId, {
+        // KHÔNG set cứng tọa độ ở đây nữa, set 0,0 tạm
+        this.levelText = this.scene.add.text(0, 0, String(this.levelId), {
             font: '28px NABILA',
             fill: '#ffffff',
-        }).setOrigin(0.5).setDepth(1);
+            stroke: '#000000', // Thêm viền đen để nổi bật hơn
+            strokeThickness: 3,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(10); // Tăng depth để đảm bảo hiển thị trên button
         
         this.add(this.levelText);
+        
+        // Gọi hàm cập nhật vị trí ngay khi khởi tạo
+        this.updateTextPosition(this.levelId);
         
         // Nếu level đã mở, hiển thị các ngôi sao và thêm tương tác
         if (!this.isLocked) {
@@ -100,8 +122,24 @@ export class LevelNode extends Phaser.GameObjects.Container {
         
         // Tạo lại level node với trạng thái mới
         this.createLevelNode();
+        
+        // Cập nhật lại vị trí text sau khi tạo lại
+        if (this.levelText) {
+            this.updateTextPosition(this.levelId);
+        }
     }
     
+    /**
+     * Hàm mới: Tìm tọa độ cứng trong map và gán cho text
+     */
+    updateTextPosition(number) {
+        // Lấy config từ map, nếu không có (ví dụ số 10, 11...) thì dùng default
+        const offset = NUMBER_OFFSETS[String(number)] || NUMBER_OFFSETS['default'];
+        
+        // Gán tọa độ mới
+        this.levelText.setPosition(offset.x, offset.y);
+    }
+
     // Phương thức để lấy thông tin level
     getLevelInfo() {
         return {
@@ -109,5 +147,47 @@ export class LevelNode extends Phaser.GameObjects.Container {
             isLocked: this.isLocked,
             stars: this.stars
         };
+    }
+
+    /**
+     * Hàm thực hiện hiệu ứng mở khóa
+     */
+    playUnlockAnimation() {
+        if (!this.isLocked) return; // Nếu đã mở rồi thì thôi
+
+        // 1. Hiệu ứng Rung lắc (Shake)
+        this.scene.tweens.add({
+            targets: this.button,
+            angle: { from: -10, to: 10 }, // Lắc qua lại
+            duration: 100,
+            yoyo: true,
+            repeat: 5, // Lắc 5 nhịp
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                // 2. Sau khi lắc xong -> Đổi texture và cập nhật trạng thái
+                
+                // Hiệu ứng scale nhẹ lúc đổi hình
+                const originalScale = 0.4;
+                this.scene.tweens.add({
+                    targets: this.button,
+                    scale: originalScale * 1.2, // Phóng to lên xíu
+                    duration: 150,
+                    yoyo: true,
+                    onYoyo: () => {
+                        // Tại đỉnh điểm của phóng to, ta đổi ảnh
+                        this.isLocked = false;
+                        this.button.setTexture('level_unlock');
+                        this.button.setScale(originalScale); // Reset về scale ban đầu
+                        
+                        // Thêm tương tác
+                        this.button.setInteractive({ useHandCursor: true });
+                        this.addButtonEvents();
+                        
+                        // (Tùy chọn) Có thể thêm hạt particle nổ ở đây nếu muốn
+                        console.log(`Level ${this.levelId} unlocked visually!`);
+                    }
+                });
+            }
+        });
     }
 }

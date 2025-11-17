@@ -10,12 +10,20 @@ export class MapScene extends Phaser.Scene {
         super({ key: 'MapScene' });
         // this.mapContainer = null; // <-- BỎ DÒNG NÀY
         this.vfxManager = null;
+        this.targetUnlockNode = null; // Biến lưu node cần animation
         
         /** 
          * Sổ đăng ký map, lưu trữ thông tin vị trí của mỗi map part
          * @type {Map<string, {image: Phaser.GameObjects.Image, offsetY: number, displayHeight: number}>} 
          */
         this.mapRegistry = new Map();
+    }
+
+    /**
+     * Nhận dữ liệu từ WinPopup
+     */
+    init(data) {
+        this.completedLevelId = data?.completedLevelId || null;
     }
 
     /**
@@ -32,6 +40,12 @@ export class MapScene extends Phaser.Scene {
         const { width, height } = this.scale;
         const playerData = PlayerDataManager.getProgression();
         const fullPlayerData = PlayerDataManager.getUserData();
+
+        // Tính toán level cần mở khóa hiệu ứng (là level kế tiếp của level vừa thắng)
+        let nextLevelIdToAnimate = -1;
+        if (this.completedLevelId) {
+            nextLevelIdToAnimate = this.completedLevelId + 1;
+        }
 
         // this.mapContainer = this.add.container(0, 0); // <-- BỎ DÒNG NÀY
 
@@ -105,9 +119,22 @@ export class MapScene extends Phaser.Scene {
             { id: 9, mapKey: 'map_part2', x: 362, y: (180 - map2Offset) }
         ];
 
+        // Reset biến lưu node cần animate
+        this.targetUnlockNode = null;
+
         localLevelPositions.forEach(level => {
-            const isLocked = level.id > playerData.highestLevelUnlocked;
+            // Logic kiểm tra khóa gốc
+            let isLocked = level.id > playerData.highestLevelUnlocked;
             const stars = playerData.levelStars[level.id] || 0;
+            
+            // === LOGIC MỚI: XỬ LÝ HIỆU ỨNG UNLOCK ===
+            // Nếu level này chính là level cần mở khóa (về mặt logic nó đã được mở trong Data, 
+            // nhưng ta muốn hiển thị nó Khóa lúc đầu để chạy animation)
+            if (level.id === nextLevelIdToAnimate && level.id <= playerData.highestLevelUnlocked) {
+                isLocked = true; // Cưỡng ép hiển thị Khóa ban đầu
+                console.log(`Level ${level.id} will be animated to unlock!`);
+            }
+            // ========================================
             
             // *** TÍNH TOÁN TỌA ĐỘ WORLD ***
             const mapOffsetY = this.getMapOffsetY(level.mapKey);
@@ -117,6 +144,11 @@ export class MapScene extends Phaser.Scene {
             console.log(`Level ${level.id} (${level.mapKey}): Local Y=${level.y}, Map Offset=${mapOffsetY}, World Y=${worldY}, Locked=${isLocked}`);
             
             const levelNode = new LevelNode(this, worldX, worldY, level.id, isLocked, stars);
+            
+            // Lưu lại node cần animate
+            if (level.id === nextLevelIdToAnimate) {
+                this.targetUnlockNode = levelNode;
+            }
             
             // Đặt depth cho LevelNode dựa trên map
             // Map_part1 (depth 0): LevelNode depth 5
@@ -132,6 +164,18 @@ export class MapScene extends Phaser.Scene {
             this.add.existing(levelNode); 
             // this.mapContainer.add(levelNode); // <-- THAY DÒNG NÀY
         });
+
+        // --- KÍCH HOẠT ANIMATION NẾU CÓ ---
+        if (this.targetUnlockNode) {
+            // Delay một chút sau khi map hiện lên mới chạy animation
+            this.time.delayedCall(500, () => {
+                // Scroll camera tới node đó nếu cần (tuỳ chọn)
+                this.targetUnlockNode.playUnlockAnimation();
+                
+                // Reset data để không chạy lại khi restart scene bình thường
+                this.completedLevelId = null;
+            });
+        }
 
         // --- 3. CAMERA VÀ INPUT ---
         this.cameras.main.setBounds(0, 0, width, totalHeight);

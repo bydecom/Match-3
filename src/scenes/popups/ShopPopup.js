@@ -43,19 +43,20 @@ export class ShopPopup extends Phaser.Scene {
             .setDepth(5);
         closeButton.on('pointerdown', () => this.close());
 
-        // 4.1) Hiển thị số coin hiện tại
-        const playerData = PlayerDataManager.getUserData();
-        const coinIcon = this.add.image(width / 2 - 60, 310, 'coin')
-            .setScale(0.3)
-            .setDepth(5);
-        this.coinDisplay = this.add.text(width / 2 - 30, 310, `${playerData.currency.coins}`, {
+        // 4.1) Hiển thị số coin hiện tại (vị trí tuyệt đối giống ResourceDisplay)
+        // ResourceDisplay ở (20, 20), coin icon ở (280, 30) trong container
+        // => Vị trí tuyệt đối: (20 + 280, 20 + 30) = (300, 50)
+        const coinIcon = this.add.image(300, 50, 'coin')
+            .setScale(0.4)
+            .setDepth(5)
+            .setScrollFactor(0); // Ghim vào camera giống ResourceDisplay
+        this.coinDisplay = this.add.text(305, 50, `${PlayerDataManager.getCoin()}`, {
             fontFamily: 'NABILA',
-            fontSize: '28px',
+            fontSize: '20px',
             color: '#FFD700',
             stroke: '#000000',
-            strokeThickness: 4,
-            fontStyle: 'bold'
-        }).setOrigin(0, 0.5).setDepth(5);
+            strokeThickness: 2
+        }).setOrigin(0, 0.5).setDepth(5).setScrollFactor(0);
 
         // 5) Lớp chứa item để tiện xoá/vẽ lại khi đổi trang
         this.itemsLayer = this.add.container(0, 0).setDepth(3);
@@ -166,9 +167,37 @@ export class ShopPopup extends Phaser.Scene {
 
             const icon = this.add.image(0, 0, item.icon)
                 .setOrigin(0.5)
+                .setName('itemIcon'); // Đặt tên để tìm kiếm sau này
             if (item.icon === 'booster_swap') {
                 icon.y += 5;
             }
+            if (item.icon === 'ticket') {
+                icon.setScale(1.3);
+            }
+
+            // --- LOGIC MỚI: HIỂN THỊ SỐ LƯỢNG ---
+            let quantity = 1;
+            const match = item.id.match(/_(\d+)$/);
+            if (match) {
+                quantity = parseInt(match[1]);
+            }
+            let quantityText = null;
+            if (quantity > 1 && item.id !== 'lives') {
+                let quantityY = 30;
+                if (item.icon === 'booster_swap') {
+                    quantityY = 35;
+                }
+                quantityText = this.add.text(0, quantityY, `+${quantity}`, {
+                    fontFamily: 'UTMCookies',
+                    fontSize: '24px',
+                    color: '#ffffff',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+
+            }
+            // --- KẾT THÚC LOGIC MỚI ---
             
             // Nếu đã mua, thêm overlay màu xám
             if (isPurchased) {
@@ -178,9 +207,15 @@ export class ShopPopup extends Phaser.Scene {
             
             container.add(icon);
 
+            if (quantityText) {
+                container.add(quantityText);
+                container.bringToTop(quantityText);
+            }
+
             const priceBg = this.add.image(0, 66, 'shop_price_background')
                 .setOrigin(0.5)
-                .setScale(1);
+                .setScale(1)
+                .setName('itemPriceBg'); // Đặt tên để tìm kiếm sau này
             
             // Nếu đã mua, làm mờ priceBg
             if (isPurchased) {
@@ -229,35 +264,34 @@ export class ShopPopup extends Phaser.Scene {
                 priceText.setAngle(-6);
             }
 
-            // Đặt hitArea để bao gồm cả icon và price
-            // Icon ở y=0, price ở y=66, nên vùng click từ y=-40 đến y=85
-            const hitAreaWidth = 100;
-            const hitAreaHeight = 130;
-            
-            // Chỉ cho phép click nếu chưa mua
+            // Chỉ thêm tương tác nếu chưa mua
             if (!isPurchased) {
-                container.setSize(hitAreaWidth, hitAreaHeight);
-                container.setInteractive(
-                    new Phaser.Geom.Rectangle(-hitAreaWidth/2, -hitAreaHeight/2, hitAreaWidth, hitAreaHeight), 
-                    Phaser.Geom.Rectangle.Contains,
-                    { useHandCursor: true }
-                );
-                
-                container.on('pointerdown', () => {
+                // 1. Tương tác cho Icon (chính xác theo pixel)
+                icon.setInteractive({ pixelPerfect: true, useHandCursor: true });
+                icon.on('pointerdown', () => {
                     console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
                     this.handleBuyItem(item);
                 });
                 
-                // Thêm hiệu ứng hover
-                container.on('pointerover', () => {
+                // 2. Tương tác cho Nút giá (hình chữ nhật bình thường)
+                priceBg.setInteractive({ useHandCursor: true });
+                priceBg.on('pointerdown', () => {
+                    console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
+                    this.handleBuyItem(item);
+                });
+                
+                // 3. Hiệu ứng Hover (cho cả hai)
+                const hoverIn = () => {
                     this.tweens.add({ targets: container, scale: 1.05, duration: 100 });
-                });
-                container.on('pointerout', () => {
+                };
+                const hoverOut = () => {
                     this.tweens.add({ targets: container, scale: 1, duration: 100 });
-                });
-            } else {
-                // Nếu đã mua, vẫn set size để tránh lỗi
-                container.setSize(hitAreaWidth, hitAreaHeight);
+                };
+                
+                icon.on('pointerover', hoverIn);
+                icon.on('pointerout', hoverOut);
+                priceBg.on('pointerover', hoverIn);
+                priceBg.on('pointerout', hoverOut);
             }
         });
 
@@ -295,9 +329,8 @@ export class ShopPopup extends Phaser.Scene {
                 this.purchasedItems.push(item.id);
                 
                 // Cập nhật hiển thị coin
-                const playerData = PlayerDataManager.getUserData();
                 if (this.coinDisplay) {
-                    this.coinDisplay.setText(`${playerData.currency.coins}`);
+                    this.coinDisplay.setText(`${PlayerDataManager.getCoin()}`);
                 }
                 
                 // Cập nhật ResourceDisplay
@@ -327,23 +360,22 @@ export class ShopPopup extends Phaser.Scene {
     }
     
     setShopInteractionEnabled(enabled) {
-        const hitAreaWidth = 100;
-        const hitAreaHeight = 130;
-        
-        // Disable/enable tất cả container trong itemsLayer
+        // Disable/enable tất cả item trong itemsLayer
         this.itemsLayer.each((container) => {
+            // Tìm icon và priceBg theo tên đã đặt
+            const icon = container.getByName('itemIcon');
+            const priceBg = container.getByName('itemPriceBg');
+            
             if (enabled) {
                 // Chỉ enable nếu item chưa được mua
                 const itemData = container.getData('itemData');
                 if (itemData && !this.purchasedItems.includes(itemData.id)) {
-                    container.setInteractive(
-                        new Phaser.Geom.Rectangle(-hitAreaWidth/2, -hitAreaHeight/2, hitAreaWidth, hitAreaHeight), 
-                        Phaser.Geom.Rectangle.Contains,
-                        { useHandCursor: true }
-                    );
+                    if (icon) icon.setInteractive({ pixelPerfect: true, useHandCursor: true });
+                    if (priceBg) priceBg.setInteractive({ useHandCursor: true });
                 }
             } else {
-                container.disableInteractive();
+                if (icon) icon.disableInteractive();
+                if (priceBg) priceBg.disableInteractive();
             }
         });
         

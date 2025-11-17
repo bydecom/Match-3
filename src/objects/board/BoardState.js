@@ -68,10 +68,16 @@ export class BoardState {
       this.movesRemaining = levelData.maxMoves;
       this.isMoveBasedLevel = true;
       console.log('Move-based level initialized with', this.movesRemaining, 'moves');
-      // Emit sự kiện để UI cập nhật
-      if (this.scene && this.scene.game && this.scene.game.events) {
+      
+      // --- XÓA HOẶC COMMENT ĐOẠN NÀY ĐỂ TRÁNH LỖI ---
+      // Lý do: UIScene đã tự lấy giá trị ban đầu khi khởi tạo (create).
+      // Việc emit ở đây gây xung đột khi Scene chưa sẵn sàng render.
+      
+      /* if (this.scene && this.scene.game && this.scene.game.events) {
         this.scene.game.events.emit('moveUpdated', this.movesRemaining);
       }
+      */
+      // -----------------------------------------------
     }
 
     // Cập nhật đếm blocker hiện có trên bảng ngay khi khởi tạo mục tiêu

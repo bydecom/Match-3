@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { BOOSTER_TYPES } from '../utils/constants';
 import { ProgressBar } from '../ui/ProgressBar';
 import { ObjectiveItem } from '../ui/ObjectiveItem'; // << THÊM IMPORT
+import PlayerDataManager from '../managers/PlayerDataManager';
 
 export class UIScene extends Phaser.Scene {
   constructor() {
@@ -119,30 +120,65 @@ export class UIScene extends Phaser.Scene {
     // Đăng ký listener cho levelFailed
     this.game.events.on('levelFailed', this.handleLevelFailed, this);
 
-    // --- DANH SÁCH CÁC NÚT VỚI VỊ TRÍ VÀ SCALE CỤ THỂ ---
+    // --- DANH SÁCH CÁC NÚT VỚI VỊ TRÍ VÀ OFFSET CỤ THỂ ---
     // Dữ liệu được lấy trực tiếp từ các hình ảnh bạn đã cung cấp.
     // posX và posY là tọa độ theo phần trăm của màn hình.
+    // Có thể chỉnh offset riêng cho từng booster ở đây.
     const buttons = [
-      // Dữ liệu từ Image3 cho booster_hammer
-      { key: 'booster_hammer', type: BOOSTER_TYPES.HAMMER, posX: 0.7908, posY: 0.9376, scale: 1.2 },
-      
-      // Dữ liệu từ Image3 cho booster_swap
-      { key: 'booster_swap', type: BOOSTER_TYPES.SWAP, posX: 0.5749, posY: 0.9200, scale: 1.2 },
-      
-      // Dữ liệu từ Image3 cho booster_rocket
-      { key: 'booster_rocket', type: BOOSTER_TYPES.ROCKET, posX: 0.3903, posY: 0.9102, scale: 1.2 },
-      
-      // Dữ liệu từ Image3 cho booster_shuffle
-      { key: 'booster_shuffle', type: BOOSTER_TYPES.SHUFFLE, posX: 0.1728, posY: 0.9376, scale: 1.2 },
+      { 
+        key: 'booster_hammer', 
+        type: BOOSTER_TYPES.HAMMER, 
+        posX: 0.7908, posY: 0.9376, scale: 1.2,
+        offsets: {
+          bgX: 30, bgY: 55,
+          textX: 21, textY: 45,
+          iconAddX: 21, iconAddY: 45
+        }
+      },
+      { 
+        key: 'booster_swap', 
+        type: BOOSTER_TYPES.SWAP, 
+        posX: 0.5749, posY: 0.9200, scale: 1.2,
+        offsets: {
+          bgX: 39, bgY: 61,
+          textX: 30, textY: 51,
+          iconAddX: 30, iconAddY: 51
+        }
+      },
+      { 
+        key: 'booster_rocket', 
+        type: BOOSTER_TYPES.ROCKET, 
+        posX: 0.3903, posY: 0.9102, scale: 1.2,
+        offsets: {
+          bgX: 39, bgY: 71,
+          textX: 30, textY: 60,
+          iconAddX: 20, iconAddY: 18
+        }
+      },
+      { 
+        key: 'booster_shuffle', 
+        type: BOOSTER_TYPES.SHUFFLE, 
+        posX: 0.1728, posY: 0.9376, scale: 1.2,
+        offsets: {
+          bgX: 39, bgY: 61,
+          textX:30, textY: 50,
+          iconAddX: 30, iconAddY: 50
+        }
+      },
     ];
     
     // --- TẠO CÁC NÚT DỰA TRÊN DỮ LIỆU ĐÃ ĐỊNH NGHĨA ---
     this.boosterIcons = [];
+    this.boosterQuantityDisplays = {}; // Lưu các text/icon hiển thị số lượng
+    
+    // Sử dụng PlayerDataManager đã được import ở đầu file (không cần playerData nữa)
+    
     buttons.forEach((buttonInfo) => {
       // Chuyển đổi vị trí từ tỷ lệ phần trăm (%) sang tọa độ pixel
       const xPos = width * buttonInfo.posX;
       const yPos = height * buttonInfo.posY;
       
+      // 1. Tạo Icon Booster chính
       const icon = this.add.image(xPos, yPos, buttonInfo.key)
           .setInteractive()
           .setOrigin(0.5)
@@ -154,12 +190,77 @@ export class UIScene extends Phaser.Scene {
 
       this.boosterIcons.push(icon);
 
-      // << SỬA LẠI TOÀN BỘ LOGIC CLICK NÀY >>
+      // 2. Lấy cấu hình offset riêng của booster này
+      const { bgX, bgY, textX, textY, iconAddX, iconAddY } = buttonInfo.offsets;
+
+      // 3. Tạo Background (Nền xanh) tại vị trí đã tinh chỉnh
+      const quantityBg = this.add.image(xPos + bgX, yPos + bgY, 'quantity_background')
+          .setOrigin(1, 1)
+          .setScale(0.4)
+          .setDepth(11);
+      
+      // 4. Lấy số lượng hiện có
+      const boosterKey = buttonInfo.type.toLowerCase();
+      const count = PlayerDataManager.getBoosterCount(boosterKey);
+      
+      // 5. Khởi tạo display ban đầu (text hoặc icon +) dựa trên offset riêng
+      let countDisplay;
+      if (count === 0) {
+        countDisplay = this.add.image(xPos + iconAddX, yPos + iconAddY, 'add_icon')
+            .setOrigin(1, 1)
+            .setScale(0.4)
+            .setDepth(12);
+      } else {
+        countDisplay = this.add.text(xPos + textX, yPos + textY, `${count}`, {
+            fontFamily: 'UTMCookies',
+            fontSize: '18px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3,
+            fontStyle: 'bold'
+        })
+        .setOrigin(1, 1)
+        .setDepth(12);
+      }
+
+      // 6. Lưu trữ thông tin để tái sử dụng khi cập nhật
+      this.boosterQuantityDisplays[buttonInfo.type] = {
+          background: quantityBg,
+          display: countDisplay,
+          count: count,
+          offsets: {
+            bgX,
+            bgY,
+            textX,
+            textY,
+            iconX: iconAddX,
+            iconY: iconAddY
+          }
+      };
+
+      // Logic Click: Kiểm tra số lượng trước khi chọn
       icon.on('pointerdown', () => {
-        // UIScene chỉ cần biết về việc chọn/hủy chọn, không cần biết board có bận hay không
         const clickedType = icon.getData('boosterType');
         console.log(`Booster clicked: ${clickedType}`);
         
+        // Kiểm tra số lượng hiện có
+        const currentCount = PlayerDataManager.getBoosterCount(clickedType.toLowerCase());
+        
+        if (currentCount <= 0) {
+            console.log(`Hết item ${clickedType}! Mở Shop...`);
+            // Mở ShopPopup nếu hết item (Tùy chọn)
+            // this.scene.launch('ShopPopup'); 
+            
+            // Hủy chọn nếu đang chọn cái khác
+            if (this.selectedBoosterType) {
+                this.selectedBoosterType = null;
+                this.game.events.emit('boosterSelectionCleared');
+                this.updateBoosterIconsVisuals();
+            }
+            return; 
+        }
+
+        // Nếu còn item thì xử lý chọn bình thường
         if (this.selectedBoosterType === clickedType) {
           this.selectedBoosterType = null;
           this.game.events.emit('boosterSelectionCleared');
@@ -184,6 +285,9 @@ export class UIScene extends Phaser.Scene {
     this.game.events.on('objectiveUpdated', this.handleObjectiveUpdate, this);
     // Khi hoàn thành toàn bộ mục tiêu -> mở WinPopup
     this.game.events.on('levelCompleted', this.handleLevelCompleted, this);
+    
+    // Lắng nghe sự kiện update số lượng từ GameScene
+    this.game.events.on('boosterCountUpdated', this.handleBoosterCountUpdated, this);
     
     // << CÁC LISTENER NÀY KHÔNG CÒN CẦN THIẾT NỮA, VÌ 'objectiveUpdated' ĐÃ BAO HÀM TẤT CẢ >>
     // << BẠN CÓ THỂ XÓA HOẶC COMMENT CHÚNG ĐI >>
@@ -417,17 +521,22 @@ export class UIScene extends Phaser.Scene {
     if (this.levelCompletedShown) return;
     this.levelCompletedShown = true;
     
-    console.log(`[UIScene] Level completed! Waiting for UI to update...`);
+    console.log(`[UIScene] Level completed! Saving data...`);
+
+    // === GỌI API LƯU TIẾN ĐỘ ===
+    const gameScene = this.scene.get('GameScene');
+    const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
+    const stars = this.calculateStars();
+    
+    // Gọi Manager để lưu số sao và mở khóa level tiếp theo vào Storage
+    PlayerDataManager.completeLevel(levelId, stars);
+    // ======================================
     
     // Delay để UI cập nhật hoàn tất trước khi hiện popup
     // Đảm bảo tất cả animation của objective items đã hoàn tất
     this.time.delayedCall(800, () => {
       // Kiểm tra lại để đảm bảo tất cả nhiệm vụ đã hoàn thành
       if (this.areAllObjectivesCleared()) {
-        // Tính sao và mở popup
-        const stars = this.calculateStars();
-        const gameScene = this.scene.get('GameScene');
-        const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
         console.log(`[UIScene] Ready to show win popup. Waiting boardBusy=false if needed...`);
         this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
       } else {
@@ -435,9 +544,6 @@ export class UIScene extends Phaser.Scene {
         // Nếu chưa hoàn thành, thử lại sau 200ms
         this.time.delayedCall(200, () => {
           if (this.areAllObjectivesCleared()) {
-            const stars = this.calculateStars();
-            const gameScene = this.scene.get('GameScene');
-            const levelId = gameScene?.levelData?.levelId || this.scene.settings?.data?.levelId || 1;
             this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
           }
         });
@@ -497,7 +603,8 @@ export class UIScene extends Phaser.Scene {
 
   // Xử lý cập nhật số move còn lại
   handleMoveUpdated(moves) {
-    if (this.movesText) {
+    // Thêm kiểm tra this.movesText.active để đảm bảo text vẫn còn tồn tại và đang hoạt động
+    if (this.movesText && this.movesText.active) {
       this.movesText.setText(`${moves}`);
     }
   }
@@ -553,6 +660,7 @@ export class UIScene extends Phaser.Scene {
     this.game.events.off('moveUpdated', this.handleMoveUpdated, this); // << DỌN DẸP LISTENER MỚI
     this.game.events.off('levelFailed', this.handleLevelFailed, this); // << DỌN DẸP LISTENER MỚI
     this.game.events.off('scoreUpdated', this.handleScoreUpdated, this);
+    this.game.events.off('boosterCountUpdated', this.handleBoosterCountUpdated, this);
     
     // << DỌN DẸP TƯƠNG ỨNG >>
     // this.game.events.off('powerupActivated', this.handlePowerupActivated, this)
@@ -630,5 +738,70 @@ export class UIScene extends Phaser.Scene {
     const items = Object.values(this.objectiveItems);
     if (items.length === 0) return false;
     return items.every(it => (it?.currentCount ?? 0) <= 0);
+  }
+  
+  /**
+   * Hàm xử lý cập nhật UI khi số lượng thay đổi
+   */
+  handleBoosterCountUpdated(data) {
+    const { type, count } = data; // type: 'HAMMER', count: 4
+    this.updateBoosterQuantity(type, count);
+    
+    // Nếu dùng xong mà về 0, và đang chọn chính nó -> Hủy chọn
+    if (count <= 0 && this.selectedBoosterType === type) {
+        this.selectedBoosterType = null;
+        this.updateBoosterIconsVisuals();
+        this.game.events.emit('boosterSelectionCleared');
+    }
+  }
+
+  /**
+   * Cập nhật hiển thị số lượng booster
+   * @param {string} boosterType - Loại booster (HAMMER, SWAP, ROCKET, SHUFFLE)
+   * @param {number} newCount - Số lượng mới
+   */
+  updateBoosterQuantity(boosterType, newCount) {
+    const displayInfo = this.boosterQuantityDisplays[boosterType];
+    if (!displayInfo) return;
+    
+    const oldCount = displayInfo.count;
+    displayInfo.count = newCount;
+    
+    if (displayInfo.display) {
+      displayInfo.display.destroy();
+    }
+    
+    const bgRealX = displayInfo.background.x;
+    const bgRealY = displayInfo.background.y;
+    const offsets = displayInfo.offsets;
+
+    let countDisplay;
+    if (newCount === 0) {
+      const relativeX = bgRealX - offsets.bgX + offsets.iconX;
+      const relativeY = bgRealY - offsets.bgY + offsets.iconY;
+
+      countDisplay = this.add.image(relativeX, relativeY, 'add_icon')
+          .setOrigin(1, 1)
+          .setScale(0.4)
+          .setDepth(12);
+    } else {
+      const relativeX = bgRealX - offsets.bgX + offsets.textX;
+      const relativeY = bgRealY - offsets.bgY + offsets.textY;
+
+      countDisplay = this.add.text(relativeX, relativeY, `${newCount}`, {
+          fontFamily: 'UTMCookies',
+          fontSize: '18px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 3,
+          fontStyle: 'bold'
+      })
+      .setOrigin(1, 1)
+      .setDepth(12);
+    }
+
+    displayInfo.display = countDisplay;
+    
+    console.log(`[UIScene] Booster quantity updated: ${boosterType} | ${oldCount} → ${newCount}`);
   }
 }

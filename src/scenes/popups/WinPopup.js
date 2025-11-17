@@ -154,7 +154,11 @@ export class WinPopup extends Phaser.Scene {
         this.scene.stop(key);
       }
     });
-    this.scene.start('MapScene');
+    
+    // Truyền levelId vừa thắng về MapScene
+    this.scene.start('MapScene', { 
+        completedLevelId: this.levelId  // Truyền ID level vừa hoàn thành
+    });
   }
 }
 

@@ -7,7 +7,7 @@ export class SpinPopup extends Phaser.Scene {
     constructor() {
         super({ key: 'SpinPopup' });
         this.baseRotation = 22.5; // Độ xoay gốc
-        this.pointerTargetAngle = 92.5; // Góc mục tiêu của con trỏ (độ)
+        this.pointerTargetAngle = 95; // Góc mục tiêu của con trỏ (độ)
         this.boardContainer = null; // Container chứa board và items
         this.items = []; // Mảng chứa các item
         this.isSpinning = false; // Cờ chặn spin khi đang quay
@@ -166,8 +166,7 @@ export class SpinPopup extends Phaser.Scene {
         });
         
         // 6.1. Hiển thị số ticket còn lại
-        const playerData = PlayerDataManager.getUserData();
-        this.ticketCountText = this.add.text(width / 2+20, 980, `x${playerData.currency.tickets}`, {
+        this.ticketCountText = this.add.text(width / 2+25, 975, `x${PlayerDataManager.getTickets()}`, {
             fontFamily: 'NABILA',
             fontSize: '32px',
             color: '#ffffff',
@@ -238,8 +237,7 @@ export class SpinPopup extends Phaser.Scene {
      * Cập nhật trạng thái nút spin (enable/disable) dựa trên số vé
      */
     updateSpinButtonState() {
-        const playerData = PlayerDataManager.getUserData();
-        const hasEnoughTickets = playerData.currency.tickets >= 1;
+        const hasEnoughTickets = PlayerDataManager.getTickets() >= 1;
         
         if (hasEnoughTickets) {
             this.spinButton.setInteractive({ useHandCursor: true });
@@ -265,8 +263,7 @@ export class SpinPopup extends Phaser.Scene {
      */
     async startSpin() {
         // Kiểm tra xem người chơi có đủ ticket không
-        const playerData = PlayerDataManager.getUserData();
-        if (playerData.currency.tickets < 1) {
+        if (PlayerDataManager.getTickets() < 1) {
             console.log('Không đủ ticket để quay!');
             return;
         }
@@ -346,12 +343,12 @@ export class SpinPopup extends Phaser.Scene {
         const finalTargetAngle = currentBoardAngle + totalSpinThisTurn;
 
         // Trừ 1 ticket ngay khi bắt đầu quay
-        PlayerDataManager.getUserData().currency.tickets -= 1;
+        PlayerDataManager.updateTickets(-1);
         this.updateResourceDisplay();
         
         // Cập nhật hiển thị số ticket trong popup
         if (this.ticketCountText) {
-            this.ticketCountText.setText(`x${PlayerDataManager.getUserData().currency.tickets}`);
+            this.ticketCountText.setText(`x${PlayerDataManager.getTickets()}`);
         }
         
         // Cập nhật trạng thái nút spin sau khi trừ vé
@@ -363,7 +360,7 @@ export class SpinPopup extends Phaser.Scene {
             angle: finalTargetAngle,
             duration: 4000,
             ease: 'Cubic.easeOut',
-            onComplete: () => {
+            onComplete: async () => {
                 pointerTween.stop();
                 this.pointer.setAngle(0);
                 this.isSpinning = false;
@@ -375,7 +372,19 @@ export class SpinPopup extends Phaser.Scene {
                 console.log('--- SPIN DONE (Theo BE) ---');
                 console.log('Reward:', reward);
 
-                // TODO: Gửi thông tin xác nhận nhận thưởng về BE và cập nhật inventory
+                // Gọi API để nhận thưởng và cập nhật inventory
+                try {
+                    const result = await APIManager.claimSpinReward(reward.type, reward.quantity);
+                    if (result.success) {
+                        console.log('Đã nhận thưởng thành công:', result.reward);
+                        // Cập nhật ResourceDisplay
+                        this.updateResourceDisplay();
+                    }
+                } catch (error) {
+                    console.error('Lỗi khi nhận thưởng spin:', error);
+                }
+
+                // Hiển thị hiệu ứng bay phần thưởng
                 this.playRewardFlyAnimation(reward);
             }
         });

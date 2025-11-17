@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import APIManager from '../../managers/APIManager';
 
 export class SettingsPopup extends Phaser.Scene {
     constructor() {
@@ -41,13 +42,8 @@ export class SettingsPopup extends Phaser.Scene {
             this.closePopup();
         });
 
-        // 5. Thêm dòng ID ở vị trí nút quit cũ (back to menu)
-        this.add.text(288, 798, 'ID:', {
-            fontFamily: 'UTMCookies',
-            fontSize: '15px',
-            color: '#b43827',
-            align: 'center'
-        }).setOrigin(0.5).setDepth(5);
+        // 5. Lấy thông tin người chơi từ API và hiển thị
+        this.loadUserInfo();
 
         // 6. Tạo thanh trượt âm nhạc
         this.createMusicSlider(width, height);
@@ -258,6 +254,57 @@ export class SettingsPopup extends Phaser.Scene {
         }
         if (this.scene.isPaused('UIScene')) {
             this.scene.resume('UIScene');
+        }
+    }
+
+    /**
+     * Gọi API để lấy thông tin người chơi và hiển thị
+     */
+    async loadUserInfo() {
+        try {
+            const userInfo = await APIManager.getUserInfo();
+            const { userId, username, level } = userInfo;
+
+            // Dòng ID đầu tiên
+            this.add.text(288, 798, `${userId}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'center'
+            }).setOrigin(0.5).setDepth(5);
+
+            // Dòng ID lặp lại
+            this.add.text(288, 820, `ID: ${userId}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'center'
+            }).setOrigin(0.5).setDepth(5);
+
+            // Dòng Level
+            this.add.text(288, 842, `Level: ${level}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'center'
+            }).setOrigin(0.5).setDepth(5);
+
+            // Dòng tên (màu trắng)
+            this.add.text(288, 864, username, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#ffffff',
+                align: 'center'
+            }).setOrigin(0.5).setDepth(5);
+        } catch (error) {
+            console.error('Lỗi khi lấy thông tin người chơi từ API:', error);
+            // Hiển thị giá trị mặc định nếu API lỗi
+            this.add.text(288, 798, 'N/A', {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'center'
+            }).setOrigin(0.5).setDepth(5);
         }
     }
 }

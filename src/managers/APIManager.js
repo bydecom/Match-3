@@ -42,7 +42,7 @@ class APIManager {
             { id: 'rocket_pack_3', icon: 'booster_rocket', price: 400, isDiscounted: true, originalPrice: 450 },
             { id: 'shuffle_pack_3', icon: 'booster_shuffle', price: 400, isDiscounted: true, originalPrice: 450 },
             { id: 'ticket_pack_3', icon: 'ticket', price: 120, isDiscounted: true, originalPrice: 150 },
-            { id: 'lives_full', icon: 'heart', price: 100, isDiscounted: false, originalPrice: 100 }
+            { id: 'lives', icon: 'heart_2', price: 100, isDiscounted: false, originalPrice: 100 }
         ];
 
         // Trộn ngẫu nhiên và chọn 6-8 item
@@ -127,6 +127,50 @@ class APIManager {
     }
 
     /**
+     * API nhận thưởng từ vòng quay
+     * @param {string} rewardType - Loại thưởng (booster_hammer, coin, heart, etc.)
+     * @param {number} quantity - Số lượng
+     * @returns {Promise<object>} { success: boolean, message: string, reward: object }
+     */
+    async claimSpinReward(rewardType, quantity) {
+        console.log(`CLIENT: Claiming spin reward ${rewardType} x${quantity}...`);
+        await this._simulateNetworkDelay(100 + Math.random() * 200);
+
+        // Import PlayerDataManager để cập nhật inventory
+        const PlayerDataManager = (await import('./PlayerDataManager')).default;
+
+        let reward = null;
+
+        // Xử lý từng loại thưởng sử dụng các method tập trung
+        if (rewardType === 'booster_hammer') {
+            PlayerDataManager.updateBooster('hammer', quantity);
+            reward = { type: 'booster_hammer', quantity };
+        } else if (rewardType === 'booster_shuffle') {
+            PlayerDataManager.updateBooster('shuffle', quantity);
+            reward = { type: 'booster_shuffle', quantity };
+        } else if (rewardType === 'booster_rocket') {
+            PlayerDataManager.updateBooster('rocket', quantity);
+            reward = { type: 'booster_rocket', quantity };
+        } else if (rewardType === 'booster_swap') {
+            PlayerDataManager.updateBooster('swap', quantity);
+            reward = { type: 'booster_swap', quantity };
+        } else if (rewardType === 'coin') {
+            PlayerDataManager.updateCoins(quantity);
+            reward = { type: 'coin', quantity };
+        } else if (rewardType === 'heart') {
+            PlayerDataManager.updateLives(quantity);
+            reward = { type: 'heart', quantity };
+        }
+
+        console.log(`SERVER SIM: Spin reward claimed successfully!`, reward);
+        return {
+            success: true,
+            message: 'Nhận thưởng thành công!',
+            reward: reward
+        };
+    }
+
+    /**
      * API mua item từ shop
      * @param {string} itemId - ID của item cần mua
      * @param {number} price - Giá của item
@@ -138,10 +182,9 @@ class APIManager {
 
         // Import PlayerDataManager để kiểm tra và trừ tiền
         const PlayerDataManager = (await import('./PlayerDataManager')).default;
-        const playerData = PlayerDataManager.getUserData();
 
         // Kiểm tra đủ coin không
-        if (playerData.currency.coins < price) {
+        if (PlayerDataManager.getCoin() < price) {
             console.log("SERVER SIM: Not enough coins!");
             return { 
                 success: false, 
@@ -159,35 +202,41 @@ class APIManager {
             };
         }
 
-        // Trừ tiền
-        playerData.currency.coins -= price;
+        // Trừ tiền sử dụng method tập trung
+        const coinSuccess = PlayerDataManager.updateCoins(-price);
+        if (!coinSuccess) {
+            return { 
+                success: false, 
+                message: 'Không đủ coin để mua item này!' 
+            };
+        }
 
-        // Xác định loại reward và cập nhật inventory
+        // Xác định loại reward và cập nhật inventory sử dụng method tập trung
         let reward = null;
         
         if (itemId.startsWith('ticket')) {
             const quantity = itemId === 'ticket' ? 1 : this._extractQuantityFromId(itemId);
-            playerData.currency.tickets = (playerData.currency.tickets || 0) + quantity;
+            PlayerDataManager.updateTickets(quantity);
             reward = { type: 'ticket', quantity };
         } else if (itemId.startsWith('hammer_')) {
             const quantity = this._extractQuantityFromId(itemId);
-            playerData.inventory.boosters.hammer = (playerData.inventory.boosters.hammer || 0) + quantity;
+            PlayerDataManager.updateBooster('hammer', quantity);
             reward = { type: 'booster_hammer', quantity };
         } else if (itemId.startsWith('swap_')) {
             const quantity = this._extractQuantityFromId(itemId);
-            playerData.inventory.boosters.swap = (playerData.inventory.boosters.swap || 0) + quantity;
+            PlayerDataManager.updateBooster('swap', quantity);
             reward = { type: 'booster_swap', quantity };
         } else if (itemId.startsWith('rocket_')) {
             const quantity = this._extractQuantityFromId(itemId);
-            playerData.inventory.boosters.rocket = (playerData.inventory.boosters.rocket || 0) + quantity;
+            PlayerDataManager.updateBooster('rocket', quantity);
             reward = { type: 'booster_rocket', quantity };
         } else if (itemId.startsWith('shuffle_')) {
             const quantity = this._extractQuantityFromId(itemId);
-            playerData.inventory.boosters.shuffle = (playerData.inventory.boosters.shuffle || 0) + quantity;
+            PlayerDataManager.updateBooster('shuffle', quantity);
             reward = { type: 'booster_shuffle', quantity };
         } else if (itemId === 'lives') {
-            playerData.currency.lives = (playerData.currency.lives || 0) + 3;
-            reward = { type: 'lives', quantity: 3 };
+            PlayerDataManager.updateLives(2);
+            reward = { type: 'lives', quantity: 2 };
         }
 
         // Lưu item vào danh sách đã mua
@@ -252,6 +301,37 @@ class APIManager {
     _extractQuantityFromId(itemId) {
         const match = itemId.match(/(\d+)$/);
         return match ? parseInt(match[1]) : 1;
+    }
+
+    /**
+     * API lấy thông tin người chơi
+     * @returns {Promise<object>} { userId: string, username: string, level: number }
+     */
+    async getUserInfo() {
+        console.log("CLIENT: Requesting user info...");
+        await this._simulateNetworkDelay(200 + Math.random() * 300);
+
+        // Import PlayerDataManager để lấy thông tin user
+        const PlayerDataManager = (await import('./PlayerDataManager')).default;
+        const userData = PlayerDataManager.getUserData();
+
+        if (!userData) {
+            console.error("SERVER SIM: User data not found!");
+            return {
+                userId: 'N/A',
+                username: 'Player',
+                level: 1
+            };
+        }
+
+        const userInfo = {
+            userId: userData.userId || 'N/A',
+            username: userData.username || 'Player',
+            level: userData.progression?.highestLevelUnlocked || 1
+        };
+
+        console.log("SERVER SIM: Returning user info:", userInfo);
+        return userInfo;
     }
 }
 

@@ -4,6 +4,7 @@ import { SCENE_KEYS, BOOSTER_TYPES } from '../utils/constants'
 import { GRID_SIZE } from '../utils/constants'
 import { BoosterVFXManager } from '../objects/vfx/BoosterVFXManager'
 import { PowerupVFXManager } from '../objects/vfx/PowerupVFXManager'
+import PlayerDataManager from '../managers/PlayerDataManager'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -262,6 +263,27 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Helper để trừ booster khi sử dụng
+   * @param {string} boosterType - Loại booster (HAMMER, SWAP, ROCKET, SHUFFLE)
+   * @returns {boolean} true nếu trừ thành công, false nếu không đủ item
+   */
+  tryConsumeBooster(boosterType) {
+    const key = boosterType.toLowerCase();
+    // Gọi hàm updateBooster với số âm để trừ
+    const success = PlayerDataManager.updateBooster(key, -1);
+    
+    if (success) {
+        // Nếu trừ thành công, lấy số lượng mới và báo cho UI
+        const newCount = PlayerDataManager.getBoosterCount(key);
+        this.game.events.emit('boosterCountUpdated', { type: boosterType, count: newCount });
+        return true;
+    } else {
+        console.log("Không đủ item để dùng!");
+        return false;
+    }
+  }
+
   startTimer() {
     if (!this.levelData || !this.levelData.starTimes) return
     this.isTimerRunning = true
@@ -496,8 +518,11 @@ export class GameScene extends Phaser.Scene {
           this.boosterVFXManager?.showSwapPreview(targetRow, targetCol)
         } else {
           if (this.firstSwapGem !== clickedGem) {
-            this.game.events.emit('boardBusy', true)
-            this.board.useSwap(this.firstSwapGem, clickedGem)
+            // Trừ item khi thực hiện SWAP
+            if (this.tryConsumeBooster(this.activeBooster)) {
+                this.game.events.emit('boardBusy', true)
+                this.board.useSwap(this.firstSwapGem, clickedGem)
+            }
           }
           this.clearActiveBooster()
         }
@@ -519,8 +544,16 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      // Click hợp lệ -> Tiêu thụ booster và thực thi
+      // Click hợp lệ -> Trừ item trước khi dùng
       const boosterToUse = this.activeBooster
+      
+      // Nếu không trừ được (hết item hack?), hủy bỏ hành động
+      if (!this.tryConsumeBooster(boosterToUse)) {
+          this.clearActiveBooster()
+          this.swipeState.downObject = null
+          return
+      }
+
       this.clearActiveBooster()
       
       switch (boosterToUse) {

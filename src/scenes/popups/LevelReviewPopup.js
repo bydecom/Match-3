@@ -10,6 +10,7 @@ export class LevelReviewPopup extends Phaser.Scene {
         this.levelId = 1;
         this.levelData = null;
         this.playerData = null;
+        this.boosterItems = [];
     }
 
     // Nhận dữ liệu từ MapScene
@@ -120,13 +121,11 @@ export class LevelReviewPopup extends Phaser.Scene {
         boosterTypes.forEach((boosterInfo, index) => {
             const position = boosterPositions[index];
             
-            // Tạo background cho booster
             const background = this.add.image(position.x, position.y, 'booster_background')
                 .setOrigin(0.5)
                 .setScale(0.4)
                 .setDepth(2);
             
-            // Điều chỉnh vị trí X cho từng loại booster
             let iconX = position.x;
             if (boosterInfo.type === BOOSTER_TYPES.HAMMER) {
                 iconX = position.x + 5;
@@ -134,45 +133,88 @@ export class LevelReviewPopup extends Phaser.Scene {
                 iconX = position.x - 5;
             }
             
-            // Tạo icon booster
             const icon = this.add.image(iconX, position.y - 15, boosterInfo.key)
                 .setOrigin(0.5)
                 .setDepth(3);
 
-            // Lấy số lượng từ inventory
-            let count = this.playerData.inventory.boosters[boosterInfo.type] || 0;
-            
-            // Test: Set shuffle booster về 0 để hiển thị add_icon
-            if (boosterInfo.type === BOOSTER_TYPES.SHUFFLE) {
-                count = 0;
-            }
-            
-            // Tạo background cho quantity
             const quantityBg = this.add.image(position.x + 29, position.y + 31, 'quantity_background')
                 .setOrigin(1, 1)
                 .setScale(0.4)
                 .setDepth(3);
             
-            let countDisplay;
-            if (count === 0) {
-                // Nếu số lượng = 0, hiển thị add_icon
-                countDisplay = this.add.image(position.x + 20, position.y + 18, 'add_icon')
-                    .setOrigin(1, 1)
-                    .setScale(0.4)
-                    .setDepth(4);
-            } else {
-                // Nếu có số lượng, hiển thị text
-                countDisplay = this.add.text(position.x + 20, position.y + 20, `${count}`, {
-                    fontFamily: 'UTMCookies',
-                    fontSize: '18px',
-                    color: '#ffffff',
-                    stroke: '#000000',
-                    fontWeight: 'bold',
-                    strokeThickness: 3
-                }).setOrigin(1, 1).setDepth(4);
-            }
+            const boosterItem = {
+                background,
+                icon,
+                quantityBg,
+                countDisplay: null,
+                type: boosterInfo.type,
+                position: { ...position }
+            };
 
-            this.boosterItems.push({ background, icon, quantityBg, countDisplay, type: boosterInfo.type, count });
+            this.boosterItems.push(boosterItem);
+            this.drawBoosterCount(boosterItem);
+        });
+    }
+
+    drawBoosterCount(item) {
+        if (!item) return;
+
+        if (item.countDisplay) {
+            item.countDisplay.destroy();
+            item.countDisplay = null;
+        }
+
+        const boosters = this.playerData?.inventory?.boosters || {};
+        const count = boosters[item.type] || 0;
+        const baseX = item.position.x;
+        const baseY = item.position.y;
+
+        if (count === 0) {
+            item.countDisplay = this.add.image(baseX + 20, baseY + 18, 'add_icon')
+                .setOrigin(1, 1)
+                .setScale(0.4)
+                .setDepth(4)
+                .setInteractive({ useHandCursor: true });
+
+            item.countDisplay.on('pointerdown', () => {
+                this.tweens.add({
+                    targets: item.countDisplay,
+                    scale: 0.35,
+                    duration: 50,
+                    yoyo: true,
+                    onComplete: () => this.openShop()
+                });
+            });
+        } else {
+            item.countDisplay = this.add.text(baseX + 20, baseY + 20, `${count}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '18px',
+                color: '#ffffff',
+                stroke: '#000000',
+                fontWeight: 'bold',
+                strokeThickness: 3
+            }).setOrigin(1, 1).setDepth(4);
+        }
+    }
+
+    openShop() {
+        console.log('Open Shop from LevelReviewPopup');
+        this.scene.launch('ShopPopup');
+        
+        const shopPopup = this.scene.get('ShopPopup');
+        if (shopPopup?.events) {
+            shopPopup.events.once('shutdown', () => {
+                this.updateBoosterStates();
+            });
+        }
+    }
+
+    updateBoosterStates() {
+        console.log('Shop closed, refreshing booster data...');
+        this.playerData = PlayerDataManager.getUserData();
+
+        this.boosterItems.forEach(item => {
+            this.drawBoosterCount(item);
         });
     }
 
