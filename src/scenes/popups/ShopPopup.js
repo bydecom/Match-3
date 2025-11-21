@@ -174,6 +174,9 @@ export class ShopPopup extends Phaser.Scene {
             if (item.icon === 'ticket') {
                 icon.setScale(1.3);
             }
+            if (item.icon === 'heart_2') {
+                icon.setScale(0.8);
+            }
 
             // --- LOGIC MỚI: HIỂN THỊ SỐ LƯỢNG ---
             let quantity = 1;
@@ -192,7 +195,7 @@ export class ShopPopup extends Phaser.Scene {
                     fontSize: '24px',
                     color: '#ffffff',
                     fontStyle: 'bold',
-                    stroke: '#000000',
+                    stroke: '#782a16',
                     strokeThickness: 4
                 }).setOrigin(0.5);
 

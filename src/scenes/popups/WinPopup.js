@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ObjectiveItem } from '../../ui/ObjectiveItem';
+import PlayerDataManager from '../../managers/PlayerDataManager';
 
 export class WinPopup extends Phaser.Scene {
   constructor() {
@@ -84,17 +85,21 @@ export class WinPopup extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
     replayButton.on('pointerdown', () => {
-      // 1. Dừng các scene game đang bị tạm dừng (paused)
-      if (this.scene.isPaused('GameScene')) {
-        this.scene.stop('GameScene');
+      if (PlayerDataManager.getLives() > 0) {
+        PlayerDataManager.updateLives(-1);
+
+        if (this.scene.isPaused('GameScene')) {
+          this.scene.stop('GameScene');
+        }
+        if (this.scene.isPaused('UIScene')) {
+          this.scene.stop('UIScene');
+        }
+        this.scene.stop();
+        this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+      } else {
+        console.log('Không đủ mạng để replay!');
+        this.scene.launch('ShopPopup');
       }
-      if (this.scene.isPaused('UIScene')) {
-        this.scene.stop('UIScene');
-      }
-      // 2. Dừng chính popup này
-      this.scene.stop(); 
-      // 3. Bắt đầu LevelLoaderScene
-      this.scene.start('LevelLoaderScene', { levelId: this.levelId });
     });
 
     // Hiển thị danh sách mission đã hoàn thành (giống LevelReviewPopup)

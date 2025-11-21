@@ -227,7 +227,20 @@ export class LevelReviewPopup extends Phaser.Scene {
             .setDepth(3);
 
         playButton.on('pointerdown', () => {
-            this.startGame();
+            const currentLives = PlayerDataManager.getLives();
+            if (currentLives > 0) {
+                PlayerDataManager.updateLives(-1);
+
+                const mapScene = this.scene.get('MapScene');
+                if (mapScene?.resourceDisplay?.updateDisplay) {
+                    mapScene.resourceDisplay.updateDisplay();
+                }
+
+                this.startGame();
+            } else {
+                console.log('Không đủ mạng để bắt đầu màn chơi!');
+                this.scene.launch('ShopPopup');
+            }
         });
 
         // Hiệu ứng hover

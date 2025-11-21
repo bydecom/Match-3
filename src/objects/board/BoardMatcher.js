@@ -17,6 +17,10 @@ export class BoardMatcher {
   }
 
   findAllMatches() {
+    return this._findAllMatchesLogic()
+  }
+
+  _findAllMatchesLogic() {
     let horizontalMatches = []
     let verticalMatches = []
 
@@ -85,6 +89,89 @@ export class BoardMatcher {
     }
     console.log(`Found ${mergedMatches.length} match groups:`, mergedMatches.map(match => match.length))
     return mergedMatches
+  }
+
+  /**
+   * [AUTO SHUFFLE] Kiểm tra xem còn nước đi nào hợp lệ không.
+   * Thuật toán: Duyệt qua từng ô, thử swap ảo với ô bên phải và bên dưới.
+   * @returns {boolean} True nếu còn nước đi, False nếu bế tắc.
+   */
+  hasPossibleMoves() {
+    if (!this.grid || !this.grid.length) return false
+
+    const tempGrid = this.grid.map(row => row.map(cell => (cell ? { ...cell } : null)))
+
+    const isValidSwap = (r1, c1, r2, c2) => {
+      if (!this.isValidCell || !this.isValidCell(r1, c1) || !this.isValidCell(r2, c2)) return false
+
+      const gem1 = tempGrid[r1][c1]
+      const gem2 = tempGrid[r2][c2]
+
+      if (!gem1 || gem1.type !== 'gem' || !this.canMatchAt(r1, c1)) return false
+      if (!gem2 || gem2.type !== 'gem' || !this.canMatchAt(r2, c2)) return false
+
+      tempGrid[r1][c1] = gem2
+      tempGrid[r2][c2] = gem1
+
+      const hasMatch = this._checkMatchAt(tempGrid, r1, c1) || this._checkMatchAt(tempGrid, r2, c2)
+
+      tempGrid[r1][c1] = gem1
+      tempGrid[r2][c2] = gem2
+
+      return hasMatch
+    }
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (isValidSwap(r, c, r, c + 1)) return true
+        if (isValidSwap(r, c, r + 1, c)) return true
+
+        const gem = this.grid[r][c]
+        if (this.isPowerup && this.isPowerup(gem)) return true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Helper kiểm tra match tại 1 ô cụ thể trong lưới ảo
+   */
+  _checkMatchAt(tempGrid, row, col) {
+    if (!this.isValidCell || !this.isValidCell(row, col)) return false
+
+    const gem = tempGrid[row]?.[col]
+    if (!gem || gem.type !== 'gem') return false
+
+    const type = gem.value
+
+    let countH = 1
+    let left = col - 1
+    while (left >= 0 && tempGrid[row]?.[left] && tempGrid[row][left].type === 'gem' && tempGrid[row][left].value === type) {
+      countH++
+      left--
+    }
+
+    let right = col + 1
+    while (right < GRID_SIZE && tempGrid[row]?.[right] && tempGrid[row][right].type === 'gem' && tempGrid[row][right].value === type) {
+      countH++
+      right++
+    }
+    if (countH >= 3) return true
+
+    let countV = 1
+    let up = row - 1
+    while (up >= 0 && tempGrid[up]?.[col] && tempGrid[up][col].type === 'gem' && tempGrid[up][col].value === type) {
+      countV++
+      up--
+    }
+
+    let down = row + 1
+    while (down < GRID_SIZE && tempGrid[down]?.[col] && tempGrid[down][col].type === 'gem' && tempGrid[down][col].value === type) {
+      countV++
+      down++
+    }
+    return countV >= 3
   }
 }
 

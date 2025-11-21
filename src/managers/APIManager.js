@@ -32,16 +32,26 @@ class APIManager {
         
         // Danh sách tất cả vật phẩm có thể bán
         const allPossibleItems = [
+            // Vật phẩm lẻ (giữ nguyên)
             { id: 'ticket', icon: 'ticket', price: 50, isDiscounted: false, originalPrice: 50 },
             { id: 'hammer_1', icon: 'booster_hammer', price: 100, isDiscounted: false, originalPrice: 100 },
             { id: 'swap_1', icon: 'booster_swap', price: 100, isDiscounted: false, originalPrice: 100 },
             { id: 'rocket_1', icon: 'booster_rocket', price: 150, isDiscounted: false, originalPrice: 150 },
             { id: 'shuffle_1', icon: 'booster_shuffle', price: 150, isDiscounted: false, originalPrice: 150 },
-            { id: 'hammer_pack_3', icon: 'booster_hammer', price: 250, isDiscounted: true, originalPrice: 300 },
-            { id: 'swap_pack_3', icon: 'booster_swap', price: 250, isDiscounted: true, originalPrice: 300 },
-            { id: 'rocket_pack_3', icon: 'booster_rocket', price: 400, isDiscounted: true, originalPrice: 450 },
-            { id: 'shuffle_pack_3', icon: 'booster_shuffle', price: 400, isDiscounted: true, originalPrice: 450 },
-            { id: 'ticket_pack_3', icon: 'ticket', price: 120, isDiscounted: true, originalPrice: 150 },
+            
+            // Các gói Pack (Đã chỉnh giá giảm 40%)
+            // 300 * 0.6 = 180
+            { id: 'hammer_pack_3', icon: 'booster_hammer', price: 180, isDiscounted: true, originalPrice: 300 },
+            { id: 'swap_pack_3', icon: 'booster_swap', price: 180, isDiscounted: true, originalPrice: 300 },
+            
+            // 450 * 0.6 = 270
+            { id: 'rocket_pack_3', icon: 'booster_rocket', price: 270, isDiscounted: true, originalPrice: 450 },
+            { id: 'shuffle_pack_3', icon: 'booster_shuffle', price: 270, isDiscounted: true, originalPrice: 450 },
+            
+            // 150 * 0.6 = 90
+            { id: 'ticket_pack_3', icon: 'ticket', price: 90, isDiscounted: true, originalPrice: 150 },
+            
+            // Item Mạng (giữ nguyên)
             { id: 'lives', icon: 'heart_2', price: 100, isDiscounted: false, originalPrice: 100 }
         ];
 

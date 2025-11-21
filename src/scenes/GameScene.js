@@ -135,7 +135,11 @@ export class GameScene extends Phaser.Scene {
 
     // --- LOGIC TÍNH ĐIỂM ---
     this.game.events.on('addScore', this.handleAddScore, this)
-    this.game.events.emit('scoreUpdated', this.currentScore)
+    this.time.delayedCall(100, () => {
+      if (this.scene.isActive('GameScene')) {
+        this.game.events.emit('scoreUpdated', this.currentScore)
+      }
+    })
   }
 
   // XÓA HÀM createGameGrid() nếu còn (vì không dùng)
@@ -518,10 +522,10 @@ export class GameScene extends Phaser.Scene {
           this.boosterVFXManager?.showSwapPreview(targetRow, targetCol)
         } else {
           if (this.firstSwapGem !== clickedGem) {
-            // Trừ item khi thực hiện SWAP
+            const gem1 = this.firstSwapGem
             if (this.tryConsumeBooster(this.activeBooster)) {
-                this.game.events.emit('boardBusy', true)
-                this.board.useSwap(this.firstSwapGem, clickedGem)
+              this.game.events.emit('boardBusy', true)
+              this.board.useSwap(gem1, clickedGem)
             }
           }
           this.clearActiveBooster()

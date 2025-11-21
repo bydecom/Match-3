@@ -23,7 +23,8 @@ export class MapScene extends Phaser.Scene {
      * Nhận dữ liệu từ WinPopup
      */
     init(data) {
-        this.completedLevelId = data?.completedLevelId || null;
+        this.completedLevelId = (data && data.completedLevelId) ? data.completedLevelId : null;
+        console.log('MapScene Init - CompletedLevelID:', this.completedLevelId);
     }
 
     /**
@@ -41,10 +42,16 @@ export class MapScene extends Phaser.Scene {
         const playerData = PlayerDataManager.getProgression();
         const fullPlayerData = PlayerDataManager.getUserData();
 
+        this.events.on('wake', () => {
+            this.completedLevelId = null;
+            this.targetUnlockNode = null;
+        });
+
         // Tính toán level cần mở khóa hiệu ứng (là level kế tiếp của level vừa thắng)
         let nextLevelIdToAnimate = -1;
         if (this.completedLevelId) {
             nextLevelIdToAnimate = this.completedLevelId + 1;
+            this.completedLevelId = null;
         }
 
         // this.mapContainer = this.add.container(0, 0); // <-- BỎ DÒNG NÀY
@@ -167,13 +174,12 @@ export class MapScene extends Phaser.Scene {
 
         // --- KÍCH HOẠT ANIMATION NẾU CÓ ---
         if (this.targetUnlockNode) {
-            // Delay một chút sau khi map hiện lên mới chạy animation
             this.time.delayedCall(500, () => {
-                // Scroll camera tới node đó nếu cần (tuỳ chọn)
-                this.targetUnlockNode.playUnlockAnimation();
-                
-                // Reset data để không chạy lại khi restart scene bình thường
+                if (this.targetUnlockNode && this.targetUnlockNode.active) {
+                    this.targetUnlockNode.playUnlockAnimation();
+                }
                 this.completedLevelId = null;
+                this.targetUnlockNode = null;
             });
         }
 
@@ -255,7 +261,10 @@ export class MapScene extends Phaser.Scene {
         });
         
         // Dọn dẹp VFX khi scene shutdown
-        this.events.once('shutdown', () => {
+        this.events.on('shutdown', () => {
+            this.completedLevelId = null;
+            this.targetUnlockNode = null;
+
             if (this.vfxManager) {
                 this.vfxManager.shutdown();
             }

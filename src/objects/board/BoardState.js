@@ -1,4 +1,5 @@
 // src/objects/board/BoardState.js
+import Phaser from 'phaser'
 import { GEM_TYPES, GRID_SIZE, SCORE_VALUES } from '../../utils/constants'
 
 export class BoardState {
@@ -152,6 +153,131 @@ export class BoardState {
     // 2. Phát sự kiện (giữ nguyên)
     if (this.scene && this.scene.game && this.scene.game.events) {
       this.scene.game.events.emit('powerupActivated', { type: key, count: this.powerupActivations[key] });
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // [NEW LOGIC] AUTO SHUFFLE
+  // -----------------------------------------------------------------------
+
+  /**
+   * Thực hiện xáo trộn logic dữ liệu cho đến khi tìm được bảng có nước đi.
+   * Không có hiệu ứng hình ảnh ở đây, chỉ xử lý data.
+   */
+  shuffleGridLogic() {
+    const allGems = []
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const gem = this.grid[r][c]
+        const blocker = this.blockerGrid?.[r]?.[c]
+        const isSolidStone = blocker && blocker.type === 'stone' && blocker.health === 2
+        if (gem && gem.type === 'gem' && !isSolidStone) {
+          allGems.push(gem)
+        }
+      }
+    }
+
+    if (allGems.length === 0) return
+
+    let attempt = 0
+    let validBoardFound = false
+
+    while (!validBoardFound && attempt < 20) {
+      Phaser.Utils.Array.Shuffle(allGems)
+      let idx = 0
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const blocker = this.blockerGrid?.[r]?.[c]
+          const isSolidStone = blocker && blocker.type === 'stone' && blocker.health === 2
+          const currentObj = this.grid[r][c]
+          if (currentObj && currentObj.type === 'gem' && !isSolidStone) {
+            const newGem = allGems[idx++]
+            this.grid[r][c] = newGem
+          }
+        }
+      }
+
+      const matchGroups = this.findAllMatches()
+      const hasMoves = typeof this.hasPossibleMoves === 'function' ? this.hasPossibleMoves() : false
+
+      if (hasMoves && matchGroups.length === 0) {
+        validBoardFound = true
+      } else if (hasMoves) {
+        validBoardFound = true
+      }
+
+      attempt++
+    }
+
+    console.log(`Shuffle logic completed after ${attempt} attempts.`)
+  }
+
+  /**
+   * Đồng bộ vị trí sprite thật theo dữ liệu lưới sau khi shuffle.
+   */
+  applyShuffleResultsToSprites() {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const gem = this.grid[r][c]
+        if (gem && gem.sprite) {
+          const targetX = this.offsetX + c * this.cellSize + this.cellSize / 2
+          const targetY = this.offsetY + r * this.cellSize + this.cellSize / 2
+          gem.sprite.setData({ row: r, col: c, type: gem.value, isGem: true })
+          gem.sprite.x = targetX
+          gem.sprite.y = targetY
+          gem.sprite.setVisible(true)
+          gem.sprite.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.82)
+        }
+      }
+    }
+  }
+
+  /**
+   * Kích hoạt quy trình Auto Shuffle: Khóa bảng -> VFX -> Logic Shuffle -> Cập nhật Sprite
+   */
+  triggerAutoShuffle() {
+    console.log('No moves left! Triggering Auto Shuffle...')
+
+    this.boardBusy = true
+    if (this.scene && this.scene.input) {
+      this.scene.input.enabled = false
+    }
+    if (this.scene && this.scene.game && this.scene.game.events) {
+      this.scene.game.events.emit('boardBusy', true)
+    }
+
+    const allGemSprites = []
+    const allBlockerSprites = []
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const gem = this.grid[r]?.[c]
+        if (gem && gem.sprite) {
+          allGemSprites.push(gem.sprite)
+        }
+
+        const blocker = this.blockerGrid[r]?.[c]
+        if (blocker) {
+          allBlockerSprites.push(blocker)
+        }
+      }
+    }
+
+    const finalizeShuffle = () => {
+      this.shuffleGridLogic()
+      this.applyShuffleResultsToSprites()
+      allBlockerSprites.forEach(blocker => {
+        if (blocker && blocker.setVisible) blocker.setVisible(true)
+      })
+      this.checkForNewMatches()
+    }
+
+    if (this.scene?.boosterVFXManager?.playFakeShuffleEffect) {
+      this.scene.boosterVFXManager.playFakeShuffleEffect(allGemSprites, allBlockerSprites, finalizeShuffle)
+    } else {
+      finalizeShuffle()
     }
   }
 
@@ -1339,6 +1465,12 @@ applyGravityAndRefill() {
     // Reset cờ cho lượt tiếp theo và bật input
     this.ropeDestroyedThisTurn = false
     this.chainLevel = 1
+
+    if (typeof this.hasPossibleMoves === 'function' && !this.hasPossibleMoves()) {
+      this.triggerAutoShuffle()
+      return
+    }
+
     this.boardBusy = false
     this.scene.input.enabled = true
     // Báo cho UI biết board đã rảnh

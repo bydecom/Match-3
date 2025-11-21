@@ -132,7 +132,7 @@ export class UIScene extends Phaser.Scene {
         offsets: {
           bgX: 30, bgY: 55,
           textX: 21, textY: 45,
-          iconAddX: 21, iconAddY: 45
+          iconAddX: 21, iconAddY: 43
         }
       },
       { 
@@ -142,7 +142,7 @@ export class UIScene extends Phaser.Scene {
         offsets: {
           bgX: 39, bgY: 61,
           textX: 30, textY: 51,
-          iconAddX: 30, iconAddY: 51
+          iconAddX: 30, iconAddY: 48
         }
       },
       { 
@@ -152,7 +152,7 @@ export class UIScene extends Phaser.Scene {
         offsets: {
           bgX: 39, bgY: 71,
           textX: 30, textY: 60,
-          iconAddX: 20, iconAddY: 18
+          iconAddX: 30, iconAddY: 58
         }
       },
       { 
@@ -162,7 +162,7 @@ export class UIScene extends Phaser.Scene {
         offsets: {
           bgX: 39, bgY: 61,
           textX:30, textY: 50,
-          iconAddX: 30, iconAddY: 50
+          iconAddX: 30, iconAddY: 48
         }
       },
     ];
@@ -603,7 +603,6 @@ export class UIScene extends Phaser.Scene {
 
   // Xử lý cập nhật số move còn lại
   handleMoveUpdated(moves) {
-    // Thêm kiểm tra this.movesText.active để đảm bảo text vẫn còn tồn tại và đang hoạt động
     if (this.movesText && this.movesText.active) {
       this.movesText.setText(`${moves}`);
     }
@@ -613,17 +612,20 @@ export class UIScene extends Phaser.Scene {
    * [HÀM MỚI] Cập nhật điểm số hiển thị trên UI
    */
   handleScoreUpdated(newScore) {
-    if (!this.scoreText) return;
+    if (!this.scoreText || !this.scoreText.active) return;
 
     this.scoreText.setText(`${newScore}`);
-    this.tweens.killTweensOf(this.scoreText);
-    this.tweens.add({
-      targets: this.scoreText,
-      scale: 1.15,
-      duration: 80,
-      yoyo: true,
-      ease: 'Quad.easeOut'
-    });
+
+    if (this.tweens) {
+      this.tweens.killTweensOf(this.scoreText);
+      this.tweens.add({
+        targets: this.scoreText,
+        scale: 1.15,
+        duration: 80,
+        yoyo: true,
+        ease: 'Quad.easeOut'
+      });
+    }
   }
  
   // Xử lý thua do hết move

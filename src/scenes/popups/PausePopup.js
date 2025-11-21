@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import PlayerDataManager from '../../managers/PlayerDataManager';
 
 export class PausePopup extends Phaser.Scene {
     constructor() {
@@ -199,16 +200,21 @@ export class PausePopup extends Phaser.Scene {
             .setDepth(3); // Giữ depth 3
 
         restartButton.on('pointerdown', () => {
-            // << SỬA LẠI KHỐI NÀY >>
-            if (this.scene.isPaused('GameScene')) {
-                this.scene.stop('GameScene');
+            if (PlayerDataManager.getLives() > 0) {
+                PlayerDataManager.updateLives(-1);
+
+                if (this.scene.isPaused('GameScene')) {
+                    this.scene.stop('GameScene');
+                }
+                if (this.scene.isPaused('UIScene')) {
+                    this.scene.stop('UIScene');
+                }
+                this.scene.stop();
+                this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+            } else {
+                console.log('Không đủ mạng để restart!');
+                this.scene.launch('ShopPopup');
             }
-            if (this.scene.isPaused('UIScene')) {
-                this.scene.stop('UIScene');
-            }
-            this.scene.stop(); // Dừng PausePopup
-            this.scene.start('LevelLoaderScene', { levelId: this.levelId });
-            // << KẾT THÚC SỬA ĐỔI >>
         });
 
         // Nút Thoát
@@ -219,7 +225,6 @@ export class PausePopup extends Phaser.Scene {
             .setDepth(3); // Giữ depth 3
 
         quitButton.on('pointerdown', () => {
-            // << SỬA LẠI KHỐI NÀY >>
             if (this.scene.isPaused('GameScene')) {
                 this.scene.stop('GameScene');
             }
@@ -227,8 +232,7 @@ export class PausePopup extends Phaser.Scene {
                 this.scene.stop('UIScene');
             }
             this.scene.stop(); // Dừng PausePopup
-            this.scene.start('MapScene');
-            // << KẾT THÚC SỬA ĐỔI >>
+            this.scene.start('MapScene', { completedLevelId: null });
         });
     }
 
