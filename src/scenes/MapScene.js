@@ -42,17 +42,32 @@ export class MapScene extends Phaser.Scene {
         const playerData = PlayerDataManager.getProgression();
         const fullPlayerData = PlayerDataManager.getUserData();
 
+        // --- FADE IN ĐỂ CHE FRAME ĐẦU TIÊN TRONG KHI VFX ĐANG KHỞI TẠO ---
+        this.cameras.main.fadeIn(300, 0, 0, 0);
+        // ---------------------------------------------------------------
+
         this.events.on('wake', () => {
             this.completedLevelId = null;
             this.targetUnlockNode = null;
         });
 
-        // Tính toán level cần mở khóa hiệu ứng (là level kế tiếp của level vừa thắng)
+        // --- ĐOẠN CODE CẦN SỬA ---
+        
+        // Tính toán level cần mở khóa hiệu ứng
         let nextLevelIdToAnimate = -1;
+        
         if (this.completedLevelId) {
-            nextLevelIdToAnimate = this.completedLevelId + 1;
+            const potentialNextLevel = this.completedLevelId + 1;
+            
+            // LOGIC MỚI: Chỉ chạy animation nếu level tiếp theo CHÍNH LÀ level cao nhất hiện tại (tức là mới mở khóa)
+            // Nếu potentialNextLevel < highestLevelUnlocked, nghĩa là level đó đã mở từ lâu rồi -> Bỏ qua
+            if (potentialNextLevel === playerData.highestLevelUnlocked) {
+                nextLevelIdToAnimate = potentialNextLevel;
+            }
+            
             this.completedLevelId = null;
         }
+        // ---------------------------
 
         // this.mapContainer = this.add.container(0, 0); // <-- BỎ DÒNG NÀY
 
@@ -207,20 +222,50 @@ export class MapScene extends Phaser.Scene {
             );
         });
 
-        // --- 4. KHỞI TẠO VFX VỚI HỆ THỐNG MAPPING ---
+        // --- 4. XỬ LÝ WEBGL CONTEXT LOST/RESTORED ---
+        
+        // Off listener cũ trước để tránh trùng lặp
+        this.game.renderer.off('contextlost', this.handleContextLost, this);
+        this.game.renderer.off('contextrestored', this.handleContextRestored, this);
+        
+        // Bind các hàm handler để có thể off sau này
+        this.handleContextLost = () => {
+            console.warn("⚠️ WebGL Context Lost! Game đang bị treo...");
+        };
+        
+        this.handleContextRestored = () => {
+            console.log("✅ WebGL Context Restored! Đang tải lại...");
+            
+            // Dừng tất cả VFX hiện tại để tránh lỗi
+            if (this.vfxManager) {
+                this.vfxManager.shutdown();
+                this.vfxManager = null;
+            }
+            
+            // Restart lại scene để load lại mọi thứ từ đầu
+            this.time.delayedCall(100, () => {
+                this.scene.restart();
+            });
+        };
+        
+        // Lắng nghe sự kiện mất và phục hồi WebGL context
+        this.game.renderer.on('contextlost', this.handleContextLost, this);
+        this.game.renderer.on('contextrestored', this.handleContextRestored, this);
+        
+        // --- 5. KHỞI TẠO VFX VỚI HỆ THỐNG MAPPING ---
         
         // *** Truyền mapRegistry cho VFXManager ***
         this.vfxManager = new MapVFXManager(this, this.mapRegistry); 
         
-        // Khởi tạo VFX cho TẤT CẢ các map
+        // Khởi tạo VFX cho TẤT CẢ các map (đã tối ưu load từ từ)
         this.vfxManager.startAllMapVFX();
         
-        // --- 5. TẠO UI OVERLAY HIỂN THỊ COIN VÀ HEART ---
+        // --- 6. TẠO UI OVERLAY HIỂN THỊ COIN VÀ HEART ---
         
         // Tạo ResourceDisplay ở góc trên bên trái màn hình
         this.resourceDisplay = new ResourceDisplay(this, 20, 20, fullPlayerData);
         
-        // --- 6. TẠO NÚT SPIN VÀ STORE ---
+        // --- 7. TẠO NÚT SPIN VÀ STORE ---
         // Vị trí (góc dưới bên trái và dưới bên phải)
         const iconScale = 1; // Tùy chỉnh scale của icon
         const iconDepth = 1000; // Đặt depth cao để nổi lên trên
@@ -249,14 +294,25 @@ export class MapScene extends Phaser.Scene {
             this.scene.launch('ShopPopup');
         });
 
+        // Tạo nút Friend - Góc dưới (hoặc vị trí bạn muốn)
+        const friendButton = this.add.image(width - 50, 120, 'friend_msg_icon') // Dùng tạm icon msg làm nút mở
+            .setScale(1)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(iconDepth)
+            .setScrollFactor(0);
+
+        friendButton.on('pointerdown', () => {
+            this.scene.launch('FriendPopup');
+        });
+
         // (Tùy chọn) Thêm hiệu ứng hover giống nút settings
-        [spinButton, storeButton].forEach(button => {
+        [spinButton, storeButton, friendButton].forEach(button => {
             button.on('pointerover', () => {
-                this.tweens.add({ targets: button, scale: iconScale * 1.1, duration: 100 });
+                this.tweens.add({ targets: button, scale: 1.1, duration: 100 });
             });
 
             button.on('pointerout', () => {
-                this.tweens.add({ targets: button, scale: iconScale, duration: 100 });
+                this.tweens.add({ targets: button, scale: 1, duration: 100 });
             });
         });
         
@@ -267,6 +323,14 @@ export class MapScene extends Phaser.Scene {
 
             if (this.vfxManager) {
                 this.vfxManager.shutdown();
+            }
+            
+            // Dọn dẹp listener WebGL
+            if (this.handleContextLost) {
+                this.game.renderer.off('contextlost', this.handleContextLost, this);
+            }
+            if (this.handleContextRestored) {
+                this.game.renderer.off('contextrestored', this.handleContextRestored, this);
             }
         });
     }

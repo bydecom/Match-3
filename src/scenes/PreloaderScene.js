@@ -341,6 +341,21 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('next_button', 'assets/images/ui/shop/next.png');
         this.load.image('previous_button', 'assets/images/ui/shop/previous.png');
 
+        // --- FRIEND UI ASSETS ---
+        this.load.image('friend_ui_bg', 'assets/images/ui/friend/UI.png');
+        this.load.image('friend_item_bg', 'assets/images/ui/friend/item_background.png');
+        this.load.image('friend_cover', 'assets/images/ui/friend/cover.png'); // Ảnh che phần dưới
+        this.load.image('friend_msg_icon', 'assets/images/ui/friend/message_icon.png');
+        this.load.image('friend_select_all_text', 'assets/images/ui/friend/select_all.png'); // Chữ Select All
+        this.load.image('friend_send_button', 'assets/images/ui/friend/send_all.png');
+        this.load.image('friend_tick', 'assets/images/ui/friend/tick.png');
+
+        // Avatars
+        this.load.image('avt1', 'assets/images/ui/friend/avt1.png');
+        this.load.image('avt2', 'assets/images/ui/friend/avt2.png');
+        this.load.image('avt3', 'assets/images/ui/friend/avt3.png');
+        this.load.image('avt4', 'assets/images/ui/friend/avt4.png');
+
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
         this.load.json('level_2', 'assets/levels/level_2.json');
@@ -405,9 +420,10 @@ export class PreloaderScene extends Phaser.Scene {
         this.cleanUpListeners();
 
         // Bây giờ mới bắt đầu hiệu ứng chuyển cảnh một cách an toàn
-        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.cameras.main.fadeOut(200, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
             console.log("Fade out xong, chính thức bắt đầu MapScene.");
+            // Chuyển scene ngay lập tức để VFX có thời gian khởi tạo
             this.scene.start('MapScene');
         });
     }

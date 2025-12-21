@@ -14,6 +14,15 @@ export class LevelLoaderScene extends Phaser.Scene {
     preload() {
         console.log("LevelLoaderScene: Bắt đầu load assets gameplay...");
         
+        // --- THÊM ĐOẠN NÀY ĐỂ TẢI NHẠC ---
+        // Tải nhạc nền cho level hiện tại
+        // Lưu ý: Bạn cần tạo thư mục 'assets/audio' và bỏ file nhạc vào đó
+        const strIndex = this.levelId.toString().padStart(2, '0'); // Tạo chuỗi '01', '02'...
+        const musicKey = `map_${strIndex}`;
+        this.load.audio(musicKey, `assets/sounds/maps/map_${strIndex}.m4a`);
+        console.log(`LevelLoaderScene: Đang tải nhạc nền cho level ${this.levelId}: ${musicKey}`);
+        // ---------------------------------
+        
         // Load note images for Stripe effect
         this.load.image('note1', 'assets/images/vfx/note1.png');
         this.load.image('note2', 'assets/images/vfx/note2.png');
@@ -72,8 +81,8 @@ export class LevelLoaderScene extends Phaser.Scene {
                 );
             },
             onComplete: () => {
-                // 7. Khi loading xong, chuyển sang GameScene
-                this.cameras.main.fadeOut(500, 0, 0, 0);
+                // 7. Khi loading xong, chuyển sang GameScene (fade out nhanh hơn)
+                this.cameras.main.fadeOut(200, 0, 0, 0);
                 this.cameras.main.once('camerafadeoutcomplete', () => {
                     this.scene.start('GameScene', { levelId: this.levelId });
                 });

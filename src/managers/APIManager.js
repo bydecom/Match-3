@@ -343,6 +343,32 @@ class APIManager {
         console.log("SERVER SIM: Returning user info:", userInfo);
         return userInfo;
     }
+
+    /**
+     * Giả lập danh sách bạn bè
+     */
+    async getFriendsList() {
+        // Giả lập delay mạng
+        await this._simulateNetworkDelay(300);
+
+        const names = ["BUNDAUMANTOM", "BAPLUOC", "COMCHIENHANH", "COBENGOKNGECH", "MEOMEO", "GAMER_PRO"];
+        const friends = [];
+
+        // Tạo 10 người bạn ngẫu nhiên
+        for (let i = 0; i < 10; i++) {
+            const randomAvt = Phaser.Math.Between(1, 4);
+            const randomName = names[i % names.length] + (i > 5 ? `_${i}` : "");
+            
+            friends.push({
+                id: `270498070${i}`,
+                name: randomName,
+                avatar: `avt${randomAvt}`,
+                level: Phaser.Math.Between(5, 50)
+            });
+        }
+
+        return friends;
+    }
 }
 
 // Tạo một instance duy nhất (singleton) để sử dụng trong toàn bộ game

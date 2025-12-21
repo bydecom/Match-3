@@ -20,6 +20,10 @@ export class GameScene extends Phaser.Scene {
     this.currentTime = 0
     this.isTimerRunning = false
     this.currentScore = 0
+    // --- THÊM BIẾN QUẢN LÝ NHẠC ---
+    this.bgMusic = null;
+    this.currentMusicKey = null; // Lưu key của nhạc đang phát để giải phóng sau
+    // -----------------------------
     // --- THUỘC TÍNH CHO SWIPE/TAP ---
     this.swipeState = {
       isDown: false,
@@ -39,7 +43,90 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale
 
     // 1. THÊM BƯỚC NÀY ĐỂ LOAD LEVEL DATA TRƯỚC TIÊN
-    this.loadLevelData(data) 
+    this.loadLevelData(data)
+    
+    // --- THÊM ĐOẠN NÀY ĐỂ PHÁT NHẠC ---
+    // Lấy ID của level hiện tại (mặc định là 1 nếu không có data)
+    const currentLevelId = data?.levelId || 1;
+    // Tạo key nhạc: map_01, map_02... dựa trên levelId
+    const musicKey = `map_${currentLevelId.toString().padStart(2, '0')}`;
+    this.currentMusicKey = musicKey; // Lưu lại để giải phóng sau
+
+    // Kiểm tra xem nhạc có tồn tại trong cache không rồi mới phát
+    if (this.sound.get(musicKey) || this.cache.audio.exists(musicKey)) {
+        console.log(`Đang phát nhạc nền: ${musicKey}`);
+        
+        // Dừng các nhạc đang phát (nếu có) để tránh ồn
+        this.sound.stopAll();
+
+        // Phát nhạc mới với chế độ lặp lại (loop), bắt đầu với volume = 0
+        const targetVolume = 0.2; // Âm lượng nhỏ (0.0 đến 1.0)
+        this.bgMusic = this.sound.add(musicKey, { 
+            loop: true, 
+            volume: 0 // Bắt đầu từ 0 để fade in
+        });
+        this.bgMusic.play();
+        
+        // Fade in dần lên âm lượng mong muốn trong 2 giây
+        this.tweens.add({
+            targets: this.bgMusic,
+            volume: targetVolume,
+            duration: 2000,
+            ease: 'Linear',
+            onComplete: () => {
+                console.log(`Nhạc nền đã fade in đến volume ${targetVolume}`);
+            }
+        });
+    } else {
+        console.warn(`Không tìm thấy file nhạc: ${musicKey}`);
+    }
+    // ---------------------------------- 
+    
+    // --- XỬ LÝ WEBGL CONTEXT LOST/RESTORED ---
+    
+    // Off listener cũ trước để tránh trùng lặp
+    this.game.renderer.off('contextlost', this.handleContextLost, this);
+    this.game.renderer.off('contextrestored', this.handleContextRestored, this);
+    
+    // Bind các hàm handler để có thể off sau này
+    this.handleContextLost = () => {
+        console.warn("⚠️ WebGL Context Lost! Game đang bị treo...");
+    };
+    
+    this.handleContextRestored = () => {
+        console.log("✅ WebGL Context Restored! Đang tải lại...");
+        
+        // Dừng nhạc nếu đang phát và giải phóng khỏi cache
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+            this.bgMusic.destroy();
+            this.bgMusic = null;
+        }
+        
+        if (this.currentMusicKey && this.cache.audio.exists(this.currentMusicKey)) {
+            this.cache.audio.remove(this.currentMusicKey);
+            this.currentMusicKey = null;
+        }
+        
+        // Dừng board nếu có
+        if (this.board) {
+            this.board = null;
+        }
+        
+        // Restart lại scene để load lại mọi thứ từ đầu
+        this.time.delayedCall(100, () => {
+            const levelId = this.scene.settings?.data?.levelId || 1;
+            this.scene.restart({ levelId: levelId });
+        });
+    };
+    
+    // Lắng nghe sự kiện mất và phục hồi WebGL context
+    this.game.renderer.on('contextlost', this.handleContextLost, this);
+    this.game.renderer.on('contextrestored', this.handleContextRestored, this);
+    
+    // --- FADE IN ĐỂ CHUYỂN CẢNH MƯỢT MÀ ---
+    this.cameras.main.fadeIn(300, 0, 0, 0);
+    // ----------------------------------------
     
     // Debug: Kiểm tra xem ảnh có được load không
     console.log('GameScene create - Kiểm tra cache:')
@@ -310,6 +397,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    // --- THÊM ĐOẠN NÀY ĐỂ TẮT NHẠC KHI THOÁT VÀ GIẢI PHÓNG BỘ NHỚ ---
+    if (this.bgMusic) {
+        console.log(`Đang dừng nhạc: ${this.currentMusicKey}`);
+        this.bgMusic.stop();
+        this.bgMusic.destroy();
+        this.bgMusic = null;
+    }
+    
+    // Giải phóng audio khỏi cache để tiết kiệm bộ nhớ
+    if (this.currentMusicKey && this.cache.audio.exists(this.currentMusicKey)) {
+        console.log(`Giải phóng nhạc khỏi cache: ${this.currentMusicKey}`);
+        this.cache.audio.remove(this.currentMusicKey);
+        this.currentMusicKey = null;
+    }
+    // -------------------------------------------
+    
     this.isTimerRunning = false
     // 1. Dừng timer nếu đang chạy
     if (this.timer) this.timer.remove()
@@ -330,6 +433,14 @@ export class GameScene extends Phaser.Scene {
     // 4. Dọn dẹp listener từ Board events
     this.events.off('gemSelected', this.onGemSelected, this)
     this.events.off('blockerSelected', this.onBlockerSelected, this)
+    
+    // 5. Dọn dẹp listener WebGL
+    if (this.handleContextLost) {
+      this.game.renderer.off('contextlost', this.handleContextLost, this);
+    }
+    if (this.handleContextRestored) {
+      this.game.renderer.off('contextrestored', this.handleContextRestored, this);
+    }
   }
 
   // << THÊM CÁC HÀM HANDLER ĐƯỢC ĐẶT TÊN >>

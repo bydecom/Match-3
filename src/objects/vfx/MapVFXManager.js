@@ -13,7 +13,7 @@ export class MapVFXManager {
         this.mapRegistry = mapRegistry; // *** LƯU LẠI ***
         
         this.activeVFX = []; // Lưu trữ các đối tượng VFX đang hoạt động để dọn dẹp
-        this.defaultScale = 0.4; // Scale mặc định theo yêu cầu
+        this.defaultScale = 1.0; // Scale mặc định (đã thay đổi từ 0.4 thành 1.0)
     }
 
     /**
@@ -171,6 +171,11 @@ export class MapVFXManager {
 
         // Apply tween if provided
         if (tweenConfig) {
+            // THÊM DELAY NGẪU NHIÊN NHỎ ĐỂ TRÁNH GPU QUÁ TẢI (giảm từ 800ms xuống 100ms)
+            const randomDelay = tweenConfig.delay !== undefined 
+                ? tweenConfig.delay 
+                : Phaser.Math.Between(0, 100); // Delay ngẫu nhiên 0-100ms (giảm xuống)
+            
             const tween = this.scene.tweens.add({
                 targets: image,
                 ...tweenConfig.props, // e.g., alpha: 0.5, y: '+=10'
@@ -178,7 +183,7 @@ export class MapVFXManager {
                 ease: tweenConfig.ease || 'Linear',
                 yoyo: tweenConfig.yoyo !== undefined ? tweenConfig.yoyo : false,
                 repeat: tweenConfig.repeat !== undefined ? tweenConfig.repeat : 0,
-                delay: tweenConfig.delay || 0
+                delay: randomDelay
             });
             // Lưu tween để dừng nếu cần, mặc dù image đã được lưu
             this.activeVFX.push(tween);
@@ -388,20 +393,24 @@ export class MapVFXManager {
     // --- HÀM TRUNG TÂM ĐỂ KHỞI TẠO VFX CHO TẤT CẢ MAP ---
     // ---------------------------------------------------
     /**
-     * Khởi tạo VFX cho tất cả các map parts đã đăng ký.
+     * Khởi tạo VFX cho tất cả các map parts đã đăng ký - LOAD NGAY LẬP TỨC.
      */
     startAllMapVFX() {
-        console.log("Starting All Map VFX...");
+        console.log("Starting All Map VFX (immediate load)...");
         
-        // Tự động gọi hàm khởi tạo cho mỗi map part
-        this.mapRegistry.forEach((mapInfo, mapKey) => {
-            if (mapKey === 'map_part1') {
-                this.startMapPart1VFX();
-            } else if (mapKey === 'map_part2') {
-                this.startMapPart2VFX();
-            }
-            // Thêm: else if (mapKey === 'map_part3') { this.startMapPart3VFX(); }
-        });
+        // Load Map Part 2 ngay lập tức
+        if (this.mapRegistry.has('map_part2')) {
+            console.log("Loading Map Part 2 VFX...");
+            this.startMapPart2VFX();
+        }
+        
+        // Load Map Part 1 ngay sau đó (không delay)
+        if (this.mapRegistry.has('map_part1')) {
+            console.log("Loading Map Part 1 VFX...");
+            this.startMapPart1VFX();
+        }
+        
+        // Thêm: if (this.mapRegistry.has('map_part3')) { this.startMapPart3VFX(); }
     }
 
     // ---------------------------------------------------
@@ -932,7 +941,7 @@ export class MapVFXManager {
                 baseDepth: 11,    // Base ở dưới nhưng cao hơn map_part2
                 effectDepth: 12,  // Effect đè lên trên base
                 frameRate: 4,     // 4 frame mỗi giây
-                scale: 0.4        // Scale 0.4 như yêu cầu
+                scale: 1.0        // Scale gốc (đã thay đổi từ 0.4)
             }
         );
 
@@ -941,7 +950,7 @@ export class MapVFXManager {
             delay: 2500,
             loop: true,
             callback: () => {
-                this.createFishJumpSequence(mapKey, fishPos.x, fishPos.y, { depth: 20, scale: 0.4, step: 140 });
+                this.createFishJumpSequence(mapKey, fishPos.x, fishPos.y, { depth: 20, scale: 1.0, step: 140 });
             },
             callbackScope: this
         });
