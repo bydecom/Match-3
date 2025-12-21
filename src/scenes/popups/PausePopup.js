@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import PlayerDataManager from '../../managers/PlayerDataManager';
+import AudioManager from '../../managers/AudioManager';
 
 export class PausePopup extends Phaser.Scene {
     constructor() {
         super({ key: 'PausePopup' });
         this.levelId = 1; // Giá trị mặc định
-        this.musicVolume = 0.5; // Âm lượng nhạc mặc định
-        this.soundVolume = 0.5; // Âm lượng âm thanh mặc định
+        // << [AUDIO] Đọc volume từ AudioManager (đã lưu trong localStorage) >>
+        this.musicVolume = AudioManager.getMusicVolume(); // Âm lượng nhạc nền
+        this.soundVolume = AudioManager.getSoundVolume(); // Âm lượng sound effects
     }
 
     // Nhận dữ liệu từ GameScene
@@ -115,6 +117,8 @@ export class PausePopup extends Phaser.Scene {
             this.musicSlider.mask.fillStyle(0xffffff);
             this.musicSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
             
+            // << [AUDIO] Áp dụng volume cho nhạc nền và lưu vào localStorage >>
+            AudioManager.setMusicVolume(this.musicVolume);
             console.log('Music Volume:', this.musicVolume);
         });
     }
@@ -176,6 +180,8 @@ export class PausePopup extends Phaser.Scene {
             this.soundSlider.mask.fillStyle(0xffffff);
             this.soundSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
             
+            // << [AUDIO] Áp dụng volume cho sound effects và lưu vào localStorage >>
+            AudioManager.setSoundVolume(this.soundVolume);
             console.log('Sound Volume:', this.soundVolume);
         });
     }
@@ -225,10 +231,11 @@ export class PausePopup extends Phaser.Scene {
             .setDepth(3); // Giữ depth 3
 
         quitButton.on('pointerdown', () => {
-            if (this.scene.isPaused('GameScene')) {
+            // << [AUDIO] Dừng tất cả scene game trước khi quay về MapScene >>
+            if (this.scene.isActive('GameScene') || this.scene.isPaused('GameScene')) {
                 this.scene.stop('GameScene');
             }
-            if (this.scene.isPaused('UIScene')) {
+            if (this.scene.isActive('UIScene') || this.scene.isPaused('UIScene')) {
                 this.scene.stop('UIScene');
             }
             this.scene.stop(); // Dừng PausePopup

@@ -49,7 +49,12 @@ function initializeApp() {
     fullscreenButton.style.display = 'none';
 
     const game = new Phaser.Game(config);
-
+    
+    // << [AUDIO] Gán game instance vào window để AudioManager có thể emit event >>
+    if (typeof window !== 'undefined') {
+      window.game = game;
+      console.log('[Main] Game instance assigned to window.game');
+    }
 
   }, { once: true });
 }

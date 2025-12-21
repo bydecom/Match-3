@@ -356,6 +356,12 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('avt3', 'assets/images/ui/friend/avt3.png');
         this.load.image('avt4', 'assets/images/ui/friend/avt4.png');
 
+        // << [AUDIO] Load âm thanh cho Map VFX >>
+        this.load.audio('background', 'assets/sounds/maps/background.ogg');
+        this.load.audio('stream', 'assets/sounds/maps/stream.mp3');
+        this.load.audio('monkey', 'assets/sounds/maps/monkey.mp3');
+        this.load.audio('water-drop', 'assets/sounds/maps/water-drop.m4a');
+
         // Load level data
         this.load.json('level_1', 'assets/levels/level_1.json');
         this.load.json('level_2', 'assets/levels/level_2.json');

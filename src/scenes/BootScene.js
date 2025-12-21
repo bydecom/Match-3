@@ -1,5 +1,6 @@
 // src/scenes/BootScene.js
 import Phaser from 'phaser';
+import AudioManager from '../managers/AudioManager';
 
 export class BootScene extends Phaser.Scene {
     constructor() {
@@ -17,6 +18,9 @@ export class BootScene extends Phaser.Scene {
     }
 
     create() {
+        // << [AUDIO] Khởi tạo AudioManager với game instance >>
+        AudioManager.setGame(this.game);
+        
         // Ngay lập tức chuyển sang PreloaderScene
         this.scene.start('PreloaderScene');
     }

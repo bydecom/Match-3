@@ -24,6 +24,9 @@ export class Board {
     this.selectedGem = null
     this.ropeDestroyedThisTurn = false
     this.boardBusy = false
+    
+    // << [HINT SYSTEM] Lưu reference đến các tween hint để có thể dừng chúng >>
+    this.hintTweens = []
 
     // Lắp ráp trạng thái ban đầu
     this.initGrid()
@@ -115,6 +118,90 @@ export class Board {
       default:
         console.warn('Unknown input type:', inputData.type)
     }
+  }
+
+  /**
+   * [HỆ THỐNG GỢI Ý] Hiển thị gợi ý nước đi cho người chơi
+   * Tìm một nước đi khả thi và làm các gem đó rung lắc/phóng to liên tục
+   * Hint sẽ duy trì cho đến khi người chơi thao tác (clearHint được gọi)
+   */
+  showHint() {
+    // Không hiện hint nếu board đang bận chạy effect
+    if (this.boardBusy) return
+
+    // Xóa hint cũ trước khi hiện hint mới
+    this.clearHint()
+
+    const move = this.findPotentialMove() // Hàm vừa viết ở BoardMatcher
+    if (!move) {
+      console.log('💡 Không tìm thấy nước đi nào để gợi ý')
+      return
+    }
+
+    console.log('💡 Hint found:', move)
+    
+    const gem1 = this.grid[move.r1]?.[move.c1]
+    const gem2 = this.grid[move.r2]?.[move.c2]
+
+    // Hiệu ứng rung lắc hoặc phóng to nhẹ để gây chú ý - LẶP VÔ HẠN
+    if (gem1 && gem1.sprite && gem1.sprite.active) {
+      // Lưu lại scale ban đầu
+      const originalScale = gem1.sprite.scale
+      const targetScale = originalScale * 1.1 // Phóng to 10% so với scale hiện tại
+      
+      const tween1 = this.scene.tweens.add({
+        targets: gem1.sprite,
+        scale: targetScale, // Phóng to dựa trên scale hiện tại
+        angle: { from: -5, to: 5 }, // Lắc nhẹ
+        yoyo: true,
+        repeat: -1, // << LẶP VÔ HẠN cho đến khi dừng thủ công
+        duration: 200
+      })
+      
+      // Lưu reference để có thể dừng sau
+      this.hintTweens.push({ tween: tween1, sprite: gem1.sprite, originalScale })
+    }
+    
+    // Nếu là swap 2 ô thì hint cả ô thứ 2
+    if (gem2 && gem2.sprite && gem2.sprite.active && (move.r1 !== move.r2 || move.c1 !== move.c2)) {
+      // Lưu lại scale ban đầu
+      const originalScale2 = gem2.sprite.scale
+      const targetScale2 = originalScale2 * 1.15 // Phóng to 15% so với scale hiện tại
+      
+      const tween2 = this.scene.tweens.add({
+        targets: gem2.sprite,
+        scale: targetScale2,
+        angle: { from: -5, to: 5 },
+        yoyo: true,
+        repeat: -1, // << LẶP VÔ HẠN cho đến khi dừng thủ công
+        duration: 200
+      })
+      
+      // Lưu reference để có thể dừng sau
+      this.hintTweens.push({ tween: tween2, sprite: gem2.sprite, originalScale: originalScale2 })
+    }
+  }
+
+  /**
+   * [HỆ THỐNG GỢI Ý] Dừng và xóa tất cả các hint đang hiển thị
+   * Gọi hàm này khi người chơi thao tác (click, swipe, booster...)
+   */
+  clearHint() {
+    if (this.hintTweens.length === 0) return
+
+    this.hintTweens.forEach(({ tween, sprite, originalScale }) => {
+      if (tween && tween.isPlaying()) {
+        tween.stop()
+      }
+      
+      // Reset sprite về trạng thái ban đầu
+      if (sprite && sprite.active) {
+        sprite.setScale(originalScale).setAngle(0)
+      }
+    })
+
+    // Xóa danh sách
+    this.hintTweens = []
   }
 }
 

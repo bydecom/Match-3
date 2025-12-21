@@ -1,5 +1,6 @@
 // src/objects/vfx/MapVFXManager.js
 import Phaser from 'phaser';
+import AudioManager from '../../managers/AudioManager';
 
 export class MapVFXManager {
     /**
@@ -14,6 +15,14 @@ export class MapVFXManager {
         
         this.activeVFX = []; // Lưu trữ các đối tượng VFX đang hoạt động để dọn dẹp
         this.defaultScale = 1.0; // Scale mặc định (đã thay đổi từ 0.4 thành 1.0)
+        
+        // << [AUDIO SYSTEM] Lưu trữ các âm thanh đang phát để quản lý >>
+        this.activeSounds = []; // Lưu các sound đang phát
+        this.bgMusic = null; // Nhạc nền
+        
+        // << [AUDIO] Lắng nghe sự kiện thay đổi volume >>
+        this.scene.game.events.on('musicVolumeChanged', this.onMusicVolumeChanged, this);
+        this.scene.game.events.on('soundVolumeChanged', this.onSoundVolumeChanged, this);
     }
 
     /**
@@ -375,6 +384,11 @@ export class MapVFXManager {
                 splash.setTexture(frame.s);
                 splash.setPosition(coords.x + frame.fx, coords.y + frame.fy);
 
+                // << [AUDIO] Phát âm thanh water-drop 2 lần: frame đầu và frame cuối >>
+                if (idx === 0 || idx === sequence.length - 1) {
+                    this.playSound('water-drop', 0.25); // water-drop.m4a - giảm volume
+                }
+
                 idx++;
                 if (idx >= sequence.length) {
                     timer.remove();
@@ -392,11 +406,178 @@ export class MapVFXManager {
     // ---------------------------------------------------
     // --- HÀM TRUNG TÂM ĐỂ KHỞI TẠO VFX CHO TẤT CẢ MAP ---
     // ---------------------------------------------------
+    // ---------------------------------------------------
+    // --- HỆ THỐNG ÂM THANH ---
+    // ---------------------------------------------------
+    
+    /**
+     * Phát nhạc nền (background music) với fade in
+     * @param {string} soundKey Key của file âm thanh (ví dụ: 'background')
+     * @param {number} baseVolume Âm lượng cơ bản (sẽ nhân với musicVolume từ AudioManager)
+     */
+    playBackgroundMusic(soundKey, baseVolume = 1.0) {
+        // Dừng nhạc nền cũ nếu đang phát
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+            this.bgMusic = null;
+        }
+        
+        // Kiểm tra xem sound có tồn tại không
+        if (!this.scene.cache.audio.exists(soundKey)) {
+            console.warn(`Audio "${soundKey}" not found in cache`);
+            return;
+        }
+        
+        // << [AUDIO] Lấy volume từ AudioManager >>
+        const targetVolume = baseVolume * AudioManager.getMusicVolume();
+        
+        // Phát nhạc nền mới với fade in
+        this.bgMusic = this.scene.sound.add(soundKey, {
+            loop: true,
+            volume: 0 // Bắt đầu từ 0 để fade in
+        });
+        this.bgMusic.play();
+        
+        // Lưu baseVolume để tính lại khi thay đổi volume
+        this.bgMusic.baseVolume = baseVolume;
+        
+        // Fade in dần lên âm lượng mong muốn
+        this.scene.tweens.add({
+            targets: this.bgMusic,
+            volume: targetVolume,
+            duration: 2000,
+            ease: 'Linear'
+        });
+        
+        console.log(`🎵 Playing background music: ${soundKey} (volume: ${targetVolume})`);
+    }
+    
+    /**
+     * Phát âm thanh định kỳ theo chu kỳ
+     * @param {string} soundKey Key của file âm thanh
+     * @param {number} interval Chu kỳ phát (ms)
+     * @param {number} baseVolume Âm lượng cơ bản (sẽ nhân với soundVolume từ AudioManager)
+     * @returns {Phaser.Time.TimerEvent} Timer event
+     */
+    playPeriodicSound(soundKey, interval, baseVolume = 1.0) {
+        const timer = this.scene.time.addEvent({
+            delay: interval,
+            loop: true,
+            callback: () => {
+                if (this.scene.cache.audio.exists(soundKey)) {
+                    // << [AUDIO] Lấy volume từ AudioManager >>
+                    const volume = baseVolume * AudioManager.getSoundVolume();
+                    const sound = this.scene.sound.add(soundKey, { volume });
+                    sound.play();
+                    // Âm thanh sẽ tự động destroy sau khi phát xong
+                    sound.once('complete', () => {
+                        sound.destroy();
+                    });
+                }
+            },
+            callbackScope: this
+        });
+        
+        this.activeVFX.push(timer);
+        return timer;
+    }
+    
+    /**
+     * Phát âm thanh loop liên tục (ambient sound)
+     * @param {string} soundKey Key của file âm thanh
+     * @param {number} baseVolume Âm lượng cơ bản (sẽ nhân với soundVolume từ AudioManager)
+     * @returns {Phaser.Sound.BaseSound} Sound object
+     */
+    playLoopingSound(soundKey, baseVolume = 1.0) {
+        // Kiểm tra xem sound có tồn tại không
+        if (!this.scene.cache.audio.exists(soundKey)) {
+            console.warn(`Audio "${soundKey}" not found in cache`);
+            return null;
+        }
+        
+        // << [AUDIO] Lấy volume từ AudioManager >>
+        const volume = baseVolume * AudioManager.getSoundVolume();
+        
+        // Phát âm thanh loop liên tục
+        const sound = this.scene.sound.add(soundKey, {
+            loop: true,
+            volume: volume
+        });
+        sound.play();
+        
+        // Lưu baseVolume để tính lại khi thay đổi volume
+        sound.baseVolume = baseVolume;
+        
+        // Lưu lại để quản lý
+        this.activeSounds.push(sound);
+        return sound;
+    }
+    
+    /**
+     * Phát âm thanh một lần
+     * @param {string} soundKey Key của file âm thanh
+     * @param {number} baseVolume Âm lượng cơ bản (sẽ nhân với soundVolume từ AudioManager)
+     * @param {number} delay Delay trước khi phát (ms)
+     */
+    playSound(soundKey, baseVolume = 1.0, delay = 0) {
+        if (!this.scene.cache.audio.exists(soundKey)) {
+            console.warn(`Audio "${soundKey}" not found in cache`);
+            return;
+        }
+        
+        // << [AUDIO] Lấy volume từ AudioManager >>
+        const volume = baseVolume * AudioManager.getSoundVolume();
+        
+        if (delay > 0) {
+            this.scene.time.delayedCall(delay, () => {
+                const sound = this.scene.sound.add(soundKey, { volume });
+                sound.play();
+                sound.once('complete', () => {
+                    sound.destroy();
+                });
+            });
+        } else {
+            const sound = this.scene.sound.add(soundKey, { volume });
+            sound.play();
+            sound.once('complete', () => {
+                sound.destroy();
+            });
+        }
+    }
+
     /**
      * Khởi tạo VFX cho tất cả các map parts đã đăng ký - LOAD NGAY LẬP TỨC.
      */
+    /**
+     * << [AUDIO] Callback khi music volume thay đổi >>
+     */
+    onMusicVolumeChanged(newVolume) {
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            const baseVolume = this.bgMusic.baseVolume || 1.0;
+            this.bgMusic.setVolume(baseVolume * newVolume);
+            console.log(`🎵 Music volume updated: ${baseVolume * newVolume}`);
+        }
+    }
+    
+    /**
+     * << [AUDIO] Callback khi sound volume thay đổi >>
+     */
+    onSoundVolumeChanged(newVolume) {
+        // Cập nhật volume cho tất cả sound effects đang loop
+        this.activeSounds.forEach(sound => {
+            if (sound && sound.isPlaying) {
+                const baseVolume = sound.baseVolume || 1.0;
+                sound.setVolume(baseVolume * newVolume);
+            }
+        });
+        console.log(`🔊 Sound effects volume updated: ${newVolume}`);
+    }
+
     startAllMapVFX() {
         console.log("Starting All Map VFX (immediate load)...");
+        
+        // << [AUDIO] Phát nhạc nền >>
+        this.playBackgroundMusic('background', 0.5); // background.ogg - baseVolume 0.5 (tăng lên để đủ nghe)
         
         // Load Map Part 2 ngay lập tức
         if (this.mapRegistry.has('map_part2')) {
@@ -667,6 +848,8 @@ export class MapVFXManager {
 
         this.activeVFX.push(steamDropletTimer); // Lưu timer để có thể dừng sau này
 
+        // << [AUDIO] Âm thanh thác nước - chạy liên tục với volume nhỏ >>
+        this.playLoopingSound('stream', 0.08); // stream.mp3 - volume 0.08 (giảm xuống)
 
         // --- Nhóm VFX Bình rót nước (Decanter) ---
 
@@ -883,6 +1066,9 @@ export class MapVFXManager {
              this.activeVFX.push(tween);
          }
 
+        // << [AUDIO] Tiếng khỉ - phát định kỳ mỗi 12 giây >>
+        this.playPeriodicSound('monkey', 12000, 0.15); // monkey.mp3 - volume 0.15 (giảm xuống)
+
         console.log(`Created ${this.activeVFX.length} VFX elements/timers/tweens for Map Part 1.`);
     }
 
@@ -947,7 +1133,7 @@ export class MapVFXManager {
 
         // 5. Cá nhảy ngẫu nhiên quanh khu vực thác (timer định kỳ)
         const fishTimer = this.scene.time.addEvent({
-            delay: 2500,
+            delay: 7000, // Tăng lên 7 giây để tránh spam water-drop
             loop: true,
             callback: () => {
                 this.createFishJumpSequence(mapKey, fishPos.x, fishPos.y, { depth: 20, scale: 1.0, step: 140 });
@@ -961,7 +1147,38 @@ export class MapVFXManager {
 
     // Hàm dọn dẹp khi Scene bị shutdown
     shutdown() {
-        console.log("Stopping Map Part 1 VFX...");
+        console.log("Stopping Map VFX and Audio...");
+        
+        // << [AUDIO] Dọn dẹp event listeners >>
+        this.scene.game.events.off('musicVolumeChanged', this.onMusicVolumeChanged, this);
+        this.scene.game.events.off('soundVolumeChanged', this.onSoundVolumeChanged, this);
+        
+        // << [AUDIO] Dừng nhạc nền với fade out >>
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            this.scene.tweens.add({
+                targets: this.bgMusic,
+                volume: 0,
+                duration: 1000,
+                ease: 'Linear',
+                onComplete: () => {
+                    if (this.bgMusic) {
+                        this.bgMusic.stop();
+                        this.bgMusic.destroy();
+                        this.bgMusic = null;
+                    }
+                }
+            });
+        }
+        
+        // Dừng tất cả âm thanh đang phát
+        this.activeSounds.forEach(sound => {
+            if (sound && sound.isPlaying) {
+                sound.stop();
+                sound.destroy();
+            }
+        });
+        this.activeSounds = [];
+        
         // Lặp ngược để tránh lỗi khi xóa phần tử khỏi mảng đang lặp
         for (let i = this.activeVFX.length - 1; i >= 0; i--) {
             const vfx = this.activeVFX[i];

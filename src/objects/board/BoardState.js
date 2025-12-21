@@ -17,6 +17,8 @@ export class BoardState {
     this.isMoveBasedLevel = false;
     this.levelFailed = false; // Cờ thua để tránh emit nhiều lần
     this.chainLevel = 1; // Đếm chuỗi phản ứng hiện tại
+    // << [AUTO SHUFFLE FIX] Đếm số lần shuffle thất bại liên tiếp để tránh vòng lặp vô hạn >>
+    this.consecutiveShuffleFailures = 0;
     for (let row = 0; row < GRID_SIZE; row++) {
       this.grid[row] = []
       this.blockerGrid[row] = []
@@ -47,6 +49,8 @@ export class BoardState {
     })
     this.selectionFrame && this.selectionFrame.setVisible(false)
     this.selectedGem = null
+    // << [AUTO SHUFFLE FIX] Reset bộ đếm shuffle thất bại khi clear board >>
+    this.consecutiveShuffleFailures = 0
     this.initGrid()
   }
 
@@ -161,8 +165,15 @@ export class BoardState {
   // -----------------------------------------------------------------------
 
   /**
-   * Thực hiện xáo trộn logic dữ liệu cho đến khi tìm được bảng có nước đi.
+   * [AUTO SHUFFLE FIX] Thực hiện xáo trộn logic dữ liệu cho đến khi tìm được bảng có nước đi.
    * Không có hiệu ứng hình ảnh ở đây, chỉ xử lý data.
+   * 
+   * BẢN SỬA LỖI:
+   * - Tăng số lần thử lên 50 (từ 20)
+   * - Ưu tiên tìm board tĩnh (không có match ngay)
+   * - Sau 40 lần thử mà vẫn không tìm được, chấp nhận board có match để tránh deadlock
+   * 
+   * @returns {boolean} true nếu tìm được board hợp lệ, false nếu thất bại
    */
   shuffleGridLogic() {
     const allGems = []
@@ -178,12 +189,15 @@ export class BoardState {
       }
     }
 
-    if (allGems.length === 0) return
+    if (allGems.length === 0) {
+      console.warn('Shuffle: No gems to shuffle!')
+      return false
+    }
 
     let attempt = 0
     let validBoardFound = false
 
-    while (!validBoardFound && attempt < 20) {
+    while (!validBoardFound && attempt < 50) { // Tăng lên 50 lần thử
       Phaser.Utils.Array.Shuffle(allGems)
       let idx = 0
 
@@ -199,19 +213,30 @@ export class BoardState {
         }
       }
 
-      const matchGroups = this.findAllMatches()
+      const matchGroups = this.findAllMatches() // Check match tĩnh
       const hasMoves = typeof this.hasPossibleMoves === 'function' ? this.hasPossibleMoves() : false
 
+      // ĐIỀU KIỆN CHUẨN: Có nước đi VÀ Không tự nổ (ưu tiên tuyệt đối)
       if (hasMoves && matchGroups.length === 0) {
         validBoardFound = true
-      } else if (hasMoves) {
+      }
+      // Nếu quá bí (thử 40 lần không được), đành chấp nhận có match nổ ngay
+      // để tránh game bị tắc, nhưng vẫn yêu cầu phải có nước đi
+      else if (attempt >= 40 && hasMoves) {
+        console.warn(`Shuffle: Accepting board with matches after ${attempt} attempts to avoid deadlock`)
         validBoardFound = true
       }
 
       attempt++
     }
 
-    console.log(`Shuffle logic completed after ${attempt} attempts.`)
+    if (!validBoardFound) {
+      console.error('⚠️ Shuffle: Could not find valid board after 50 attempts! Potential deadlock.')
+      return false
+    }
+
+    console.log(`✅ Shuffle logic completed after ${attempt} attempts (matches: ${this.findAllMatches().length})`)
+    return true
   }
 
   /**
@@ -235,10 +260,15 @@ export class BoardState {
   }
 
   /**
-   * Kích hoạt quy trình Auto Shuffle: Khóa bảng -> VFX -> Logic Shuffle -> Cập nhật Sprite
+   * [AUTO SHUFFLE FIX] Kích hoạt quy trình Auto Shuffle: Khóa bảng -> VFX -> Logic Shuffle -> Cập nhật Sprite
+   * 
+   * BẢN SỬA LỖI:
+   * - Kiểm tra lại sau khi shuffle xem có nước đi không
+   * - Đếm số lần thất bại liên tiếp
+   * - Nếu thất bại 3 lần liên tiếp -> Game Over (tránh vòng lặp vô hạn)
    */
   triggerAutoShuffle() {
-    console.log('No moves left! Triggering Auto Shuffle...')
+    console.log('⚠️ No moves left! Triggering Auto Shuffle... (Attempt #' + (this.consecutiveShuffleFailures + 1) + ')')
 
     this.boardBusy = true
     if (this.scene && this.scene.input) {
@@ -266,12 +296,58 @@ export class BoardState {
     }
 
     const finalizeShuffle = () => {
-      this.shuffleGridLogic()
+      // Thực hiện shuffle logic và kiểm tra kết quả
+      const shuffleSuccess = this.shuffleGridLogic()
+      
+      if (!shuffleSuccess) {
+        console.error('❌ Shuffle logic failed!')
+      }
+      
+      // Áp dụng kết quả shuffle lên sprite
       this.applyShuffleResultsToSprites()
       allBlockerSprites.forEach(blocker => {
         if (blocker && blocker.setVisible) blocker.setVisible(true)
       })
-      this.checkForNewMatches()
+      
+      // << LOGIC MỚI: Kiểm tra lại sau shuffle >>
+      // Delay một chút để người chơi thấy animation xong rồi mới check
+      this.scene.time.delayedCall(300, () => {
+        if (!this.hasPossibleMoves()) {
+          this.consecutiveShuffleFailures++
+          console.error(`❌ Shuffle failed! No valid moves after shuffle. (Failure #${this.consecutiveShuffleFailures})`)
+          
+          // Nếu thất bại 3 lần liên tiếp -> Game Over
+          if (this.consecutiveShuffleFailures >= 3) {
+            console.error('💀 GAME OVER: Cannot generate valid moves after 3 shuffle attempts!')
+            
+            // Mở khóa board để tránh UI bị treo
+            this.boardBusy = false
+            if (this.scene && this.scene.input) {
+              this.scene.input.enabled = true
+            }
+            if (this.scene && this.scene.game && this.scene.game.events) {
+              this.scene.game.events.emit('boardBusy', false)
+              // Phát sự kiện thua game
+              this.scene.game.events.emit('levelFailed')
+            }
+            return
+          }
+          
+          // Thử shuffle lại (đệ quy có kiểm soát)
+          console.log('🔄 Retrying shuffle...')
+          this.scene.time.delayedCall(500, () => this.triggerAutoShuffle())
+          return
+        }
+        
+        // Nếu shuffle thành công, reset bộ đếm thất bại
+        if (this.consecutiveShuffleFailures > 0) {
+          console.log(`✅ Shuffle successful after ${this.consecutiveShuffleFailures + 1} attempts! Resetting failure counter.`)
+        }
+        this.consecutiveShuffleFailures = 0
+        
+        // Tiếp tục game bình thường
+        this.checkForNewMatches()
+      })
     }
 
     if (this.scene?.boosterVFXManager?.playFakeShuffleEffect) {
@@ -424,6 +500,9 @@ export class BoardState {
     if (!options.isBooster) {
       this.decrementMove();
     }
+
+    // << [AUTO SHUFFLE FIX] Reset bộ đếm shuffle thất bại khi người chơi thực hiện swap hợp lệ >>
+    this.consecutiveShuffleFailures = 0;
 
     this.chainLevel = 1;
 

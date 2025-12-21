@@ -5,6 +5,7 @@ import { GRID_SIZE } from '../utils/constants'
 import { BoosterVFXManager } from '../objects/vfx/BoosterVFXManager'
 import { PowerupVFXManager } from '../objects/vfx/PowerupVFXManager'
 import PlayerDataManager from '../managers/PlayerDataManager'
+import AudioManager from '../managers/AudioManager'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -37,6 +38,8 @@ export class GameScene extends Phaser.Scene {
     this.SWIPE_THRESHOLD = 50
     this.TAP_THRESHOLD = 15
     this.TAP_MAX_TIME = 300
+    // --- HỆ THỐNG GỢI Ý (HINT) ---
+    this.idleTime = 0 // Thời gian không có input (ms)
   }
 
   create(data) { // Cần nhận data từ LevelLoaderScene
@@ -59,13 +62,19 @@ export class GameScene extends Phaser.Scene {
         // Dừng các nhạc đang phát (nếu có) để tránh ồn
         this.sound.stopAll();
 
+        // << [AUDIO] Lấy volume từ AudioManager >>
+        const baseVolume = 1; // Âm lượng cơ bản
+        const targetVolume = baseVolume * AudioManager.getMusicVolume(); // Nhân với music volume
+        
         // Phát nhạc mới với chế độ lặp lại (loop), bắt đầu với volume = 0
-        const targetVolume = 0.2; // Âm lượng nhỏ (0.0 đến 1.0)
         this.bgMusic = this.sound.add(musicKey, { 
             loop: true, 
             volume: 0 // Bắt đầu từ 0 để fade in
         });
         this.bgMusic.play();
+        
+        // Lưu baseVolume để tính lại khi volume thay đổi
+        this.bgMusic.baseVolume = baseVolume;
         
         // Fade in dần lên âm lượng mong muốn trong 2 giây
         this.tweens.add({
@@ -77,6 +86,9 @@ export class GameScene extends Phaser.Scene {
                 console.log(`Nhạc nền đã fade in đến volume ${targetVolume}`);
             }
         });
+        
+        // << [AUDIO] Lắng nghe event thay đổi volume >>
+        this.game.events.on('musicVolumeChanged', this.onMusicVolumeChanged, this);
     } else {
         console.warn(`Không tìm thấy file nhạc: ${musicKey}`);
     }
@@ -397,10 +409,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    // << [AUDIO] Dọn dẹp event listener >>
+    this.game.events.off('musicVolumeChanged', this.onMusicVolumeChanged, this);
+    
+    // << [AUDIO] Dừng TẤT CẢ âm thanh của scene này >>
+    console.log(`[GameScene] Shutting down - Stopping all sounds`);
+    this.sound.stopAll(); // Dừng tất cả âm thanh
+    
     // --- THÊM ĐOẠN NÀY ĐỂ TẮT NHẠC KHI THOÁT VÀ GIẢI PHÓNG BỘ NHỚ ---
     if (this.bgMusic) {
         console.log(`Đang dừng nhạc: ${this.currentMusicKey}`);
-        this.bgMusic.stop();
         this.bgMusic.destroy();
         this.bgMusic = null;
     }
@@ -501,6 +519,13 @@ export class GameScene extends Phaser.Scene {
 
   onPointerDown(pointer) {
     this.isPointerDown = true
+    this.idleTime = 0 // Reset bộ đếm vì người chơi đang thao tác
+    
+    // << [HINT SYSTEM] Xóa hint khi người chơi thao tác >>
+    if (this.board && typeof this.board.clearHint === 'function') {
+      this.board.clearHint()
+    }
+    
     // --- LOGIC MỚI CHO SWIPE STATE ---
     this.swipeState.isDown = true
     this.swipeState.downX = pointer.x
@@ -787,6 +812,40 @@ export class GameScene extends Phaser.Scene {
     } catch (error) {
       console.error('Error loading level:', error)
       return null
+    }
+  }
+
+  /**
+   * << [AUDIO] Callback khi music volume thay đổi >>
+   */
+  onMusicVolumeChanged(newVolume) {
+    if (this.bgMusic && this.bgMusic.isPlaying) {
+      const baseVolume = this.bgMusic.baseVolume || 1.0;
+      this.bgMusic.setVolume(baseVolume * newVolume);
+      console.log(`🎵 GameScene music volume updated: ${baseVolume * newVolume}`);
+    }
+  }
+
+  /**
+   * [HỆ THỐNG GỢI Ý] Phaser update loop - Đếm thời gian idle và hiển thị hint
+   */
+  update(time, delta) {
+    // Nếu board bận, xóa hint và không đếm giờ
+    if (!this.board || this.board.boardBusy) {
+      this.idleTime = 0
+      // Xóa hint khi board bận (đang xử lý match, gravity, etc.)
+      if (this.board && typeof this.board.clearHint === 'function') {
+        this.board.clearHint()
+      }
+      return
+    }
+
+    this.idleTime += delta
+
+    // Nếu rảnh quá 5000ms (5 giây) thì hiện gợi ý
+    if (this.idleTime > 5000) {
+      this.board.showHint()
+      this.idleTime = -5000 // Reset về âm để đợi thêm 10s nữa mới hint lại (tránh spam)
     }
   }
 

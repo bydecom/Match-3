@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import APIManager from '../../managers/APIManager';
+import AudioManager from '../../managers/AudioManager';
 
 export class SettingsPopup extends Phaser.Scene {
     constructor() {
         super({ key: 'SettingsPopup' });
         this.levelId = 1; // Giá trị mặc định
-        this.musicVolume = 0.5; // Âm lượng nhạc mặc định
-        this.soundVolume = 0.5; // Âm lượng âm thanh mặc định
+        // << [AUDIO] Đọc volume từ AudioManager >>
+        this.musicVolume = AudioManager.getMusicVolume(); // Âm lượng nhạc nền
+        this.soundVolume = AudioManager.getSoundVolume(); // Âm lượng sound effects
     }
 
     // Nhận dữ liệu từ GameScene
@@ -117,6 +119,8 @@ export class SettingsPopup extends Phaser.Scene {
             this.musicSlider.mask.fillStyle(0xffffff);
             this.musicSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
             
+            // << [AUDIO] Áp dụng volume cho nhạc nền >>
+            AudioManager.setMusicVolume(this.musicVolume);
             console.log('Music Volume:', this.musicVolume);
         });
     }
@@ -179,6 +183,8 @@ export class SettingsPopup extends Phaser.Scene {
             this.soundSlider.mask.fillStyle(0xffffff);
             this.soundSlider.mask.fillRect(startX, maskY, fillWidth, maskHeight);
             
+            // << [AUDIO] Áp dụng volume cho sound effects >>
+            AudioManager.setSoundVolume(this.soundVolume);
             console.log('Sound Volume:', this.soundVolume);
         });
     }

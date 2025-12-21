@@ -42,6 +42,18 @@ export class MapScene extends Phaser.Scene {
         const playerData = PlayerDataManager.getProgression();
         const fullPlayerData = PlayerDataManager.getUserData();
 
+        // << [AUDIO] Dừng tất cả âm thanh từ các scene khác (đặc biệt là GameScene) >>
+        // Khi quay về MapScene, cần đảm bảo nhạc từ GameScene không còn chạy
+        this.sound.stopAll();
+        console.log('[MapScene] Stopped all sounds from previous scenes');
+        
+        // Nếu GameScene đang chạy, dừng nó
+        if (this.scene.isActive('GameScene')) {
+            this.scene.stop('GameScene');
+            console.log('[MapScene] Stopped GameScene');
+        }
+        // ---------------------------------------------------------------
+
         // --- FADE IN ĐỂ CHE FRAME ĐẦU TIÊN TRONG KHI VFX ĐANG KHỞI TẠO ---
         this.cameras.main.fadeIn(300, 0, 0, 0);
         // ---------------------------------------------------------------

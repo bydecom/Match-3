@@ -173,6 +173,58 @@ export class BoardMatcher {
     }
     return countV >= 3
   }
+
+  /**
+   * [HỆ THỐNG GỢI Ý] Tìm tọa độ cụ thể của một nước đi khả thi (Dùng cho Hint)
+   * Thay vì chỉ trả về true/false, hàm này trả về {r1, c1, r2, c2}
+   * @returns {object|null} Tọa độ nước đi {r1, c1, r2, c2} hoặc null nếu không có
+   */
+  findPotentialMove() {
+    if (!this.grid || !this.grid.length) return null
+
+    // Clone grid ảo để test swap
+    const tempGrid = this.grid.map(row => row.map(cell => (cell ? { ...cell } : null)))
+
+    const isValidSwap = (r1, c1, r2, c2) => {
+      if (!this.isValidCell || !this.isValidCell(r1, c1) || !this.isValidCell(r2, c2)) return false
+
+      const gem1 = tempGrid[r1][c1]
+      const gem2 = tempGrid[r2][c2]
+
+      // Chỉ check gem thường và không bị chặn
+      if (!gem1 || gem1.type !== 'gem' || !this.canMatchAt(r1, c1)) return false
+      if (!gem2 || gem2.type !== 'gem' || !this.canMatchAt(r2, c2)) return false
+
+      // Swap thử trên grid ảo
+      tempGrid[r1][c1] = gem2
+      tempGrid[r2][c2] = gem1
+
+      // Check match
+      const hasMatch = this._checkMatchAt(tempGrid, r1, c1) || this._checkMatchAt(tempGrid, r2, c2)
+
+      // Trả lại vị trí cũ
+      tempGrid[r1][c1] = gem1
+      tempGrid[r2][c2] = gem2
+
+      return hasMatch
+    }
+
+    // Duyệt qua lưới để tìm nước đi đầu tiên thấy
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        // Kiểm tra swap ngang
+        if (isValidSwap(r, c, r, c + 1)) return { r1: r, c1: c, r2: r, c2: c + 1 }
+        // Kiểm tra swap dọc
+        if (isValidSwap(r, c, r + 1, c)) return { r1: r, c1: c, r2: r + 1, c2: c }
+        
+        // Hint cho Powerup (nếu có powerup thì click vào nó là ăn)
+        const gem = this.grid[r][c]
+        if (this.isPowerup && this.isPowerup(gem)) return { r1: r, c1: c, r2: r, c2: c }
+      }
+    }
+
+    return null
+  }
 }
 
 
