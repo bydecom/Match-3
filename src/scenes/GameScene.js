@@ -63,7 +63,7 @@ export class GameScene extends Phaser.Scene {
         this.sound.stopAll();
 
         // << [AUDIO] Lấy volume từ AudioManager >>
-        const baseVolume = 1; // Âm lượng cơ bản
+        const baseVolume = 0.3; // Âm lượng cơ bản
         const targetVolume = baseVolume * AudioManager.getMusicVolume(); // Nhân với music volume
         
         // Phát nhạc mới với chế độ lặp lại (loop), bắt đầu với volume = 0

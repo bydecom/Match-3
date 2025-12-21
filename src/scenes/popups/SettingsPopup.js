@@ -19,9 +19,17 @@ export class SettingsPopup extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
-        // 1. Tạm dừng các scene bên dưới
-        this.scene.pause('GameScene');
-        this.scene.pause('UIScene');
+        // 1. Tạm dừng các scene bên dưới (chỉ pause nếu đang chạy)
+        if (this.scene.isActive('GameScene')) {
+            this.scene.pause('GameScene');
+        }
+        if (this.scene.isActive('UIScene')) {
+            this.scene.pause('UIScene');
+        }
+        // Nếu mở từ MapScene, pause MapScene
+        if (this.scene.isActive('MapScene')) {
+            this.scene.pause('MapScene');
+        }
 
         // 2. Tạo một lớp nền mờ
         const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
@@ -260,6 +268,9 @@ export class SettingsPopup extends Phaser.Scene {
         }
         if (this.scene.isPaused('UIScene')) {
             this.scene.resume('UIScene');
+        }
+        if (this.scene.isPaused('MapScene')) {
+            this.scene.resume('MapScene');
         }
     }
 
