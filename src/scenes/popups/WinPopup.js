@@ -22,6 +22,11 @@ export class WinPopup extends Phaser.Scene {
     // << KẾT THÚC SỬA >>
     this.objectives = data?.objectives ?? null;
     this.results = data?.results ?? null;
+
+    // --- LƯU TIẾN ĐỘ NGAY KHI THẮNG ---
+    // Gọi Manager để tính toán mở khóa level tiếp theo và Lưu xuống localStorage ngay lập tức
+    console.log(`[WinPopup] Saving progress for Level ${this.levelId} with ${this.stars} stars`);
+    PlayerDataManager.completeLevel(this.levelId, this.stars);
   }
 
   create() {
