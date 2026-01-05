@@ -165,20 +165,23 @@ export class SpinPopup extends Phaser.Scene {
             this.startSpin();
         });
         
-        // 6.1. Hiển thị số ticket còn lại
-        this.ticketCountText = this.add.text(width / 2+25, 975, `x${PlayerDataManager.getTickets()}`, {
+        // 6.1 & 6.2: Tạo UI Ticket (Text và Icon)
+        // Khởi tạo Text (Vị trí tạm thời, sẽ được updateTicketUI chỉnh lại ngay sau đó)
+        this.ticketCountText = this.add.text(0, 0, '', {
             fontFamily: 'NABILA',
             fontSize: '32px',
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 6,
             fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(5);
+        }).setDepth(5);
         
-        // 6.2. Thêm icon ticket nhỏ bên cạnh
-        this.ticketIcon = this.add.image(width / 2 -20, 980, 'ticket')
-            .setOrigin(0.5)
+        // Khởi tạo Icon
+        this.ticketIcon = this.add.image(0, 0, 'ticket')
             .setDepth(5);
+
+        // Gọi hàm update lần đầu để căn chỉnh vị trí ngay khi mở popup
+        this.updateTicketUI();
 
         // Hiệu ứng hover cho spin button (chỉ khi enabled)
         this.spinButton.on('pointerover', () => {
@@ -256,6 +259,40 @@ export class SpinPopup extends Phaser.Scene {
         if (mapScene && mapScene.resourceDisplay) {
             mapScene.resourceDisplay.updateDisplay();
         }
+    }
+    
+    /**
+     * Cập nhật UI ticket (icon và text) và tự động căn giữa màn hình
+     */
+    updateTicketUI() {
+        const ticketCount = PlayerDataManager.getTickets();
+        const spacing = 5; // Khoảng cách giữa Icon và Text
+
+        // 1. Cập nhật nội dung text trước để Phaser tính lại width mới
+        this.ticketCountText.setText(`x${ticketCount}`);
+
+        // 2. Lấy độ rộng thực tế hiện tại
+        const iconWidth = this.ticketIcon.displayWidth;
+        const textWidth = this.ticketCountText.width;
+        
+        // 3. Tính tổng độ rộng của cả cụm (Icon + Spacing + Text)
+        const totalWidth = iconWidth + spacing + textWidth;
+
+        // 4. Tính vị trí bắt đầu (X) để cả cụm nằm giữa màn hình
+        // (Center màn hình) - (Nửa tổng độ rộng)
+        const startX = (this.scale.width / 2) - (totalWidth / 2);
+        const startY = 975; // Y cố định
+
+        // 5. Đặt lại vị trí
+        // Set Origin về (0, 0.5) để căn lề trái cho dễ xếp hàng ngang
+        this.ticketIcon.setOrigin(0, 0.5);
+        this.ticketCountText.setOrigin(0, 0.5);
+
+        // Đặt Icon ở vị trí bắt đầu
+        this.ticketIcon.setPosition(startX, startY);
+        
+        // Đặt Text ngay sau Icon + spacing
+        this.ticketCountText.setPosition(startX + iconWidth + spacing, startY);
     }
     
     /**
@@ -346,10 +383,8 @@ export class SpinPopup extends Phaser.Scene {
         PlayerDataManager.updateTickets(-1);
         this.updateResourceDisplay();
         
-        // Cập nhật hiển thị số ticket trong popup
-        if (this.ticketCountText) {
-            this.ticketCountText.setText(`x${PlayerDataManager.getTickets()}`);
-        }
+        // Cập nhật hiển thị số ticket trong popup (Dùng hàm mới để tự căn giữa)
+        this.updateTicketUI();
         
         // Cập nhật trạng thái nút spin sau khi trừ vé
         this.updateSpinButtonState();

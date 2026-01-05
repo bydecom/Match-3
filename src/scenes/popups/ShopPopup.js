@@ -100,6 +100,12 @@ export class ShopPopup extends Phaser.Scene {
     }
 
     async loadAndRenderShop() {
+        // Kiểm tra scene còn tồn tại không
+        if (!this.sys || !this.sys.isActive()) {
+            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua loadAndRenderShop');
+            return;
+        }
+
         const { width, height } = this.scale;
         const loadingText = this.add.text(width / 2, height / 2, 'Loading Shop...', {
             fontSize: '24px',
@@ -111,6 +117,13 @@ export class ShopPopup extends Phaser.Scene {
         this.updateButtons();
         try {
             this.shopData = await APIManager.getDailyShop();
+            
+            // Kiểm tra lại sau khi await (scene có thể đã bị đóng trong lúc chờ API)
+            if (!this.sys || !this.sys.isActive()) {
+                console.warn('ShopPopup: Scene đã bị destroy sau khi load API');
+                return;
+            }
+
             if (!this.shopData || !this.shopData.items) {
                 throw new Error('Invalid shop data received');
             }
@@ -124,14 +137,26 @@ export class ShopPopup extends Phaser.Scene {
             this.renderPage(this.currentPage);
         } catch (error) {
             console.error('Failed to load shop:', error);
-            loadingText.setText('Error. Please try again.');
+            // Kiểm tra loadingText còn tồn tại không trước khi setText
+            if (loadingText && loadingText.active) {
+                loadingText.setText('Error. Please try again.');
+            }
             return;
         }
 
-        loadingText.destroy();
+        // Kiểm tra loadingText còn tồn tại không trước khi destroy
+        if (loadingText && loadingText.active) {
+            loadingText.destroy();
+        }
     }
 
     renderPage(pageIndex) {
+        // Kiểm tra scene còn tồn tại không
+        if (!this.sys || !this.sys.isActive()) {
+            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua renderPage');
+            return;
+        }
+
         this.itemsLayer.removeAll(true);
 
         if (!this.shopData) {
@@ -302,6 +327,12 @@ export class ShopPopup extends Phaser.Scene {
     }
 
     updateButtons() {
+        // Kiểm tra scene còn tồn tại không trước khi cập nhật
+        if (!this.sys || !this.sys.isActive()) {
+            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua updateButtons');
+            return;
+        }
+
         const dataLoaded = !!this.shopData;
         if (this.prevBtn) {
             this.prevBtn.setAlpha(dataLoaded && this.currentPage > 0 ? 1 : 0.5)
@@ -317,6 +348,12 @@ export class ShopPopup extends Phaser.Scene {
     }
     
     async handleBuyItem(item) {
+        // Kiểm tra scene còn tồn tại không
+        if (!this.sys || !this.sys.isActive()) {
+            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua handleBuyItem');
+            return;
+        }
+
         // Disable tất cả interaction trong lúc đang xử lý
         this.setShopInteractionEnabled(false);
         
@@ -324,6 +361,12 @@ export class ShopPopup extends Phaser.Scene {
             // Gọi API mua item thông qua APIManager
             const result = await APIManager.buyItem(item.id, item.price);
             
+            // Kiểm tra lại sau khi await (scene có thể đã bị đóng trong lúc chờ API)
+            if (!this.sys || !this.sys.isActive()) {
+                console.warn('ShopPopup: Scene đã bị destroy sau khi mua item');
+                return;
+            }
+
             if (result.success) {
                 // Mua thành công
                 console.log(`Đã mua ${item.id} thành công!`, result.reward);

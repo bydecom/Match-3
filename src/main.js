@@ -1,6 +1,7 @@
 // src/main.js
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
+import { TitleScene } from './scenes/TitleScene'; // <--- Import Scene mới
 import { PreloaderScene } from './scenes/PreloaderScene';
 import { MapScene } from './scenes/MapScene';
 import { DemoScene } from './scenes/DemoScene';
@@ -26,37 +27,31 @@ const config = {
     width: 576,
     height: 1024,
   },
-  scene: [BootScene, PreloaderScene, DemoScene, MapScene, LevelLoaderScene, GameScene, UIScene, SettingsPopup, PausePopup, WinPopup, LosePopup, LevelReviewPopup, SpinPopup, ShopPopup, FriendPopup] 
+  // --- THÊM TitleScene VÀO DANH SÁCH (Sau BootScene, Trước PreloaderScene) ---
+  scene: [
+      BootScene, 
+      TitleScene, // <--- Đặt ở đây
+      PreloaderScene, 
+      DemoScene, 
+      MapScene, 
+      LevelLoaderScene, 
+      GameScene, 
+      UIScene, 
+      SettingsPopup, 
+      PausePopup, 
+      WinPopup, 
+      LosePopup, 
+      LevelReviewPopup, 
+      SpinPopup, 
+      ShopPopup, 
+      FriendPopup
+  ] 
 };
 
-function initializeApp() {
-  const fullscreenButton = document.getElementById('fullscreen-button');
+// Khởi tạo game ngay lập tức, không chờ nút HTML
+const game = new Phaser.Game(config);
 
-  const enterFullscreen = () => {
-    const element = document.documentElement;
-    if (element.requestFullscreen) {
-      element.requestFullscreen();
-    } else if (element.webkitRequestFullscreen) {
-      element.webkitRequestFullscreen();
-    }
-  }
-
-  fullscreenButton.addEventListener('click', () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (!isIOS) {
-      enterFullscreen();
-    }
-    fullscreenButton.style.display = 'none';
-
-    const game = new Phaser.Game(config);
-    
-    // << [AUDIO] Gán game instance vào window để AudioManager có thể emit event >>
-    if (typeof window !== 'undefined') {
-      window.game = game;
-      console.log('[Main] Game instance assigned to window.game');
-    }
-
-  }, { once: true });
+if (typeof window !== 'undefined') {
+  window.game = game;
+  console.log('[Main] Game instance assigned to window.game');
 }
-
-initializeApp();

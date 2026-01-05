@@ -14,14 +14,34 @@ export class BootScene extends Phaser.Scene {
         this.load.image('loading_logo', 'assets/images/map/logo.png');
         this.load.image('loading_progress_bar', 'assets/images/map/loading_progress_bar.png');
         this.load.image('loading_progress_bar_background', 'assets/images/map/loading_progress_bar_background.png');
-
     }
 
     create() {
         // << [AUDIO] Khởi tạo AudioManager với game instance >>
         AudioManager.setGame(this.game);
         
-        // Ngay lập tức chuyển sang PreloaderScene
-        this.scene.start('PreloaderScene');
+        // --- THAY ĐỔI: Đợi Font tải xong mới vào màn Title ---
+        this.waitForFont('UTMCookies').then(() => {
+            this.scene.start('TitleScene');
+        });
+    }
+
+    // Hàm tiện ích để đợi font (lấy từ PreloaderScene sang)
+    waitForFont(fontName) {
+        return new Promise((resolve) => {
+            if (document && document.fonts && document.fonts.load) {
+                document.fonts.load(`20px ${fontName}`).then(() => {
+                    return document.fonts.ready;
+                }).then(() => {
+                    console.log(`[Boot] Font '${fontName}' ready.`);
+                    resolve();
+                }).catch(() => {
+                    // Nếu lỗi thì cứ cho qua (dùng font mặc định)
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
     }
 }
