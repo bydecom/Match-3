@@ -71,7 +71,7 @@ export class SettingsPopup extends Phaser.Scene {
     createMusicSlider(width, height) {
         // Vị trí
         const sliderX = 288;
-        const sliderY = 510;
+        const sliderY = 512;
         const startX = 140;
         const endX = 440;
         const sliderWidth = endX - startX;
@@ -136,7 +136,7 @@ export class SettingsPopup extends Phaser.Scene {
     createSoundSlider(width, height) {
         // Vị trí
         const sliderX = 288;
-        const sliderY = 590;
+        const sliderY = 592;
         const startX = 140;
         const endX = 440;
         const sliderWidth = endX - startX;
@@ -291,7 +291,7 @@ export class SettingsPopup extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng ID lặp lại
-            this.add.text(288, 820, `ID: ${userId}`, {
+            this.add.text(345, 428, `${userId}`, {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#b43827',
@@ -299,7 +299,7 @@ export class SettingsPopup extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng Level
-            this.add.text(288, 842, `Level: ${level}`, {
+            this.add.text(345, 402, `${level}`, {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#b43827',
@@ -307,7 +307,7 @@ export class SettingsPopup extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng tên (màu trắng)
-            this.add.text(288, 864, username, {
+            this.add.text(311, 375, username, {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#ffffff',
