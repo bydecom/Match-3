@@ -451,11 +451,16 @@ class PlayerDataManager {
 
 
 
-        // 2. Mở khóa level tiếp theo
+        // 2. Mở khóa level tiếp theo (CHỈ KHI ĐẠT ÍT NHẤT 1 SAO)
 
-        if (numericLevelId >= currentHighest) {
+        if (numericStars >= 1 && numericLevelId >= currentHighest) {
 
             this.userData.progression.highestLevelUnlocked = numericLevelId + 1;
+            console.log(`[Progression] Level ${numericLevelId + 1} đã được mở khóa!`);
+
+        } else if (numericStars < 1) {
+
+            console.log(`[Progression] Không đủ sao (${numericStars}) để mở khóa level tiếp theo`);
 
         }
 

@@ -71,7 +71,7 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
         
         // Nút cài đặt ở góc trên bên phải (dùng ảnh đã scale sẵn)
         // Tạo nút riêng biệt không thêm vào container để tránh vấn đề click
-        this.settingsButton = this.scene.add.image(width - 40, 30, 'setting_button')
+        this.settingsButton = this.scene.add.image(width - 55, 55, 'setting_button')
             .setInteractive({ useHandCursor: true })
             .setDepth(1001) // Depth cao hơn container để đảm bảo click được
             .setScrollFactor(0); // Ghim vào màn hình giống container

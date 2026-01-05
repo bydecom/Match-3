@@ -318,7 +318,7 @@ export class MapScene extends Phaser.Scene {
         });
 
         // Tạo nút Friend - Góc dưới (hoặc vị trí bạn muốn)
-        const friendButton = this.add.image(width - 50, 120, 'friend_msg_icon') // Dùng tạm icon msg làm nút mở
+        const friendButton = this.add.image(50, 260, 'friend_button') // Dùng tạm icon msg làm nút mở
             .setScale(1)
             .setInteractive({ useHandCursor: true })
             .setDepth(iconDepth)

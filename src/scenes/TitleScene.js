@@ -12,7 +12,7 @@ export class TitleScene extends Phaser.Scene {
         const gameHeight = this.scale.gameSize.height;
 
         // 1. Background (Sử dụng logic resize giống PreloaderScene)
-        this.background = this.add.image(0, 0, 'loading_background');
+        this.background = this.add.image(0, 0, 'preloading_background');
         this.resizeBackground(gameWidth, gameHeight);
 
         // 2. Logo (Vị trí và hiệu ứng GIỐNG HỆT PreloaderScene)
