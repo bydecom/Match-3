@@ -100,11 +100,9 @@ export class ShopPopup extends Phaser.Scene {
     }
 
     async loadAndRenderShop() {
-        // Kiểm tra scene còn tồn tại không
-        if (!this.sys || !this.sys.isActive()) {
-            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua loadAndRenderShop');
-            return;
-        }
+        // NOTE: Đã xóa đoạn check isActive() ở đây vì khi create() gọi hàm này,
+        // scene đang ở trạng thái CREATING (chưa RUNNING), nên isActive() trả về false.
+        // Chỉ giữ lại đoạn check SAU lệnh await vì lúc đó scene đã RUNNING hoặc đã bị đóng.
 
         const { width, height } = this.scale;
         const loadingText = this.add.text(width / 2, height / 2, 'Loading Shop...', {
@@ -151,12 +149,8 @@ export class ShopPopup extends Phaser.Scene {
     }
 
     renderPage(pageIndex) {
-        // Kiểm tra scene còn tồn tại không
-        if (!this.sys || !this.sys.isActive()) {
-            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua renderPage');
-            return;
-        }
-
+        // NOTE: Đã xóa check isActive() vì hàm này được gọi trong quá trình khởi tạo
+        
         this.itemsLayer.removeAll(true);
 
         if (!this.shopData) {
@@ -327,12 +321,8 @@ export class ShopPopup extends Phaser.Scene {
     }
 
     updateButtons() {
-        // Kiểm tra scene còn tồn tại không trước khi cập nhật
-        if (!this.sys || !this.sys.isActive()) {
-            console.warn('ShopPopup: Scene đã bị destroy, bỏ qua updateButtons');
-            return;
-        }
-
+        // NOTE: Đã xóa check isActive() vì hàm này được gọi trong quá trình khởi tạo
+        
         const dataLoaded = !!this.shopData;
         if (this.prevBtn) {
             this.prevBtn.setAlpha(dataLoaded && this.currentPage > 0 ? 1 : 0.5)

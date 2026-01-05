@@ -432,13 +432,20 @@ class PlayerDataManager {
 
     completeLevel(levelId, stars) {
 
+        // Ép kiểu số để tránh lỗi String vs Number trên Host
+        const numericLevelId = parseInt(levelId, 10);
+        const numericStars = parseInt(stars, 10);
+        const currentHighest = parseInt(this.userData.progression.highestLevelUnlocked, 10);
+
+        console.log(`[PlayerDataManager] completeLevel called - LevelID: ${numericLevelId} (${typeof numericLevelId}), Stars: ${numericStars}`);
+
         // 1. Cập nhật sao (chỉ lấy kết quả cao nhất)
 
-        const currentStars = this.userData.progression.levelStars[levelId] || 0;
+        const currentStars = this.userData.progression.levelStars[numericLevelId] || 0;
 
-        if (stars > currentStars) {
+        if (numericStars > currentStars) {
 
-            this.userData.progression.levelStars[levelId] = stars;
+            this.userData.progression.levelStars[numericLevelId] = numericStars;
 
         }
 
@@ -446,9 +453,9 @@ class PlayerDataManager {
 
         // 2. Mở khóa level tiếp theo
 
-        if (levelId >= this.userData.progression.highestLevelUnlocked) {
+        if (numericLevelId >= currentHighest) {
 
-            this.userData.progression.highestLevelUnlocked = levelId + 1;
+            this.userData.progression.highestLevelUnlocked = numericLevelId + 1;
 
         }
 
@@ -456,7 +463,7 @@ class PlayerDataManager {
 
         this._saveToStorage();
 
-        console.log(`[Progression] Completed Level ${levelId}. Next Unlock: ${this.userData.progression.highestLevelUnlocked}`);
+        console.log(`[Progression] Completed Level ${numericLevelId}. Next Unlock: ${this.userData.progression.highestLevelUnlocked}`);
 
     }
 

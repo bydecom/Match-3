@@ -23,8 +23,9 @@ export class MapScene extends Phaser.Scene {
      * Nhận dữ liệu từ WinPopup
      */
     init(data) {
-        this.completedLevelId = (data && data.completedLevelId) ? data.completedLevelId : null;
-        console.log('MapScene Init - CompletedLevelID:', this.completedLevelId);
+        // Ép kiểu parseInt để đảm bảo luôn là số (tránh lỗi String vs Number trên Host)
+        this.completedLevelId = (data && data.completedLevelId) ? parseInt(data.completedLevelId, 10) : null;
+        console.log(`[MapScene Init] CompletedLevelID: ${this.completedLevelId} (Type: ${typeof this.completedLevelId})`);
     }
 
     /**
@@ -63,18 +64,28 @@ export class MapScene extends Phaser.Scene {
             this.targetUnlockNode = null;
         });
 
-        // --- ĐOẠN CODE CẦN SỬA ---
+        // --- ĐOẠN CODE ĐÃ SỬA: ÉP KIỂU VÀ DEBUG ---
         
         // Tính toán level cần mở khóa hiệu ứng
         let nextLevelIdToAnimate = -1;
         
         if (this.completedLevelId) {
-            const potentialNextLevel = this.completedLevelId + 1;
+            // Ép kiểu số cho chắc chắn (đề phòng)
+            const completedId = parseInt(this.completedLevelId, 10);
+            const potentialNextLevel = completedId + 1;
+            const highestUnlocked = parseInt(playerData.highestLevelUnlocked, 10);
+            
+            // Debug log để kiểm tra trên Host
+            console.log(`[DEBUG HOST] Completed: ${completedId} (Type: ${typeof completedId})`);
+            console.log(`[DEBUG HOST] Highest: ${highestUnlocked} (Type: ${typeof highestUnlocked})`);
+            console.log(`[DEBUG HOST] Potential: ${potentialNextLevel}`);
+            console.log(`[DEBUG HOST] So sánh: ${potentialNextLevel} === ${highestUnlocked} => ${potentialNextLevel === highestUnlocked}`);
             
             // LOGIC MỚI: Chỉ chạy animation nếu level tiếp theo CHÍNH LÀ level cao nhất hiện tại (tức là mới mở khóa)
             // Nếu potentialNextLevel < highestLevelUnlocked, nghĩa là level đó đã mở từ lâu rồi -> Bỏ qua
-            if (potentialNextLevel === playerData.highestLevelUnlocked) {
+            if (potentialNextLevel === highestUnlocked) {
                 nextLevelIdToAnimate = potentialNextLevel;
+                console.log(`[DEBUG HOST] Animation sẽ chạy cho Level ${nextLevelIdToAnimate}`);
             }
             
             this.completedLevelId = null;

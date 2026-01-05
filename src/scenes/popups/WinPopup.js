@@ -12,20 +12,18 @@ export class WinPopup extends Phaser.Scene {
   }
 
   init(data) {
-    this.levelId = data?.levelId ?? 1;
-    // << SỬA CHỖ NÀY >>
-    // Lỗi: Math.max(1, ...) không bao giờ cho phép 0 sao
-    // this.stars = Math.max(1, Math.min(3, data?.stars ?? 1)); 
+    // Ép kiểu parseInt để đảm bảo luôn là số (tránh lỗi "1" + 1 = "11" trên Host)
+    this.levelId = parseInt(data?.levelId ?? 1, 10);
     
     // Sửa: Math.max(0, ...) cho phép 0 sao
-    this.stars = Math.max(0, Math.min(3, data?.stars ?? 0)); 
-    // << KẾT THÚC SỬA >>
+    this.stars = Math.max(0, Math.min(3, parseInt(data?.stars ?? 0, 10))); 
+    
     this.objectives = data?.objectives ?? null;
     this.results = data?.results ?? null;
 
     // --- LƯU TIẾN ĐỘ NGAY KHI THẮNG ---
     // Gọi Manager để tính toán mở khóa level tiếp theo và Lưu xuống localStorage ngay lập tức
-    console.log(`[WinPopup] Saving progress for Level ${this.levelId} with ${this.stars} stars`);
+    console.log(`[WinPopup] Saving progress for Level ${this.levelId} (Type: ${typeof this.levelId}) with ${this.stars} stars`);
     PlayerDataManager.completeLevel(this.levelId, this.stars);
   }
 
