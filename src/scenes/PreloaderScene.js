@@ -40,13 +40,17 @@ export class PreloaderScene extends Phaser.Scene {
             }, MIN_LOAD_TIME);
         });
 
-        // Chờ font web sẵn sàng (UTMCookies và NABILA) để tránh giật font khi vào scene tiếp theo
-        const fontLoadPromise = Promise.all([
+        // Tải font ngầm - không chặn loading bar
+        // Font sẽ tự hiển thị đúng khi sẵn sàng (progressive rendering)
+        Promise.all([
             this.waitForFont('UTMCookies'),
             this.waitForFont('NABILA')
-        ]);
+        ]).then(() => {
+            console.log(">>> SỰ KIỆN: Fonts đã tải xong (không chặn game)");
+        });
 
-        Promise.all([minTimePromise, loadCompletePromise, fontLoadPromise]).then(() => {
+        // Chỉ chờ assets và thời gian tối thiểu - KHÔNG chờ font
+        Promise.all([minTimePromise, loadCompletePromise]).then(() => {
             if (!this.scene.isActive()) {
                 console.log("Promise hoàn thành, nhưng scene không còn hoạt động. Bỏ qua.");
                 return;
@@ -135,7 +139,8 @@ export class PreloaderScene extends Phaser.Scene {
     }
     
     loadAssets() {
-        this.load.maxParallelDownloads = 4
+        // Bỏ giới hạn maxParallelDownloads để tăng tốc tải (mặc định Phaser là 32)
+        // this.load.maxParallelDownloads = 4
         console.log("Bắt đầu ra lệnh tải assets...");
         this.load.image(`level_background`, 'assets/screen/level.png');
         this.load.image(`map1_background`, 'assets/images/map/map1-background.png');
