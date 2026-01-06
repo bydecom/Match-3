@@ -1,6 +1,6 @@
 {
   "levelId": 6,
-  "maxMoves": 22,
+  "maxMoves": 26,
   "starTimes": {
     "startTime": 120,
     "threeStars": 90,
@@ -9,7 +9,7 @@
   },
   "objectives": [
     { "target": "blocker", "type": "rope", "count": 12 },
-    { "target": "gem", "type": "blue", "count": 35 }
+    { "target": "gem", "type": "blue", "count": 20 }
   ],
   "gridLayout": [
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -35,4 +35,3 @@
   ],
   "availableGems": ["red", "green", "blue", "purple", "yellow", "orange"]
 }
-

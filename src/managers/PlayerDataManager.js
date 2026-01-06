@@ -136,7 +136,7 @@ class PlayerDataManager {
 
                 "coins": 1000,
 
-                "lives": 5,
+                "lives": 10,  // Sửa thành 10 tim
 
                 "tickets": 1 // Vé quay
 
@@ -150,13 +150,13 @@ class PlayerDataManager {
 
                 "boosters": {
 
-                    "hammer": 1,
+                    "hammer": 2,  // Sửa thành 2
 
-                    "swap": 1,
+                    "swap": 2,    // Sửa thành 2
 
-                    "rocket": 1,
+                    "rocket": 2,  // Sửa thành 2
 
-                    "shuffle": 1
+                    "shuffle": 2  // Sửa thành 2
 
                 }
 

@@ -1,7 +1,7 @@
 {
   "levelId": 5,
   "playgroundTheme": "2",
-  "maxMoves": 15,
+  "maxMoves": 28,
   "starTimes": {
     "startTime": 120,
     "threeStars": 90,
@@ -36,4 +36,3 @@
   ],
   "availableGems": ["red", "green", "blue", "purple", "yellow", "orange"]
 }
-

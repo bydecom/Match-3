@@ -1,7 +1,7 @@
 {
   "levelId": 9,
   "playgroundTheme": "2",
-  "maxMoves": 26,
+  "maxMoves": 35,
   "starTimes": {
     "startTime": 120,
     "threeStars": 90,
@@ -11,7 +11,7 @@
   "objectives": [
     { "target": "blocker", "type": "rope", "count": 18 },
     { "target": "blocker", "type": "stone", "count": 12 },
-    { "target": "gem", "type": "yellow", "count": 50 }
+    { "target": "gem", "type": "yellow", "count": 30 }
   ],
   "gridLayout": [
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -37,4 +37,3 @@
   ],
   "availableGems": ["red", "green", "blue", "purple", "yellow", "orange"]
 }
-

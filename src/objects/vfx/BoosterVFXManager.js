@@ -140,6 +140,44 @@ playHammerEffect(row, col, onComplete) {
     this.swapSelectedSprite = null
   }
 
+  // === THÊM HÀM MỚI: HIỂN THỊ VIỀN VÀNG CHO MỘT Ô ===
+  /**
+   * Hiển thị viền vàng quanh một ô cụ thể (Dùng cho Hammer, Swap, Shuffle)
+   */
+  showCellHighlight(row, col) {
+    this.clearPreview(); // Xóa cái cũ đi
+
+    // Kiểm tra ô hợp lệ
+    if (!this.board.isValidCell(row, col)) return;
+
+    const { x, y } = this.board.getCellPosition(row, col);
+    const size = this.board.cellSize;
+
+    const graphics = this.scene.add.graphics().setDepth(15);
+    
+    // Vẽ viền vàng, bo góc nhẹ
+    graphics.lineStyle(4, 0xFFD700, 1);
+    graphics.strokeRoundedRect(x - size/2, y - size/2, size, size, 10);
+
+    // Vẽ nền mờ bên trong cho rõ hơn
+    graphics.fillStyle(0xFFD700, 0.2);
+    graphics.fillRoundedRect(x - size/2, y - size/2, size, size, 10);
+
+    this.vfxObjects.push(graphics);
+  }
+
+  /**
+   * Hàm tổng hợp để gọi preview dựa trên loại booster
+   */
+  showDragPreview(type, row, col) {
+    if (type === BOOSTER_TYPES.ROCKET) {
+        this.showRocketPreview(row, col); // Hàm cũ bạn đã có
+    } else {
+        // Hammer, Swap, Shuffle dùng chung kiểu highlight 1 ô
+        this.showCellHighlight(row, col);
+    }
+  }
+
   // === ROCKET ===
   // << THAY THẾ TOÀN BỘ HÀM showRocketPreview CŨ BẰNG HÀM NÀY >>
   showRocketPreview(row, col) {

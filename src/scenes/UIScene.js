@@ -190,6 +190,83 @@ export class UIScene extends Phaser.Scene {
 
       this.boosterIcons.push(icon);
 
+      // === DRAG & DROP SYSTEM ===
+      // Biến lưu trạng thái kéo
+      let dragIcon = null;
+      let isDragging = false; // Cờ đánh dấu xem có đang kéo hay không
+      
+      // Bật tính năng kéo cho icon
+      this.input.setDraggable(icon);
+
+      // 1. BẮT ĐẦU KÉO
+      icon.on('dragstart', (pointer) => {
+        // Kiểm tra số lượng trước khi cho phép kéo
+        const boosterKey = buttonInfo.type.toLowerCase();
+        const currentCount = PlayerDataManager.getBoosterCount(boosterKey);
+        
+        if (currentCount <= 0) {
+          console.log(`Hết item ${buttonInfo.type}! Không thể kéo.`);
+          return;
+        }
+        
+        // ĐÁNH DẤU LÀ ĐANG KÉO -> ĐỂ BLOCK SỰ KIỆN CLICK
+        isDragging = true;
+        
+        // Tạo một icon tạm thời ("hình nộm") để đi theo chuột
+        dragIcon = this.add.image(pointer.x, pointer.y, buttonInfo.key);
+        dragIcon.setScale(buttonInfo.scale); // Giữ nguyên kích thước
+        dragIcon.setAlpha(0.8);
+        dragIcon.setDepth(1000); // Đảm bảo nó nổi lên trên cùng
+        
+        // Ẩn hoàn toàn icon gốc khi đang kéo
+        icon.setVisible(false);
+      });
+
+      // 2. TRONG KHI KÉO
+      icon.on('drag', (pointer) => {
+        if (dragIcon) {
+          dragIcon.x = pointer.x;
+          dragIcon.y = pointer.y;
+
+          // Gửi tọa độ liên tục xuống GameScene để hiển thị preview
+          this.game.events.emit('boosterDragging', {
+            type: buttonInfo.type,
+            x: pointer.x,
+            y: pointer.y
+          });
+        }
+      });
+
+      // 3. THẢ RA (DROP)
+      icon.on('dragend', (pointer) => {
+        // Hiện lại icon gốc
+        icon.setVisible(true);
+        
+        // Báo hiệu kết thúc để xóa viền vàng preview
+        this.game.events.emit('boosterDragEnded');
+        
+        if (dragIcon) {
+          dragIcon.destroy(); // Xóa hình nộm
+          dragIcon = null;
+
+          // Gửi sự kiện xuống GameScene kèm theo tọa độ thả chuột
+          // Chúng ta gửi cả Type và Tọa độ (x, y)
+          this.game.events.emit('boosterDropped', {
+            type: buttonInfo.type,
+            x: pointer.x,
+            y: pointer.y
+          });
+        }
+        
+        // QUAN TRỌNG: Delay việc reset cờ isDragging một chút
+        // Lý do: Sự kiện 'pointerup' thường chạy ngay sau 'dragend'.
+        // Nếu set false ngay lập tức, 'pointerup' sẽ tưởng là click và kích hoạt chọn.
+        this.time.delayedCall(50, () => {
+          isDragging = false;
+        });
+      });
+      // === END DRAG & DROP SYSTEM ===
+
       // 2. Lấy cấu hình offset riêng của booster này
       const { bgX, bgY, textX, textY, iconAddX, iconAddY } = buttonInfo.offsets;
 
@@ -238,10 +315,13 @@ export class UIScene extends Phaser.Scene {
           }
       };
 
-      // Logic Click: Kiểm tra số lượng trước khi chọn
-      icon.on('pointerdown', () => {
+      // Logic Click: Dùng pointerup thay vì pointerdown để tách biệt với drag
+      icon.on('pointerup', () => {
+        // NẾU VỪA MỚI KÉO XONG -> KHÔNG TÍNH LÀ CLICK
+        if (isDragging) return;
+        
         const clickedType = icon.getData('boosterType');
-        console.log(`Booster clicked: ${clickedType}`);
+        console.log(`Booster clicked (Tap): ${clickedType}`);
         
         // Kiểm tra số lượng hiện có
         const currentCount = PlayerDataManager.getBoosterCount(clickedType.toLowerCase());

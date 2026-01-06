@@ -198,6 +198,11 @@ export class GameScene extends Phaser.Scene {
     // Sự kiện booster từ UIScene
     this.game.events.on('boosterSelected', this.onBoosterSelected, this)
     this.game.events.on('boosterActivated', this.onBoosterActivated, this)
+    // Lắng nghe sự kiện kéo thả từ UIScene
+    this.game.events.on('boosterDropped', this.onBoosterDropped, this)
+    // Lắng nghe sự kiện đang kéo để hiển thị preview
+    this.game.events.on('boosterDragging', this.onBoosterDragging, this)
+    this.game.events.on('boosterDragEnded', this.onBoosterDragEnded, this)
     // Bật hệ thống pointer để hỗ trợ VFX và booster
     this.input.off('gameobjectdown', this.onBoardClick, this)
     this.input.on('pointerdown', this.onPointerDown, this)
@@ -438,6 +443,9 @@ export class GameScene extends Phaser.Scene {
     // 2. Dọn dẹp các listener mà GameScene đã đăng ký
     this.game.events.off('boosterSelected', this.onBoosterSelected, this)
     this.game.events.off('boosterActivated', this.onBoosterActivated, this)
+    this.game.events.off('boosterDropped', this.onBoosterDropped, this)
+    this.game.events.off('boosterDragging', this.onBoosterDragging, this)
+    this.game.events.off('boosterDragEnded', this.onBoosterDragEnded, this)
     this.game.events.off('boardBusy', this.handleBoardBusy, this)
     this.game.events.off('boosterSelectionCleared', this.handleBoosterCleared, this)
     this.game.events.off('screenShake', this.handleScreenShake, this)
@@ -470,6 +478,147 @@ export class GameScene extends Phaser.Scene {
 
   handleBoosterCleared() {
     this.clearActiveBooster()
+  }
+
+  /**
+   * Xử lý sự kiện kéo thả booster từ UIScene
+   * @param {object} data - { type, x, y }
+   */
+  onBoosterDropped(data) {
+    const { type, x, y } = data;
+
+    // 1. Nếu đang bận thì thôi
+    if (this.board.boardBusy) return;
+
+    // 2. Chuyển đổi tọa độ màn hình sang tọa độ thế giới trong GameScene
+    const worldPoint = this.cameras.main.getWorldPoint(x, y);
+
+    // 3. Tìm xem tại vị trí đó có Gem hay Cell nào không
+    const clickedObject = this.getObjectAt(worldPoint.x, worldPoint.y);
+
+    if (clickedObject) {
+      const row = clickedObject.getData('row');
+      const col = clickedObject.getData('col');
+
+      if (row !== undefined && col !== undefined) {
+        console.log(`Dropped ${type} on [${row}, ${col}]`);
+        
+        // Xử lý theo từng loại booster
+        if (type === BOOSTER_TYPES.HAMMER) {
+          // Trừ item trước khi dùng
+          if (this.tryConsumeBooster(type)) {
+            this.game.events.emit('boardBusy', true);
+            this.boosterVFXManager.playHammerEffect(row, col, () => {
+              this.board.useHammer(row, col);
+            });
+          }
+        } 
+        else if (type === BOOSTER_TYPES.ROCKET) {
+          if (this.tryConsumeBooster(type)) {
+            this.game.events.emit('boardBusy', true);
+            this.boosterVFXManager.playRocketEffect(col, () => {
+              this.board.useRocket(row, col);
+            });
+          }
+        }
+        else if (type === BOOSTER_TYPES.SHUFFLE) {
+          if (this.tryConsumeBooster(type)) {
+            this.game.events.emit('boardBusy', true);
+            const allGemSprites = [];
+            const allBlockerSprites = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const gem = this.board.grid[r]?.[c];
+                if (gem && gem.sprite) allGemSprites.push(gem.sprite);
+                const blocker = this.board.blockerGrid[r]?.[c];
+                if (blocker) allBlockerSprites.push(blocker);
+              }
+            }
+            this.board.useShuffle();
+            this.boosterVFXManager.playFakeShuffleEffect(allGemSprites, allBlockerSprites, () => {
+              allGemSprites.forEach(gem => { if (gem && gem.active) gem.setVisible(true); });
+              allBlockerSprites.forEach(blocker => { if (blocker && blocker.active) blocker.setVisible(true); });
+              this.board.checkForNewMatches();
+            });
+          }
+        }
+        else if (type === BOOSTER_TYPES.SWAP) {
+          // Swap phức tạp hơn vì cần 2 ô
+          // Thả vào ô nào thì chọn ô đó là "Gem 1", bắt người chơi click ô thứ 2
+          const gem = this.board.grid[row][col];
+          if (gem && gem.type === 'gem') {
+            // Kích hoạt booster SWAP và set firstSwapGem
+            this.activeBooster = BOOSTER_TYPES.SWAP;
+            this.firstSwapGem = gem;
+            this.boosterVFXManager?.showSwapPreview(row, col);
+            // Thông báo cho UIScene biết SWAP đang được chọn
+            this.game.events.emit('boosterSelected', BOOSTER_TYPES.SWAP);
+          }
+        }
+      }
+    } else {
+      // Nếu thả ra ngoài bàn cờ -> Không làm gì (giữ nguyên item)
+      console.log('Booster dropped outside board. Cancelled.');
+    }
+  }
+
+  /**
+   * Hàm phụ trợ để tìm Object (Gem/Cell) tại tọa độ (x, y)
+   * @param {number} x - Tọa độ X trong world
+   * @param {number} y - Tọa độ Y trong world
+   * @returns {Phaser.GameObjects.GameObject|null}
+   */
+  getObjectAt(x, y) {
+    // Lấy danh sách các gem và cell
+    const listToCheck = this.children.list.concat(this.gemLayer.list);
+    
+    // Tìm cái nào chứa điểm x, y
+    for (let obj of listToCheck) {
+      if (obj.getData && (obj.getData('isGem') || obj.getData('isCell'))) {
+        if (obj.getBounds().contains(x, y)) {
+          return obj;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Xử lý khi đang kéo booster trên màn hình
+   */
+  onBoosterDragging(data) {
+    const { type, x, y } = data;
+
+    if (!this.board || this.board.boardBusy) return;
+
+    // 1. Chuyển tọa độ màn hình -> World
+    const worldPoint = this.cameras.main.getWorldPoint(x, y);
+
+    // 2. Tìm đối tượng dưới chuột
+    const hoveredObject = this.getObjectAt(worldPoint.x, worldPoint.y);
+
+    if (hoveredObject) {
+        const row = hoveredObject.getData('row');
+        const col = hoveredObject.getData('col');
+
+        if (row !== undefined && col !== undefined) {
+            // 3. Gọi VFX Manager để hiển thị preview
+            this.boosterVFXManager.showDragPreview(type, row, col);
+            return;
+        }
+    }
+    
+    // Nếu kéo ra ngoài board -> Xóa preview
+    this.boosterVFXManager.clearPreview();
+  }
+
+  /**
+   * Xử lý khi thả tay -> Xóa hết preview
+   */
+  onBoosterDragEnded() {
+    if (this.boosterVFXManager) {
+        this.boosterVFXManager.clearPreview();
+    }
   }
 
   handleScreenShake(shakeData) {
