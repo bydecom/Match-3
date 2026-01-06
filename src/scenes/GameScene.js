@@ -40,6 +40,8 @@ export class GameScene extends Phaser.Scene {
     this.TAP_MAX_TIME = 300
     // --- HỆ THỐNG GỢI Ý (HINT) ---
     this.idleTime = 0 // Thời gian không có input (ms)
+    // --- TIMESTAMP CHẶN SỰ KIỆN DROP/POINTERUP ---
+    this.lastDropTime = 0 // Thời điểm drop booster gần nhất
   }
 
   create(data) { // Cần nhận data từ LevelLoaderScene
@@ -204,7 +206,11 @@ export class GameScene extends Phaser.Scene {
     this.game.events.on('boosterDragging', this.onBoosterDragging, this)
     this.game.events.on('boosterDragEnded', this.onBoosterDragEnded, this)
     // Bật hệ thống pointer để hỗ trợ VFX và booster
+    // Off trước khi On để tránh duplicate listeners khi hot reload
     this.input.off('gameobjectdown', this.onBoardClick, this)
+    this.input.off('pointerdown', this.onPointerDown, this)
+    this.input.off('pointermove', this.onPointerMove, this)
+    this.input.off('pointerup', this.onPointerUp, this)
     this.input.on('pointerdown', this.onPointerDown, this)
     this.input.on('pointermove', this.onPointerMove, this)
     this.input.on('pointerup', this.onPointerUp, this)
@@ -366,8 +372,8 @@ export class GameScene extends Phaser.Scene {
       console.log(`Clearing active booster: ${this.activeBooster}`)
       this.activeBooster = null
       this.firstSwapGem = null
-      // Gọi hàm dọn dẹp VFX chuyên dụng để tránh vòng lặp sự kiện
-      this.boosterVFXManager?.clearCurrentVFX()
+      // Tắt hiệu ứng lúc lắc và preview
+      this.boosterVFXManager?.clearPreview()
     }
   }
 
@@ -490,7 +496,10 @@ export class GameScene extends Phaser.Scene {
     // 1. Nếu đang bận thì thôi
     if (this.board.boardBusy) return;
 
-    // 2. Chuyển đổi tọa độ màn hình sang tọa độ thế giới trong GameScene
+    // 2. LƯU TIMESTAMP: Để onPointerUp biết mà bỏ qua trong 150ms
+    this.lastDropTime = Date.now();
+
+    // 3. Chuyển đổi tọa độ màn hình sang tọa độ thế giới trong GameScene
     const worldPoint = this.cameras.main.getWorldPoint(x, y);
 
     // 3. Tìm xem tại vị trí đó có Gem hay Cell nào không
@@ -543,16 +552,28 @@ export class GameScene extends Phaser.Scene {
           }
         }
         else if (type === BOOSTER_TYPES.SWAP) {
-          // Swap phức tạp hơn vì cần 2 ô
-          // Thả vào ô nào thì chọn ô đó là "Gem 1", bắt người chơi click ô thứ 2
           const gem = this.board.grid[row][col];
+          
+          // Chỉ chọn nếu là Gem (không swap được ô trống hoặc blocker cứng)
           if (gem && gem.type === 'gem') {
-            // Kích hoạt booster SWAP và set firstSwapGem
+            console.log(`[SWAP] Selected 1st Gem: [${row}, ${col}]`);
+
+            // A. Xóa viền vàng (drag preview) trước
+            this.boosterVFXManager?.clearPreview();
+
+            // B. Đặt trạng thái đang dùng SWAP
             this.activeBooster = BOOSTER_TYPES.SWAP;
+            
+            // C. Lưu viên ngọc đầu tiên
             this.firstSwapGem = gem;
+            
+            // D. Hiển thị hiệu ứng "lúc lắc" (đã có trong VFX Manager)
             this.boosterVFXManager?.showSwapPreview(row, col);
-            // Thông báo cho UIScene biết SWAP đang được chọn
-            this.game.events.emit('boosterSelected', BOOSTER_TYPES.SWAP);
+            
+            // KHÔNG emit 'boosterSelected' ở đây!
+            // Vì onBoosterSelected sẽ reset firstSwapGem = null và tắt hiệu ứng lắc lư
+            
+            // LƯU Ý: CHƯA TRỪ ITEM TẠI ĐÂY!
           }
         }
       }
@@ -616,6 +637,11 @@ export class GameScene extends Phaser.Scene {
    * Xử lý khi thả tay -> Xóa hết preview
    */
   onBoosterDragEnded() {
+    // Nếu đang là chế độ SWAP (vừa drop xong), ĐỪNG xóa hiệu ứng lắc lư
+    if (this.activeBooster === BOOSTER_TYPES.SWAP) {
+      return;
+    }
+
     if (this.boosterVFXManager) {
         this.boosterVFXManager.clearPreview();
     }
@@ -769,6 +795,12 @@ export class GameScene extends Phaser.Scene {
     const wasDown = this.swipeState.isDown
     this.swipeState.isDown = false
 
+    // Nếu đây là sự kiện thả tay do Drop Booster (trong vòng 150ms), ta bỏ qua
+    if (Date.now() - this.lastDropTime < 150) {
+      this.swipeState.downObject = null;
+      return;
+    }
+
     // Chỉ thoát nếu board bận hoặc chưa nhấn; bỏ check downObject để tránh race condition
     if (this.board.boardBusy || !wasDown) {
       this.clearActiveBooster()
@@ -792,32 +824,62 @@ export class GameScene extends Phaser.Scene {
     if (this.activeBooster) {
       console.log('Input: Processing BOOSTER action')
 
+      // --- LOGIC SWAP MỚI ---
       if (this.activeBooster === BOOSTER_TYPES.SWAP) {
+        
+        // Nếu click ra ngoài khoảng không -> Hủy luôn cho tiện
         if (!clickedObjectUp) {
-          this.clearActiveBooster()
-          this.swipeState.downObject = null
-          return
+          this.clearActiveBooster();
+          this.game.events.emit('boosterSelectionCleared'); // Báo UI tắt sáng
+          this.swipeState.downObject = null;
+          return;
         }
-        const targetRow = clickedObjectUp.getData('row')
-        const targetCol = clickedObjectUp.getData('col')
-        const clickedGem = this.board.grid[targetRow]?.[targetCol]
-        if (!clickedGem || clickedGem.type !== 'gem') return
+
+        const targetRow = clickedObjectUp.getData('row');
+        const targetCol = clickedObjectUp.getData('col');
+        const clickedGem = this.board.grid[targetRow]?.[targetCol];
+
+        // Nếu click vào cái gì không phải Gem -> Bỏ qua hoặc Hủy
+        if (!clickedGem || clickedGem.type !== 'gem') return;
+
+        // KIỂM TRA LOGIC 2 BƯỚC:
+        
+        // Trường hợp A: Chưa có viên 1 (Lỡ click chọn từ UI thay vì kéo thả)
         if (!this.firstSwapGem) {
-          this.firstSwapGem = clickedGem
-          this.boosterVFXManager?.showSwapPreview(targetRow, targetCol)
-        } else {
-          if (this.firstSwapGem !== clickedGem) {
-            const gem1 = this.firstSwapGem
+          this.firstSwapGem = clickedGem;
+          this.boosterVFXManager?.showSwapPreview(targetRow, targetCol);
+        } 
+        // Trường hợp B: Đã có viên 1, đang chọn viên 2
+        else {
+          
+          // 1. Nếu CLICK LẠI VIÊN CŨ -> HỦY BỎ
+          if (this.firstSwapGem === clickedGem) {
+            console.log("[SWAP] Clicked same gem -> Cancelled");
+            this.clearActiveBooster();
+            this.game.events.emit('boosterSelectionCleared'); // Báo UI tắt sáng
+          } 
+          // 2. Nếu CLICK VIÊN KHÁC -> THỰC HIỆN SWAP
+          else {
+            console.log("[SWAP] Clicked 2nd gem -> Executing Swap");
+            
+            // Bây giờ mới trừ Item
             if (this.tryConsumeBooster(this.activeBooster)) {
-              this.game.events.emit('boardBusy', true)
-              this.board.useSwap(gem1, clickedGem)
+              this.game.events.emit('boardBusy', true);
+              
+              // Gọi lệnh Swap trong Board
+              this.board.useSwap(this.firstSwapGem, clickedGem);
             }
+            
+            // Dọn dẹp trạng thái sau khi dùng
+            this.clearActiveBooster();
+            this.game.events.emit('boosterSelectionCleared');
           }
-          this.clearActiveBooster()
         }
-        this.swipeState.downObject = null
-        return
+        
+        this.swipeState.downObject = null;
+        return;
       }
+      // ----------------------
 
       // Kiểm tra xem click có hợp lệ không
       const targetRow = clickedObjectUp?.getData('row')
