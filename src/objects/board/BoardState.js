@@ -1360,7 +1360,7 @@ applyGravityAndRefill() {
 
   /**
    * Tạo hiệu ứng rơi "giả" mô phỏng code cũ trong khi logic thực chạy code mới
-   * Tạo mask riêng để che các phần ngoài board và ô null
+   * SỬA ĐỔI: Đưa clone vào gemLayer để nằm dưới Rope và tự động nhận Mask của Layer
    * @param {function} onComplete - Callback khi animation kết thúc
    */
   playFakeGravityEffect(onComplete) {
@@ -1383,11 +1383,6 @@ applyGravityAndRefill() {
             }
           })
           
-          // Destroy mask graphics
-          if (fakeMaskGraphics) {
-            fakeMaskGraphics.destroy()
-          }
-          
           // Hiển thị lại các gem thật ở vị trí mới
           this.revealRealGems()
           
@@ -1404,13 +1399,8 @@ applyGravityAndRefill() {
     }
 
     const fakeGems = []
-    
-    // Tạo mask riêng cho fake layer
-    const maskData = this.createFakeGravityMask()
-    const fakeMask = maskData.mask
-    const fakeMaskGraphics = maskData.graphics
 
-    // BƯỚC 1: Clone tất cả gem, áp dụng mask riêng, và ẩn gem thật (CHỈ 1 LẦN)
+    // BƯỚC 1: Clone tất cả gem, đưa vào gemLayer, và ẩn gem thật (CHỈ 1 LẦN)
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
         // KIỂM TRA: Chỉ xử lý gem ở ô HỢP LỆ (không null trong gridLayout)
@@ -1422,15 +1412,19 @@ applyGravityAndRefill() {
           
           // Chỉ tạo clone cho gem cần rơi (vị trí hiện tại khác vị trí đích)
           if (targetY !== undefined && Math.abs(gem.sprite.y - targetY) > 1) {
-            // Tạo clone sprite với depth cao và ÁP DỤNG MASK RIÊNG
-            const clone = this.scene.add.sprite(
-              gem.sprite.x,
-              gem.sprite.y,
-              gem.sprite.texture.key
-            )
-              .setScale(gem.sprite.scale)
-              .setDepth(21) // Depth rất cao để hiển thị trên cả
-              .setMask(fakeMask) // ÁP DỤNG MASK RIÊNG CHO FAKE LAYER
+            // Tạo sprite nhưng không add ngay vào scene
+            const clone = this.scene.make.sprite({
+              x: gem.sprite.x,
+              y: gem.sprite.y,
+              key: gem.sprite.texture.key,
+              add: false
+            })
+            
+            // Thêm vào gemLayer để nó nằm chung hệ quy chiếu với Rope
+            this.gemLayer.add(clone)
+            
+            clone.setScale(gem.sprite.scale)
+              .setDepth(5) // Depth 5: nằm giữa Gem (2) và Rope (10)
             
             clone.setData('startY', gem.sprite.y)
             clone.setData('endY', targetY)
@@ -1452,11 +1446,11 @@ applyGravityAndRefill() {
       if (fakeGemsInCol.length > 0) {
         let maxDuration = 0
 
-          // Tính duration lớn nhất cho cả cột
+        // Tính duration lớn nhất cho cả cột
         fakeGemsInCol.forEach(fakeGem => {
           const distance = Math.abs(fakeGem.getData('endY') - fakeGem.getData('startY'))
           const duration = distance / speed
-              if (duration > maxDuration) {
+          if (duration > maxDuration) {
             maxDuration = duration
           }
         })
@@ -1468,10 +1462,9 @@ applyGravityAndRefill() {
           this.scene.tweens.add({
             targets: fakeGem,
             y: fakeGem.getData('endY'),
-                  duration: maxDuration,
-                  ease: 'Cubic.easeIn',
+            duration: maxDuration,
+            ease: 'Cubic.easeIn',
             onComplete: () => {
-              // KHÔNG destroy ở đây vì container sẽ destroy tất cả sau
               onTweenComplete()
             }
           })
@@ -1480,7 +1473,7 @@ applyGravityAndRefill() {
     }
 
     // Nếu không có animation nào, vẫn cần delay để tránh auto match quá nhanh
-  if (totalTweens === 0) {
+    if (totalTweens === 0) {
       this.scene.time.delayedCall(50, () => {
         // Destroy tất cả clone sprite (nếu có)
         fakeGems.forEach(clone => {
@@ -1488,11 +1481,6 @@ applyGravityAndRefill() {
             clone.destroy()
           }
         })
-        
-        // Destroy mask graphics
-        if (fakeMaskGraphics) {
-          fakeMaskGraphics.destroy()
-        }
         
         this.revealRealGems()
         

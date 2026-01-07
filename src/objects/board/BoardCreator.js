@@ -102,6 +102,11 @@ export class BoardCreator {
     const y = this.offsetY + row * this.cellSize + this.cellSize / 2
     const blocker = new StoneBlocker(this.scene, x, y, row, col, health)
     blocker.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9)
+
+    // Đưa blocker vào gemLayer và đặt depth cao hơn Gem (Gem depth = 2)
+    this.gemLayer.add(blocker)
+    blocker.setDepth(10)
+
     this.blockerGrid[row][col] = blocker
     return blocker
   }
@@ -111,6 +116,11 @@ export class BoardCreator {
     const y = this.offsetY + row * this.cellSize + this.cellSize / 2
     const blocker = new RopeBlocker(this.scene, x, y, row, col)
     blocker.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9)
+
+    // Đưa blocker vào gemLayer và đặt depth cao hơn Gem (Gem depth = 2)
+    this.gemLayer.add(blocker)
+    blocker.setDepth(10)
+
     this.blockerGrid[row][col] = blocker
     return blocker
   }
