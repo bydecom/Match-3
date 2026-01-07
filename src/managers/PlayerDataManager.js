@@ -138,7 +138,7 @@ class PlayerDataManager {
 
                 "lives": 10,  // Sửa thành 10 tim
 
-                "tickets": 1 // Vé quay
+                "tickets": 100 // Vé quay
 
             },
 

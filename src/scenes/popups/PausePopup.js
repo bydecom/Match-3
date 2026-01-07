@@ -6,9 +6,8 @@ export class PausePopup extends Phaser.Scene {
     constructor() {
         super({ key: 'PausePopup' });
         this.levelId = 1; // Giá trị mặc định
-        // << [AUDIO] Đọc volume từ AudioManager (đã lưu trong localStorage) >>
-        this.musicVolume = AudioManager.getMusicVolume(); // Âm lượng nhạc nền
-        this.soundVolume = AudioManager.getSoundVolume(); // Âm lượng sound effects
+        this.musicVolume = 0.5; // Giá trị tạm, sẽ được cập nhật trong create()
+        this.soundVolume = 0.5; // Giá trị tạm, sẽ được cập nhật trong create()
     }
 
     // Nhận dữ liệu từ GameScene
@@ -18,6 +17,10 @@ export class PausePopup extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
+
+        // << [AUDIO] Đọc volume từ AudioManager mỗi lần mở popup (đảm bảo lấy giá trị mới nhất) >>
+        this.musicVolume = AudioManager.getMusicVolume();
+        this.soundVolume = AudioManager.getSoundVolume();
 
         // 1. Tạm dừng các scene bên dưới (chỉ pause nếu đang chạy)
         if (this.scene.isActive('GameScene')) {

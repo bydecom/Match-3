@@ -11,9 +11,28 @@ class AudioManager {
         }
         AudioManager.instance = this;
 
-        // Đọc volume từ localStorage (hoặc dùng giá trị mặc định)
-        this.musicVolume = parseFloat(localStorage.getItem('musicVolume') || '0.3'); // 0.3 = 30%
-        this.soundVolume = parseFloat(localStorage.getItem('soundVolume') || '0.5'); // 0.5 = 50%
+        // Giá trị mặc định (50% cho cả music và sound)
+        const DEFAULT_MUSIC_VOLUME = 0.5;
+        const DEFAULT_SOUND_VOLUME = 0.5;
+
+        // Kiểm tra localStorage đã có giá trị chưa
+        const storedMusicVolume = localStorage.getItem('musicVolume');
+        const storedSoundVolume = localStorage.getItem('soundVolume');
+
+        // Nếu chưa có trong localStorage, lưu giá trị mặc định ngay
+        if (storedMusicVolume === null) {
+            localStorage.setItem('musicVolume', DEFAULT_MUSIC_VOLUME.toString());
+            this.musicVolume = DEFAULT_MUSIC_VOLUME;
+        } else {
+            this.musicVolume = parseFloat(storedMusicVolume);
+        }
+
+        if (storedSoundVolume === null) {
+            localStorage.setItem('soundVolume', DEFAULT_SOUND_VOLUME.toString());
+            this.soundVolume = DEFAULT_SOUND_VOLUME;
+        } else {
+            this.soundVolume = parseFloat(storedSoundVolume);
+        }
         
         // Lưu tham chiếu đến game instance
         this.game = null;
@@ -95,10 +114,10 @@ class AudioManager {
     }
 
     /**
-     * Reset về giá trị mặc định
+     * Reset về giá trị mặc định (50%)
      */
     reset() {
-        this.setMusicVolume(0.3);
+        this.setMusicVolume(0.5);
         this.setSoundVolume(0.5);
     }
 }

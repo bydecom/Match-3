@@ -1,5 +1,6 @@
 // src/scenes/PreloaderScene.js
 import Phaser from 'phaser';
+import { SOUND_PATHS } from '../utils/SoundAssets';
 
 const MIN_LOAD_TIME = 2000; // Giảm thời gian chờ một chút
 
@@ -378,6 +379,12 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.json('level_7', 'assets/levels/level_7.json');
         this.load.json('level_8', 'assets/levels/level_8.json');
         this.load.json('level_9', 'assets/levels/level_9.json');
+
+        // << [AUDIO] Load Sound Effects từ file config >>
+        console.log('Loading Sound Effects...');
+        SOUND_PATHS.forEach(sound => {
+            this.load.audio(sound.key, sound.path);
+        });
     }
 
     // Chờ font web sẵn sàng. Nếu trình duyệt không hỗ trợ, bỏ qua để không chặn preload

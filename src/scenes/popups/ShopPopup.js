@@ -2,6 +2,8 @@
 import Phaser from 'phaser';
 import APIManager from '../../managers/APIManager';
 import PlayerDataManager from '../../managers/PlayerDataManager';
+import AudioManager from '../../managers/AudioManager';
+import { SOUND_KEYS } from '../../utils/SoundAssets';
 
 export class ShopPopup extends Phaser.Scene {
     constructor() {
@@ -360,6 +362,12 @@ export class ShopPopup extends Phaser.Scene {
             if (result.success) {
                 // Mua thành công
                 console.log(`Đã mua ${item.id} thành công!`, result.reward);
+
+                // << [AUDIO] Phát âm thanh mua thành công >>
+                const sfxVolume = AudioManager.getSoundVolume();
+                if (sfxVolume > 0) {
+                    this.sound.play(SOUND_KEYS.SPIN_COLLECT, { volume: sfxVolume });
+                }
                 
                 // Thêm item vào danh sách đã mua
                 this.purchasedItems.push(item.id);

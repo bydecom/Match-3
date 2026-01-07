@@ -1,6 +1,8 @@
 // src/objects/board/BoardState.js
 import Phaser from 'phaser'
 import { GEM_TYPES, GRID_SIZE, SCORE_VALUES } from '../../utils/constants'
+import AudioManager from '../../managers/AudioManager'
+import { SOUND_KEYS } from '../../utils/SoundAssets'
 
 export class BoardState {
   initGrid() {
@@ -413,6 +415,13 @@ export class BoardState {
     if (this.boardBusy) return
     this.boardBusy = true
     this.scene.input.enabled = false
+
+    // << [AUDIO] Phát âm thanh swap - kiểm tra volume từ Setting >>
+    const sfxVolume = AudioManager.getSoundVolume()
+    if (sfxVolume > 0 && this.scene && this.scene.sound) {
+      this.scene.sound.play(SOUND_KEYS.SWAP_GEM, { volume: sfxVolume })
+    }
+
     // Báo cho UI biết board đang bận xử lý
     if (this.scene && this.scene.game && this.scene.game.events) {
       this.scene.game.events.emit('boardBusy', true)
@@ -1004,6 +1013,14 @@ export class BoardState {
 
   // << THAY THẾ TOÀN BỘ HÀM NÀY >>
   removeGemSprites(gemsToRemove) {
+    // << [AUDIO] Phát âm thanh khi ăn gem - chỉ phát 1 lần cho mỗi đợt match >>
+    if (gemsToRemove && gemsToRemove.size > 0) {
+      const sfxVolume = AudioManager.getSoundVolume()
+      if (sfxVolume > 0 && this.scene && this.scene.sound) {
+        this.scene.sound.play(SOUND_KEYS.SPIN_COLLECT, { volume: sfxVolume })
+      }
+    }
+
     gemsToRemove.forEach(gemObject => {
       // Kiểm tra an toàn
       if (gemObject && gemObject.sprite) {

@@ -2,6 +2,8 @@
 import Phaser from 'phaser';
 import APIManager from '../../managers/APIManager';
 import PlayerDataManager from '../../managers/PlayerDataManager';
+import AudioManager from '../../managers/AudioManager';
+import { SOUND_KEYS } from '../../utils/SoundAssets';
 
 export class SpinPopup extends Phaser.Scene {
     constructor() {
@@ -309,6 +311,12 @@ export class SpinPopup extends Phaser.Scene {
         this.spinButton.disableInteractive();
         this.spinButton.setAlpha(0.7);
 
+        // << [AUDIO] Phát âm thanh quay - kiểm tra volume từ Setting >>
+        const sfxVolume = AudioManager.getSoundVolume();
+        if (sfxVolume > 0) {
+            this.sound.play(SOUND_KEYS.SPIN_WHEEL, { volume: sfxVolume });
+        }
+
         // Hiệu ứng lắc lư cho con trỏ trong khi quay
         const pointerTween = this.tweens.add({
             targets: this.pointer,
@@ -372,8 +380,9 @@ export class SpinPopup extends Phaser.Scene {
         const spinDifference = (targetEffectiveAngle - currentEffectiveAngle + 360) % 360;
         
         // 5. Tính tổng số độ sẽ quay trong *lần này*
-        // Gồm 5 vòng quay đầy đủ + phần chênh lệch để "trừ hao"
-        const totalSpinThisTurn = (360 * 5) + spinDifference;
+        // Gồm 10 vòng quay đầy đủ + phần chênh lệch để "trừ hao"
+        // (Tăng lên 10 vòng để ban đầu quay nhanh hơn, tạo cảm giác "tít thò lò")
+        const totalSpinThisTurn = (360 * 10) + spinDifference;
         
         // 6. Tính góc "đích" cuối cùng mà boardContainer sẽ đạt tới
         // Bằng góc hiện tại + tổng số độ quay lần này
@@ -393,8 +402,8 @@ export class SpinPopup extends Phaser.Scene {
             targets: this.boardContainer,
             // Sử dụng góc đích cuối cùng đã được tính toán chính xác
             angle: finalTargetAngle,
-            duration: 4000,
-            ease: 'Cubic.easeOut',
+            duration: 5000, // Kéo dài 5s để đoạn "chậm dần" lết về đích nhìn hồi hộp hơn
+            ease: 'Quart.easeOut', // Giảm tốc gắt hơn Cubic, tạo cảm giác bánh xe nặng và có ma sát
             onComplete: async () => {
                 pointerTween.stop();
                 this.pointer.setAngle(0);
@@ -402,6 +411,12 @@ export class SpinPopup extends Phaser.Scene {
                 
                 // Cập nhật trạng thái nút spin (có thể disable nếu hết vé)
                 this.updateSpinButtonState();
+
+                // << [AUDIO] Phát âm thanh nhận quà - kiểm tra volume từ Setting >>
+                const collectVolume = AudioManager.getSoundVolume();
+                if (collectVolume > 0) {
+                    this.sound.play(SOUND_KEYS.SPIN_COLLECT, { volume: collectVolume });
+                }
 
                 const reward = this.items[winningIndex].getData('reward');
                 console.log('--- SPIN DONE (Theo BE) ---');
