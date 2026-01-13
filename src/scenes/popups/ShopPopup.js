@@ -22,6 +22,8 @@ export class ShopPopup extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
+        const centerX = width * 0.5;
+        const centerY = height * 0.5;
 
         // 1) Tạm dừng MapScene (nếu đang mở từ bản đồ)
         if (this.scene.isActive('MapScene')) this.scene.pause('MapScene');
@@ -32,27 +34,31 @@ export class ShopPopup extends Phaser.Scene {
             .setInteractive()
             .setDepth(1);
 
-        // 3) Background shop
-        const bg = this.add.image(width / 2, height / 2, 'shop_background')
+        // 3) Background shop (Neo vào chính giữa)
+        const bg = this.add.image(centerX, centerY, 'shop_background')
             .setOrigin(0.5)
-            .setScale(0.4)
+            .setScale(1)
             .setDepth(2);
 
-        // 4) Nút đóng (X)
-        const closeButton = this.add.image(470, 270, 'pause_exit')
+        // 4) Nút đóng (X) - Neo theo tỉ lệ
+        // Cũ: 470, 270 -> Mới: width * 0.816, height * 0.264
+        const closeBtnX = width * 0.816;
+        const closeBtnY = height * 0.264;
+        const closeButton = this.add.image(closeBtnX, closeBtnY, 'pause_exit')
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .setDepth(5);
         closeButton.on('pointerdown', () => this.close());
 
-        // 4.1) Hiển thị số coin hiện tại (vị trí tuyệt đối giống ResourceDisplay)
-        // ResourceDisplay ở (20, 20), coin icon ở (280, 30) trong container
-        // => Vị trí tuyệt đối: (20 + 280, 20 + 30) = (300, 50)
-        const coinIcon = this.add.image(300, 50, 'coin')
+        // 4.1) Hiển thị số coin hiện tại - Neo theo tỉ lệ
+        // Cũ: 300, 50 -> Mới: width * 0.52, height * 0.05
+        const coinX = width * 0.52;
+        const coinY = height * 0.05;
+        const coinIcon = this.add.image(coinX, coinY, 'coin')
             .setScale(0.4)
             .setDepth(5)
-            .setScrollFactor(0); // Ghim vào camera giống ResourceDisplay
-        this.coinDisplay = this.add.text(305, 50, `${PlayerDataManager.getCoin()}`, {
+            .setScrollFactor(0);
+        this.coinDisplay = this.add.text(coinX + 5, coinY, `${PlayerDataManager.getCoin()}`, {
             fontFamily: 'NABILA',
             fontSize: '20px',
             color: '#FFD700',
@@ -63,16 +69,20 @@ export class ShopPopup extends Phaser.Scene {
         // 5) Lớp chứa item để tiện xoá/vẽ lại khi đổi trang
         this.itemsLayer = this.add.container(0, 0).setDepth(3);
 
-        // 6) Nút điều khiển prev/next + text trang
-        this.prevBtn = this.add.image(208, 755, 'previous_button')
+        // 6) Nút điều khiển prev/next + text trang - Neo theo tỉ lệ
+        // Cũ Y: 755 -> Mới Y: height * 0.737
+        // Cũ Offset X: 80px -> Mới Offset: width * 0.139
+        const pagY = height * 0.737;
+        const btnOffset = width * 0.139;
+        this.prevBtn = this.add.image(centerX - btnOffset, pagY, 'previous_button')
             .setOrigin(0.5)
             .setDepth(5)
             .setInteractive({ useHandCursor: true });
-        this.nextBtn = this.add.image(368, 755, 'next_button')
+        this.nextBtn = this.add.image(centerX + btnOffset, pagY, 'next_button')
             .setOrigin(0.5)
             .setDepth(5)
             .setInteractive({ useHandCursor: true });
-        this.pageText = this.add.text(288, 755, '1/1', {
+        this.pageText = this.add.text(centerX, pagY, '1/1', {
             fontFamily: 'UTMCookies',
             fontSize: '22px',
             color: '#ffffff',
@@ -160,16 +170,22 @@ export class ShopPopup extends Phaser.Scene {
             return;
         }
 
+        const { width, height } = this.scale;
+
         const startIndex = pageIndex * this.itemsPerPage;
         const endIndex = Math.min(startIndex + this.itemsPerPage, this.shopData.items.length);
         const itemsToShow = this.shopData.items.slice(startIndex, endIndex);
 
-        // Lưới 2x3
+        // --- CẤU HÌNH LƯỚI THEO TỈ LỆ ---
         const cols = 3;
-        const cellSpacingX = 125;
-        const cellSpacingY = 150;
-        const startX = this.scale.width / 2 - cellSpacingX;
-        const startY = 432;
+        // Cũ: 125 -> Mới: width * 0.217
+        const cellSpacingX = width * 0.217;
+        // Cũ: 150 -> Mới: height * 0.146
+        const cellSpacingY = height * 0.148;
+        // Tính vị trí bắt đầu X sao cho Grid luôn căn giữa màn hình
+        const startX = (width / 2) - cellSpacingX;
+        // Cũ: 432 -> Mới: height * 0.422
+        const startY = height * 0.435;
 
         itemsToShow.forEach((item, localIndex) => {
             const r = Math.floor(localIndex / cols);
@@ -186,12 +202,18 @@ export class ShopPopup extends Phaser.Scene {
             // Kiểm tra xem item đã được mua chưa
             const isPurchased = this.purchasedItems.includes(item.id);
 
-            const icon = this.add.image(0, 0, item.icon)
-                .setOrigin(0.5)
-                .setName('itemIcon'); // Đặt tên để tìm kiếm sau này
-            if (item.icon === 'booster_swap') {
-                icon.y += 5;
-            }
+            // Danh sách các icon đã có sẵn chữ +2 trên ảnh
+            const iconsWithBuiltInText = ['hammer_2', 'swap_2', 'shuffle_2', 'rocket_2', 'heart_2'];
+
+            // Icon không có +2 thì giảm Y thêm 2 đơn vị (từ 40 xuống 38)
+            const iconY = iconsWithBuiltInText.includes(item.icon) ? 40 : 36;
+
+            // Icon đặt với origin (0.5, 1) để chân icon nằm ngay trên bảng giá
+            const icon = this.add.image(0, iconY, item.icon)
+                .setOrigin(0.5, 1) // Neo ở giữa - đáy
+                .setName('itemIcon');
+            
+            // Logic scale giữ nguyên
             if (item.icon === 'ticket') {
                 icon.setScale(1.3);
             }
@@ -199,19 +221,18 @@ export class ShopPopup extends Phaser.Scene {
                 icon.setScale(0.8);
             }
 
-            // --- LOGIC MỚI: HIỂN THỊ SỐ LƯỢNG ---
+            // --- LOGIC HIỂN THỊ SỐ LƯỢNG ---
             let quantity = 1;
             const match = item.id.match(/_(\d+)$/);
             if (match) {
                 quantity = parseInt(match[1]);
             }
+
             let quantityText = null;
-            if (quantity > 1 && item.id !== 'lives') {
-                let quantityY = 30;
-                if (item.icon === 'booster_swap') {
-                    quantityY = 35;
-                }
-                quantityText = this.add.text(0, quantityY, `+${quantity}`, {
+            // Chỉ vẽ text nếu số lượng > 1 VÀ icon không nằm trong danh sách đã có chữ sẵn
+            if (quantity > 1 && !iconsWithBuiltInText.includes(item.icon)) {
+                // Đặt text số lượng ở phần dưới của item (y=20)
+                quantityText = this.add.text(0, 20, `+${quantity}`, {
                     fontFamily: 'UTMCookies',
                     fontSize: '24px',
                     color: '#ffffff',
@@ -219,9 +240,8 @@ export class ShopPopup extends Phaser.Scene {
                     stroke: '#782a16',
                     strokeThickness: 4
                 }).setOrigin(0.5);
-
             }
-            // --- KẾT THÚC LOGIC MỚI ---
+            // --- KẾT THÚC LOGIC ---
             
             // Nếu đã mua, thêm overlay màu xám
             if (isPurchased) {
@@ -236,57 +256,65 @@ export class ShopPopup extends Phaser.Scene {
                 container.bringToTop(quantityText);
             }
 
-            const priceBg = this.add.image(0, 66, 'shop_price_background')
+            // --- HIỂN THỊ GIÁ ---
+            const priceBg = this.add.image(0, 56, 'shop_price_background')
                 .setOrigin(0.5)
                 .setScale(1)
-                .setName('itemPriceBg'); // Đặt tên để tìm kiếm sau này
+                .setName('itemPriceBg');
             
-            // Nếu đã mua, làm mờ priceBg
             if (isPurchased) {
                 priceBg.setTint(0x666666);
                 priceBg.setAlpha(0.5);
             }
-            
             container.add(priceBg);
 
-            const priceText = this.add.text(5, 66, isPurchased ? 'ĐÃ MUA' : `${item.price}`, {
+            // Text giá tiền (Vị trí x: 8 giống với giá giảm)
+            const priceText = this.add.text(8, 56, isPurchased ? 'ĐÃ MUA' : `${item.price}`, {
                 fontFamily: 'NABILA',
-                fontSize: isPurchased ? '18px' : '20px',
+                fontSize: isPurchased ? '14px' : '24px',
                 color: isPurchased ? '#999999' : '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 4,
                 fontStyle: 'bold'
             }).setOrigin(0.5);
-            container.add(priceText);
 
+            // --- XỬ LÝ GIẢM GIÁ ---
             if (item.isDiscounted && !isPurchased) {
-                const badge = this.add.image(34, -30, 'shop_discount_40')
+                // 1. Badge giảm giá
+                const badge = this.add.image(34, -40, 'shop_discount_40')
                     .setOrigin(0.5)
                     .setScale(0.4);
                 container.add(badge);
 
-                const originalText = this.add.text(5, 50, `${item.originalPrice}`, {
+                // 2. Giá gốc: Lệch nhẹ lên trên - trái
+                const originalText = this.add.text(-10, 48, `${item.originalPrice}`, {
                     fontFamily: 'NABILA',
-                    fontSize: '16px',
-                    color: '#ffffff',
+                    fontSize: '15px',
+                    color: '#dddddd',
                     stroke: '#000000',
                     strokeThickness: 3,
                     fontStyle: 'bold'
-                }).setOrigin(0.5).setAlpha(0.75);
+                }).setOrigin(0.5).setAlpha(0.85);
                 container.add(originalText);
 
+                // 3. Gạch ngang giá gốc
                 const strike = this.add.graphics();
-                strike.lineStyle(3, 0xff5555, 0.95);
-                const halfW = (originalText.width / 2) + 8;
+                strike.lineStyle(2, 0xff5555, 1);
+                const halfW = (originalText.width / 2) + 2;
                 strike.strokeLineShape(new Phaser.Geom.Line(-halfW, 0, halfW, 0));
-                strike.setPosition(0, originalText.y);
-                strike.setAngle(-12);
+                strike.setPosition(originalText.x, originalText.y);
+                strike.setAngle(-10);
                 container.add(strike);
 
-                priceText.setFontSize(22);
+                // 4. Giá mới: Lệch nhẹ xuống dưới - phải
+                priceText.setPosition(8, 58);
+                priceText.setFontSize('24px');
                 priceText.setColor('#ffe066');
-                priceText.setAngle(-6);
+                priceText.setStroke('#000000', 5);
+                priceText.setAngle(-5);
             }
+            
+            container.add(priceText);
 
             // Chỉ thêm tương tác nếu chưa mua
             if (!isPurchased) {
@@ -294,14 +322,14 @@ export class ShopPopup extends Phaser.Scene {
                 icon.setInteractive({ pixelPerfect: true, useHandCursor: true });
                 icon.on('pointerdown', () => {
                     console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
-                    this.handleBuyItem(item);
+                    this.handleBuyItem(item, container);
                 });
                 
                 // 2. Tương tác cho Nút giá (hình chữ nhật bình thường)
                 priceBg.setInteractive({ useHandCursor: true });
                 priceBg.on('pointerdown', () => {
                     console.log(`[ShopPopup] Click item id: ${item.id}, price=${item.price}`);
-                    this.handleBuyItem(item);
+                    this.handleBuyItem(item, container);
                 });
                 
                 // 3. Hiệu ứng Hover (cho cả hai)
@@ -339,7 +367,7 @@ export class ShopPopup extends Phaser.Scene {
         }
     }
     
-    async handleBuyItem(item) {
+    async handleBuyItem(item, targetContainer) {
         // Kiểm tra scene còn tồn tại không
         if (!this.sys || !this.sys.isActive()) {
             console.warn('ShopPopup: Scene đã bị destroy, bỏ qua handleBuyItem');
@@ -380,8 +408,10 @@ export class ShopPopup extends Phaser.Scene {
                 // Cập nhật ResourceDisplay
                 this.updateResourceDisplay();
                 
-                // Hiển thị thông báo thành công
-                this.showPurchaseSuccessMessage(item, result.reward);
+                // Hiệu ứng bay icon từ vị trí item vừa click
+                const startX = targetContainer ? targetContainer.x : this.scale.width / 2;
+                const startY = targetContainer ? targetContainer.y : this.scale.height / 2;
+                this.playRewardFlyAnimation(item, result.reward, startX, startY);
                 
                 // Render lại trang hiện tại để cập nhật màu xám
                 this.renderPage(this.currentPage);
@@ -513,6 +543,42 @@ export class ShopPopup extends Phaser.Scene {
                     duration: 500,
                     delay: 1500,
                     onComplete: () => messageText.destroy()
+                });
+            }
+        });
+    }
+    
+    // Hiệu ứng bay icon khi mua thành công
+    playRewardFlyAnimation(item, reward, startX, startY) {
+        // Sử dụng icon của item làm texture bay
+        const textureKey = item.icon;
+        
+        // Tạo icon bay
+        const flyIcon = this.add.image(startX, startY, textureKey)
+            .setOrigin(0.5)
+            .setDepth(100);
+
+        // --- Hiệu ứng Tween ---
+        // Ban đầu scale nhỏ và mờ
+        flyIcon.setScale(0.5);
+        flyIcon.setAlpha(0);
+
+        this.tweens.add({
+            targets: flyIcon,
+            alpha: 1,
+            y: startY - 110, // Bay lên 150px
+            scale: 1.05,      // Phóng to ra một chút
+            duration: 700,
+            ease: 'Back.Out',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: flyIcon,
+                    alpha: 0,
+                    y: startY - 50, 
+                    scale: 0.8,
+                    duration: 400,
+                    ease: 'Quad.In',
+                    onComplete: () => flyIcon.destroy()
                 });
             }
         });

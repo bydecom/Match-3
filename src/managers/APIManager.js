@@ -13,6 +13,9 @@ class APIManager {
         console.log("Mock API Manager Initialized.");
         this.MOCK_USER_SHOP_KEY = 'mockUserShop';
         this.MOCK_PURCHASED_ITEMS_KEY = 'mockPurchasedItems';
+        
+        // [TẠM THỜI] Xóa cache shop cũ để thấy item mới ngay lập tức
+        // Sau khi test xong, có thể xóa dòng này đi
     }
 
     /**
@@ -28,30 +31,23 @@ class APIManager {
      * Đây là logic mà "server thật" sẽ chạy.
      */
     _generateNewShopData() {
-        console.warn("SERVER SIM: Generating new shop data for user...");
+        console.warn("SERVER SIM: Generating new shop data (x1 & x2 only)...");
         
         // Danh sách tất cả vật phẩm có thể bán
         const allPossibleItems = [
-            // Vật phẩm lẻ (giữ nguyên)
+            // --- ITEM LẺ (x1) ---
             { id: 'ticket', icon: 'ticket', price: 50, isDiscounted: false, originalPrice: 50 },
             { id: 'hammer_1', icon: 'booster_hammer', price: 100, isDiscounted: false, originalPrice: 100 },
             { id: 'swap_1', icon: 'booster_swap', price: 100, isDiscounted: false, originalPrice: 100 },
-            { id: 'rocket_1', icon: 'booster_rocket', price: 150, isDiscounted: false, originalPrice: 150 },
             { id: 'shuffle_1', icon: 'booster_shuffle', price: 150, isDiscounted: false, originalPrice: 150 },
-            
-            // Các gói Pack (Đã chỉnh giá giảm 40%)
-            // 300 * 0.6 = 180
-            { id: 'hammer_pack_3', icon: 'booster_hammer', price: 180, isDiscounted: true, originalPrice: 300 },
-            { id: 'swap_pack_3', icon: 'booster_swap', price: 180, isDiscounted: true, originalPrice: 300 },
-            
-            // 450 * 0.6 = 270
-            { id: 'rocket_pack_3', icon: 'booster_rocket', price: 270, isDiscounted: true, originalPrice: 450 },
-            { id: 'shuffle_pack_3', icon: 'booster_shuffle', price: 270, isDiscounted: true, originalPrice: 450 },
-            
-            // 150 * 0.6 = 90
-            { id: 'ticket_pack_3', icon: 'ticket', price: 90, isDiscounted: true, originalPrice: 150 },
-            
-            // Item Mạng (giữ nguyên)
+
+            // --- ITEM GÓI ĐÔI (x2) - Dùng icon có sẵn số +2 ---
+            { id: 'hammer_2', icon: 'hammer_2', price: 180, isDiscounted: true, originalPrice: 200 },
+            { id: 'swap_2', icon: 'swap_2', price: 180, isDiscounted: true, originalPrice: 200 },
+            { id: 'shuffle_2', icon: 'shuffle_2', price: 270, isDiscounted: true, originalPrice: 300 },
+            { id: 'rocket_2', icon: 'rocket_2', price: 250, isDiscounted: true, originalPrice: 300 },
+
+            // Item Mạng (Lives)
             { id: 'lives', icon: 'heart_2', price: 100, isDiscounted: false, originalPrice: 100 }
         ];
 
@@ -120,7 +116,7 @@ class APIManager {
             'booster_hammer',   // Ứng với hammer_2
             'booster_shuffle',  // Ứng với shuffle_2
             'coin',             // Ứng với coin_x2
-            'booster_rocket',   // Ứng với rocket_2
+            'booster_rocket_2',   // Ứng với rocket_2
             'heart',            // Ứng với heart_2
             'booster_shuffle',
             'booster_rocket',
@@ -160,7 +156,7 @@ class APIManager {
             reward = { type: 'booster_shuffle', quantity };
         } else if (rewardType === 'booster_rocket') {
             PlayerDataManager.updateBooster('rocket', quantity);
-            reward = { type: 'booster_rocket', quantity };
+            reward = { type: 'booster_rocket_2', quantity };
         } else if (rewardType === 'booster_swap') {
             PlayerDataManager.updateBooster('swap', quantity);
             reward = { type: 'booster_swap', quantity };
