@@ -1,6 +1,8 @@
 // src/objects/vfx/BoosterVFXManager.js
 import Phaser from 'phaser'
 import { BOOSTER_TYPES } from '../../utils/constants'
+import AudioManager from '../../managers/AudioManager'
+import { SOUND_KEYS } from '../../utils/SoundAssets'
 
 export class BoosterVFXManager {
   constructor(scene, board) {
@@ -366,6 +368,13 @@ playHammerEffect(row, col, onComplete) {
               suckedCount++;
               if (suckedCount === fakeGems.length) {
                 // 4. Khi đã hút xong, lắc bình
+
+                // << [THÊM MỚI] PHÁT ÂM THANH SHAKE TẠI ĐÂY >>
+                const sfxVolume = AudioManager.getSoundVolume();
+                if (sfxVolume > 0 && this.scene.sound) {
+                  this.scene.sound.play(SOUND_KEYS.SHAKE, { volume: sfxVolume });
+                }
+
                 this.scene.tweens.add({
                   targets: shufflePot,
                   angle: { from: -15, to: 15 },

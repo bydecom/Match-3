@@ -10,7 +10,12 @@ export const SOUND_KEYS = {
   SPIN_COLLECT: 'spin_collect',
   SWAP_GEM: 'swap_sfx',
   WIN_GAME: 'win_game',
-  LOSE_GAME: 'lose_game'
+  LOSE_GAME: 'lose_game',
+  // --- THÊM MỚI ---
+  SHAKE: 'shake',
+  BOMB: 'bomb',
+  STRIPE: 'stripe',
+  ROCKET: 'rocket'
 };
 
 export const SOUND_PATHS = [
@@ -33,6 +38,23 @@ export const SOUND_PATHS = [
   {
     key: SOUND_KEYS.LOSE_GAME,
     path: 'assets/sounds/effect/lose_game.m4a'
+  },
+  // --- THÊM PATH MỚI ---
+  {
+    key: SOUND_KEYS.SHAKE,
+    path: 'assets/sounds/effect/shake.m4a' 
+  },
+  {
+    key: SOUND_KEYS.BOMB,
+    path: 'assets/sounds/effect/bomb2.m4a'
+  },
+  {
+    key: SOUND_KEYS.STRIPE,
+    path: 'assets/sounds/effect/stripe.m4a'
+  },
+  {
+    key: SOUND_KEYS.ROCKET,
+    path: 'assets/sounds/effect/rocket2.m4a'
   }
 ];
 

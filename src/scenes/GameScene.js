@@ -6,6 +6,7 @@ import { BoosterVFXManager } from '../objects/vfx/BoosterVFXManager'
 import { PowerupVFXManager } from '../objects/vfx/PowerupVFXManager'
 import PlayerDataManager from '../managers/PlayerDataManager'
 import AudioManager from '../managers/AudioManager'
+import { SOUND_KEYS } from '../utils/SoundAssets'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -524,6 +525,12 @@ export class GameScene extends Phaser.Scene {
         } 
         else if (type === BOOSTER_TYPES.ROCKET) {
           if (this.tryConsumeBooster(type)) {
+            // << PHÁT ÂM THANH ROCKET >>
+            const sfxVolume = AudioManager.getSoundVolume();
+            if (sfxVolume > 0) {
+              this.sound.play(SOUND_KEYS.ROCKET, { volume: sfxVolume });
+            }
+
             this.game.events.emit('boardBusy', true);
             this.boosterVFXManager.playRocketEffect(col, () => {
               this.board.useRocket(row, col);

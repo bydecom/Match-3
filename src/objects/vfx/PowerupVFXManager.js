@@ -1,9 +1,19 @@
 // src/objects/vfx/PowerupVFXManager.js
+import AudioManager from '../../managers/AudioManager';
+import { SOUND_KEYS } from '../../utils/SoundAssets';
 
 export class PowerupVFXManager {
   constructor(scene, vfxLayer = null) {
     this.scene = scene;
     this.vfxLayer = vfxLayer; // Layer riêng cho VFX (không có mask)
+  }
+
+  // --- Helper để phát âm thanh ---
+  playSound(key) {
+    const sfxVolume = AudioManager.getSoundVolume();
+    if (sfxVolume > 0 && this.scene.sound) {
+      this.scene.sound.play(key, { volume: sfxVolume });
+    }
   }
   
   /**
@@ -60,44 +70,68 @@ export class PowerupVFXManager {
   }
 
   /**
-   * Hiệu ứng cho Bomb (Match 4)
+   * Hiệu ứng cho Bomb (Match 4) - Đã cập nhật: Zoom -> Lắc -> Nổ
    * @param {object} bombGem - Đối tượng gem Bomb
    * @param {Set<object>} affectedGems - Set các gem bị ảnh hưởng bởi vụ nổ
    * @param {function} onComplete - Callback để gọi khi animation kết thúc
    */
   playBombEffect(bombGem, affectedGems, onComplete) {
-    const bombSprite = bombGem.sprite;
+    // << PHÁT ÂM THANH BOMB >>
+    this.playSound(SOUND_KEYS.BOMB);
 
-    // 1. Phóng to và rung nhẹ
+    const bombSprite = bombGem.sprite;
     const layerMask = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
-    this.scene.tweens.add({
+
+    // CHUỖI HIỆU ỨNG: ZOOM -> LẮC -> BIẾN MẤT (Chill version)
+    this.scene.tweens.chain({
       targets: bombSprite,
-      scale: bombSprite.scale * 3, // Phóng to gấp 3 lần kích thước hiện tại
-      duration: 200,
-      ease: 'Quad.easeOut',
-      yoyo: true, // Tự động thu nhỏ lại
       onStart: () => {
-        // Đặt depth rất cao để bomb đè lên trên blocker (blocker depth = 4)
-        bombSprite.setDepth(50);
-        // Rung camera một chút để tạo cảm giác mạnh
-        this.scene.game.events.emit('screenShake', { duration: 100, intensity: 0.005 });
+        bombSprite.setDepth(50); // Đưa lên trên cùng
+        // Rung nhẹ nhàng hơn nhưng lâu hơn
+        this.scene.game.events.emit('screenShake', { duration: 250, intensity: 0.004 });
       },
+      tweens: [
+        // 1. Phóng to từ từ (Tăng từ 200 -> 350ms)
+        {
+          scale: bombSprite.scale * 3.2,
+          duration: 350,
+          ease: 'Back.easeOut'
+        },
+        // 2. Lắc lư nhẹ (Tăng duration mỗi nhịp từ 60 -> 90ms)
+        {
+          angle: { from: -10, to: 10 },
+          duration: 90,
+          yoyo: true,
+          repeat: 4,
+          ease: 'Sine.easeInOut'
+        },
+        // 3. Thu nhỏ (Tăng từ 150 -> 250ms)
+        {
+          scale: 0,
+          alpha: 0,
+          duration: 250,
+          ease: 'Quad.easeIn'
+        }
+      ],
       onComplete: () => {
-        // Trả lại depth ban đầu và khôi phục mask
-        bombSprite.setDepth(2);
-        this.restoreGemLayerMask(layerMask); // KHÔI PHỤC MASK CỦA LAYER
-        if (onComplete) onComplete(); // Gọi callback để board tiếp tục logic
+        // Khôi phục trạng thái
+        if (bombSprite && bombSprite.active) {
+          bombSprite.setDepth(2);
+          bombSprite.setAngle(0);
+        }
+        this.restoreGemLayerMask(layerMask); // KHÔI PHỤC MASK
+        if (onComplete) onComplete();
       }
     });
 
-    // 2. Rung các gem bị ảnh hưởng (KHÔNG xóa sprite)
+    // Hiệu ứng rung các gem bị ảnh hưởng - chậm hơn
     affectedGems.forEach(gem => {
-      if (gem !== bombGem) { // Không áp dụng hiệu ứng này cho chính quả bomb
+      if (gem !== bombGem && gem.sprite && gem.sprite.active) {
         this.scene.tweens.add({
           targets: gem.sprite,
           angle: { from: -10, to: 10 },
-          duration: 80,
-          delay: 50,
+          duration: 120, // Chậm hơn (cũ 80)
+          delay: 300,    // Đợi bomb to hẳn mới rung (cũ 200)
           yoyo: true,
           repeat: 2,
           ease: 'Sine.easeInOut',
@@ -119,39 +153,35 @@ export class PowerupVFXManager {
     const colorBombSprite = colorBombGem.sprite;
     const targetPos = { x: colorBombSprite.x, y: colorBombSprite.y };
 
-    // === PHẦN SỬA LỖI QUAN TRỌNG NHẤT ===
-    // Tạo một Set mới không chứa chính colorBombGem để truyền xuống hàm hút.
     const gemsToSuck = new Set(affectedGems);
-    gemsToSuck.delete(colorBombGem); // Loại bỏ chính nó ra khỏi danh sách bị hút
+    gemsToSuck.delete(colorBombGem);
 
-    // 1. Phóng to và lắc lư
-    const layerMask = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    // 1. Phóng to và lắc lư (Chill version)
+    const layerMask = this.disableGemLayerMask();
     this.scene.tweens.chain({
       targets: colorBombSprite,
       onStart: () => {
-        colorBombSprite.setDepth(50); // Depth cao để đè lên blocker
-        this.scene.game.events.emit('screenShake', { duration: 150, intensity: 0.003 });
+        colorBombSprite.setDepth(50);
+        this.scene.game.events.emit('screenShake', { duration: 250, intensity: 0.003 });
       },
       tweens: [
         {
           scale: colorBombSprite.scale * 3,
-          duration: 400,
+          duration: 600, // Phóng to rất từ từ (cũ 400)
           ease: 'Quad.easeOut'
         },
         {
           angle: 5,
-          duration: 100,
+          duration: 150, // Lắc chậm (cũ 100)
           ease: 'Sine.easeInOut',
           yoyo: true,
           repeat: 2
         }
       ],
       onComplete: () => {
-        // 2. Bắt đầu hút các gem (sử dụng Set đã được lọc)
         this.startSuckingGems(gemsToSuck, targetPos, () => {
-          // Sau khi hút xong, trả lại depth, khôi phục mask và gọi callback cuối cùng
           colorBombSprite.setDepth(2);
-          this.restoreGemLayerMask(layerMask); // KHÔI PHỤC MASK CỦA LAYER
+          this.restoreGemLayerMask(layerMask);
           if (onComplete) onComplete();
         });
       }
@@ -167,11 +197,12 @@ export class PowerupVFXManager {
     }
 
     let maxDelay = 0;
-    const duration = 500; // Thời gian hút
+    const duration = 800; // Hút từ từ trong 0.8s (cũ 500ms)
 
     // Tạo animation hút cho tất cả các gem
     affectedGems.forEach(gem => {
-        const delay = Math.random() * 200 + 100;
+        // Random delay giãn ra để gem bay rải rác hơn
+        const delay = Math.random() * 300 + 100;
         if (delay > maxDelay) {
             maxDelay = delay;
         }
@@ -188,15 +219,23 @@ export class PowerupVFXManager {
         });
     });
 
-    // === PHẦN SỬA LỖI NẰM Ở ĐÂY ===
-
-    // 1. Tính toán tổng thời gian cần thiết cho tất cả các gem bay vào
+    // --- TÍNH TOÁN THỜI GIAN VÀ PHÁT ÂM THANH ---
     const totalAnimationTime = duration + maxDelay;
     
-    // 2. Định nghĩa thời gian chờ SAU KHI hút xong
-    const pauseAfterSuck = 300; // << Giảm từ 300ms xuống 150ms để nhanh hơn
+    // Âm thanh rải đều hơn
+    const sfxVolume = AudioManager.getSoundVolume();
+    if (sfxVolume > 0 && this.scene.sound) {
+        for (let i = 0; i < 3; i++) {
+            const randomTime = Math.random() * (totalAnimationTime - 100);
+            this.scene.time.delayedCall(randomTime, () => {
+                this.scene.sound.play(SOUND_KEYS.SPIN_COLLECT, { volume: sfxVolume });
+            });
+        }
+    }
+    
+    // Nghỉ lâu hơn chút sau khi hút xong
+    const pauseAfterSuck = 300;
 
-    // 3. Gọi callback cuối cùng SAU KHI animation kết thúc VÀ đã chờ xong
     this.scene.time.delayedCall(totalAnimationTime + pauseAfterSuck, () => {
         if (onComplete) onComplete();
     });
@@ -212,53 +251,52 @@ export class PowerupVFXManager {
    * @param {function} onComplete - Callback
    */
   playDoubleBombEffect(selectedBomb, targetBomb, affectedGems, onComplete) {
+    // [YÊU CẦU] Thêm âm thanh Bomb
+    this.playSound(SOUND_KEYS.BOMB);
+
     const selectedSprite = selectedBomb.sprite
     const targetSprite = targetBomb.sprite
 
-    // --- LOGIC ĐÃ ĐƯỢC ĐẢO NGƯỢC ---
-
-    // 1. Quả bom ở vị trí đích (target) bay vào quả bom được chọn (selected)
+    // 1. Bay vào chậm hơn (300ms)
     this.scene.tweens.add({
       targets: targetSprite,
       x: selectedSprite.x,
       y: selectedSprite.y,
-      duration: 200, // Tăng nhẹ thời gian bay
+      duration: 300,
       ease: 'Quad.easeIn',
       onComplete: () => {
-        // Sau khi bay vào, làm nó biến mất
         targetSprite.setVisible(false)
       }
     })
 
-    // 2. Quả bom được chọn (selected) phóng to ra để tạo vụ nổ
-    const layerMask9 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    // 2. Phóng to chậm rãi (500ms)
+    const layerMask9 = this.disableGemLayerMask();
     
     this.scene.tweens.add({
       targets: selectedSprite,
-      scale: selectedSprite.scale * 4.5, // Phóng to hơn một chút
+      scale: selectedSprite.scale * 4.5,
       alpha: { from: 1, to: 0.5 },
-      duration: 350, // << Tăng thời gian phóng to
-      delay: 150,    // Tăng nhẹ delay
+      duration: 500, // Cũ 350
+      delay: 250,    // Đợi lâu hơn xíu sau khi va chạm
       ease: 'Quad.easeOut',
       onStart: () => {
-        selectedSprite.setDepth(50) // Depth cao để đè lên blocker
-        this.scene.game.events.emit('screenShake', { duration: 300, intensity: 0.015 }) // Rung mạnh và lâu hơn
+        selectedSprite.setDepth(50)
+        this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.012 })
       },
       onComplete: () => {
-        this.restoreGemLayerMask(layerMask9); // KHÔI PHỤC MASK CỦA LAYER
-        // Tạo hiệu ứng sóng lan tỏa từ trung tâm của quả bom được chọn
+        this.restoreGemLayerMask(layerMask9);
         this.createExplosionWave(selectedSprite.x, selectedSprite.y, onComplete)
       }
     })
 
-    // 3. Rung các gem bị ảnh hưởng (KHÔNG xóa sprite)
+    // 3. Rung gem chậm rãi
     affectedGems.forEach(gem => {
       if (gem !== selectedBomb && gem !== targetBomb) {
         this.scene.tweens.add({
           targets: gem.sprite,
           angle: { from: -10, to: 10 },
-          duration: 80,
-          delay: 250 + Math.random() * 200,
+          duration: 100, // Cũ 80
+          delay: 400 + Math.random() * 200, // Delay theo nhịp mới
           yoyo: true,
           repeat: 2,
           ease: 'Sine.easeInOut',
@@ -279,9 +317,9 @@ export class PowerupVFXManager {
 
     this.scene.tweens.add({
       targets: wave,
-      radius: this.scene.board.cellSize * 2.5, // Lan rộng ra đúng 5x5
+      radius: this.scene.board.cellSize * 2.5,
       alpha: 0,
-      duration: 350,
+      duration: 500, // Lan ra trong 0.5s (cũ 350ms)
       ease: 'Quad.easeOut',
       onComplete: () => {
         wave.destroy()
@@ -291,6 +329,9 @@ export class PowerupVFXManager {
   }
 
   playStripeEffect(stripeGem, affectedGems, onComplete) {
+    // << PHÁT ÂM THANH STRIPE >>
+    this.playSound(SOUND_KEYS.STRIPE);
+
     const stripeSprite = stripeGem.sprite;
     if (!stripeSprite || !stripeSprite.active) {
       if (onComplete) onComplete();
@@ -299,23 +340,22 @@ export class PowerupVFXManager {
     const startPos = { x: stripeSprite.x, y: stripeSprite.y };
     const stripeRow = stripeSprite.getData('row');
 
-    // 1. Đưa "tù và" lên lớp trên cùng và thực hiện hiệu ứng
     const originalDepth = stripeSprite.depth;
-    const layerMask3 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
-    stripeSprite.setDepth(20); // Đưa lên trên các nốt nhạc (depth 15)
+    const layerMask3 = this.disableGemLayerMask();
+    stripeSprite.setDepth(20);
 
+    // Phóng to chậm hơn
     this.scene.tweens.add({
       targets: stripeSprite,
       scale: stripeSprite.scale * 1.5,
-      duration: 200,
+      duration: 300, // Cũ 200
       ease: 'Quad.easeOut',
-      yoyo: true, // Tự động quay về scale cũ
+      yoyo: true,
       onComplete: () => {
-          // Trả lại depth ban đầu và khôi phục mask sau khi hiệu ứng kết thúc
-          this.scene.time.delayedCall(1200, () => {
+          this.scene.time.delayedCall(1500, () => { // Đợi nốt nhạc bay xong
               if (stripeSprite && stripeSprite.active) {
                 stripeSprite.setDepth(originalDepth);
-                this.restoreGemLayerMask(layerMask3); // KHÔI PHỤC MASK CỦA LAYER
+                this.restoreGemLayerMask(layerMask3);
               }
           });
       }
@@ -323,17 +363,15 @@ export class PowerupVFXManager {
     this.scene.tweens.add({
       targets: stripeSprite,
       angle: { from: -5, to: 5 },
-      duration: 150,
+      duration: 200, // Lắc chậm
       yoyo: true,
       repeat: 4,
-      delay: 100
+      delay: 150
     });
     
-    // 2. Xác định hướng
     const isHorizontal = Array.from(affectedGems).some(g => g.sprite.getData('row') === stripeRow && g !== stripeGem);
     const noteKeys = Phaser.Utils.Array.Shuffle(['note1', 'note2', 'note3', 'note4', 'note1', 'note2', 'note3', 'note4']);
 
-    // --- Hàm trợ giúp tạo sóng âm ---
     const createNoteWave = (directionVector) => {
         for (let i = 0; i < 4; i++) {
             const noteKey = noteKeys.pop();
@@ -341,11 +379,11 @@ export class PowerupVFXManager {
 
             const note = this.addVFXImage(startPos.x, startPos.y, noteKey)
                 .setScale(0.4)
-                .setDepth(15) // Nốt nhạc ở dưới "tù và" (depth 20)
+                .setDepth(15)
                 .setAlpha(0.9);
 
-            // 3. Nốt nhạc bay chậm hơn
-            const travelDuration = Phaser.Math.Between(1200, 1500); // Tăng thời gian bay
+            // Nốt nhạc bay rất chill (~2 giây)
+            const travelDuration = Phaser.Math.Between(1600, 2000);
             const maxDistance = this.scene.board.cellSize * (4 + Math.random() * 2);
             const offset = (Math.random() - 0.5) * this.scene.board.cellSize * 0.8;
 
@@ -356,13 +394,12 @@ export class PowerupVFXManager {
                 alpha: 0,
                 scale: 1.1,
                 duration: travelDuration,
-                delay: i * 100, // Các nốt nhạc xuất hiện nối đuôi nhau
+                delay: i * 150, // Xuất hiện thưa hơn
                 ease: 'Quad.easeOut',
                 onComplete: () => note.destroy()
             });
         }
     };
-    // --- Kết thúc hàm trợ giúp ---
 
     if (isHorizontal) {
         createNoteWave({ x: 1, y: 0 });
@@ -372,31 +409,30 @@ export class PowerupVFXManager {
         createNoteWave({ x: 0, y: -1 });
     }
 
+    // Gem rung trễ hơn để khớp với nốt nhạc bay chậm
     affectedGems.forEach(gem => {
         if (!gem || !gem.sprite || !gem.sprite.active || gem === stripeGem) return;
         const gemSprite = gem.sprite;
         const distance = Phaser.Math.Distance.Between(startPos.x, startPos.y, gemSprite.x, gemSprite.y);
-        const effectDelay = distance * 4; // Tăng delay để khớp với tốc độ nốt nhạc chậm hơn
+        const effectDelay = distance * 6; // Tăng hệ số delay theo khoảng cách
 
         this.scene.time.delayedCall(effectDelay, () => {
              if (!gemSprite.active) return;
-             // Chỉ rung, KHÔNG xóa sprite (xóa sẽ do onVFXComplete xử lý sau)
              this.scene.tweens.add({
                  targets: gemSprite,
                  angle: { from: -15, to: 15 },
-                 duration: 100,
+                 duration: 120,
                  yoyo: true,
                  repeat: 2,
                  onComplete: () => {
-                   // Trả lại angle về 0
                    if (gemSprite && gemSprite.active) gemSprite.setAngle(0);
                  }
              });
         });
     });
 
-    // 4. Kéo dài thời gian chờ trước khi gọi onComplete
-    this.scene.time.delayedCall(1500, onComplete);
+    // Chờ 2s cho tất cả xong xuôi
+    this.scene.time.delayedCall(2000, onComplete);
   }
 
   /**
@@ -417,36 +453,34 @@ export class PowerupVFXManager {
     const stripeSprite = stripeGem.sprite
     const centerPos = { x: colorBombSprite.x, y: colorBombSprite.y }
 
-    // --- HIỆU ỨNG MỞ ĐẦU ---
-    // 1. Stripe bay vào Color Bomb
+    // 1. Stripe bay vào chậm
     this.scene.tweens.add({
       targets: stripeSprite,
       x: centerPos.x,
       y: centerPos.y,
       scale: stripeSprite.scale * 0.5,
       alpha: 0,
-      duration: 250,
+      duration: 350, // Cũ 250
       ease: 'Quad.easeIn',
       onComplete: () => stripeSprite.setVisible(false)
     })
 
-    // 2. Color Bomb rung lắc và phóng to (chuẩn bị hút)
-    const layerMask2 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    // 2. Color Bomb phóng to chậm
+    const layerMask2 = this.disableGemLayerMask();
     this.scene.tweens.add({
       targets: colorBombSprite,
       scale: colorBombSprite.scale * 3,
-      duration: 400,
+      duration: 600, // Cũ 400
       ease: 'Quad.easeOut',
       onStart: () => {
-        colorBombSprite.setDepth(50) // Depth cao để đè lên blocker
-        this.scene.game.events.emit('screenShake', { duration: 300, intensity: 0.005 })
+        colorBombSprite.setDepth(50)
+        this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.005 })
       },
       onComplete: () => {
-        this.restoreGemLayerMask(layerMask2); // KHÔI PHỤC MASK CỦA LAYER
+        this.restoreGemLayerMask(layerMask2);
       }
     })
 
-    // 3. Lưu lại vị trí gốc của các gem sẽ bị hút
     const originalPositions = new Map()
     gemsToTransform.forEach(gem => {
       if (gem && gem.sprite) {
@@ -458,23 +492,17 @@ export class PowerupVFXManager {
       }
     })
 
-    // Xóa chính 2 quả combo khỏi danh sách hút
     gemsToTransform.delete(colorBombGem)
     gemsToTransform.delete(stripeGem)
 
-    // --- BƯỚC 1: HÚT GEM VÀO ---
+    // Hút chậm
     let maxSuckDelay = 0
-    const suckDuration = 500
+    const suckDuration = 700 // Cũ 500
     let gemsSuckedCount = 0
     const totalGemsToSuck = gemsToTransform.size
 
     if (totalGemsToSuck === 0) {
-      affectedGems.forEach(gem => {
-        if (gem && gem.sprite) {
-          this.scene.tweens.add({ targets: gem.sprite, scale: 0, alpha: 0, duration: 200, delay: 600 })
-        }
-      })
-      this.scene.time.delayedCall(600, onComplete)
+      this.scene.time.delayedCall(800, onComplete)
       return
     }
 
@@ -484,7 +512,7 @@ export class PowerupVFXManager {
         return
       }
 
-      const delay = Math.random() * 200 + 100
+      const delay = Math.random() * 250 + 150
       if (delay > maxSuckDelay) maxSuckDelay = delay
 
       this.scene.tweens.add({
@@ -499,7 +527,6 @@ export class PowerupVFXManager {
         onComplete: () => {
           gemsSuckedCount++
           if (gemsSuckedCount === totalGemsToSuck) {
-            // BẮT ĐẦU BƯỚC 2: truyền centerPos để bay ngược ra từ tâm
             this.startSpitBackStripes(gemsToTransform, originalPositions, affectedGems, centerPos, onComplete)
           }
         }
@@ -512,7 +539,7 @@ export class PowerupVFXManager {
    */
   startSpitBackStripes(gemsToSpit, originalPositions, affectedGems, centerPos, onComplete) {
     let maxSpitDelay = 0
-    const spitDuration = 400
+    const spitDuration = 600 // Cũ 400
     let gemsSpitCount = 0
     const totalGemsToSpit = gemsToSpit.size
 
@@ -528,10 +555,9 @@ export class PowerupVFXManager {
         return
       }
 
-      const delay = Math.random() * 150
+      const delay = Math.random() * 200
       if (delay > maxSpitDelay) maxSpitDelay = delay
 
-      // Đặt gem ở tâm (nơi bị hút vào), đổi texture và bắt đầu với scale nhỏ
       gem.sprite.setPosition(centerPos.x, centerPos.y)
       gem.sprite.setTexture('gem_stripe')
       gem.sprite.setAlpha(1)
@@ -562,14 +588,14 @@ export class PowerupVFXManager {
    * [HELPER] Bước 4 & 5: Rung gem và gọi onComplete (KHÔNG xóa sprite)
    */
   finishComboDestruction(affectedGems, onComplete) {
-    // Chỉ rung gem, KHÔNG xóa sprite (xóa sẽ do onVFXComplete xử lý)
+    // Rung kết thúc chậm
     affectedGems.forEach(gem => {
       if (!gem || !gem.sprite || !gem.sprite.active) return
-      const delay = 500 + Math.random() * 200
+      const delay = 800 + Math.random() * 300 // Delay lâu hơn
       this.scene.tweens.add({
         targets: gem.sprite,
         angle: { from: -15, to: 15 },
-        duration: 100,
+        duration: 120,
         yoyo: true,
         repeat: 2,
         delay,
@@ -579,8 +605,7 @@ export class PowerupVFXManager {
         }
       })
     })
-    // Delay ngắn hơn vì không cần chờ animation scale/alpha
-    this.scene.time.delayedCall(900, onComplete)
+    this.scene.time.delayedCall(1500, onComplete)
   }
 
   /**
@@ -602,7 +627,7 @@ export class PowerupVFXManager {
           .setDepth(15)
           .setAlpha(0.9)
 
-        const travelDuration = Phaser.Math.Between(1200, 1500)
+        const travelDuration = Phaser.Math.Between(1600, 2000) // Chill version
         const maxDistance = this.scene.board.cellSize * (4 + Math.random() * 2)
         const offset = (Math.random() - 0.5) * this.scene.board.cellSize * 0.8
 
@@ -613,7 +638,7 @@ export class PowerupVFXManager {
           alpha: 0,
           scale: 1.1,
           duration: travelDuration,
-          delay: i * 100,
+          delay: i * 150, // Thưa hơn
           ease: 'Quad.easeOut',
           onComplete: () => note.destroy()
         })
@@ -629,19 +654,19 @@ export class PowerupVFXManager {
     }
 
     const originalDepth = stripeSprite.depth
-    const layerMask4 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    const layerMask4 = this.disableGemLayerMask();
     stripeSprite.setDepth(20)
     this.scene.tweens.add({
       targets: stripeSprite,
       scale: stripeSprite.scale * 1.5,
-      duration: 200,
+      duration: 300, // Cũ 200
       ease: 'Quad.easeOut',
       yoyo: true,
       onComplete: () => {
-        this.scene.time.delayedCall(1200, () => {
+        this.scene.time.delayedCall(1500, () => {
           if (stripeSprite && stripeSprite.active) {
             stripeSprite.setDepth(originalDepth);
-            this.restoreGemLayerMask(layerMask4); // KHÔI PHỤC MASK CỦA LAYER
+            this.restoreGemLayerMask(layerMask4);
           }
         })
       }
@@ -649,10 +674,10 @@ export class PowerupVFXManager {
     this.scene.tweens.add({
       targets: stripeSprite,
       angle: { from: -5, to: 5 },
-      duration: 150,
+      duration: 200, // Cũ 150
       yoyo: true,
       repeat: 4,
-      delay: 600
+      delay: 800
     })
   }
 
@@ -664,13 +689,16 @@ export class PowerupVFXManager {
    * @param {function} onComplete - Callback
    */
   playDoubleStripeEffect(stripe1_tam_gem, stripe2_bayvao_gem, affectedGems, onComplete) {
+    // [YÊU CẦU] Thêm âm thanh Stripe
+    this.playSound(SOUND_KEYS.STRIPE);
+
     const stripe1_tam = stripe1_tam_gem.sprite
     const stripe2_bayvao = stripe2_bayvao_gem.sprite
     if (!stripe1_tam || !stripe2_bayvao) { if (onComplete) onComplete(); return }
     const centerPos = { x: stripe1_tam.x, y: stripe1_tam.y }
-    const impactDelay = 200
+    const impactDelay = 300 // Bay vào chậm hơn
 
-    // 1) Stripe 2 bay vào Stripe 1
+    // 1) Stripe 2 bay vào chậm
     this.scene.tweens.add({
       targets: stripe2_bayvao,
       x: centerPos.x,
@@ -682,25 +710,25 @@ export class PowerupVFXManager {
       onComplete: () => stripe2_bayvao.setVisible(false)
     })
 
-    // 2) Stripe 1 phóng to (chiêng) và rung (tù và)
-    const layerMask5 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    // 2) Stripe 1 phóng to chậm
+    const layerMask5 = this.disableGemLayerMask();
     this.scene.tweens.add({
       targets: stripe1_tam,
       scale: stripe1_tam.scale * 4.5,
       alpha: { from: 1, to: 0.5 },
-      duration: 350,
+      duration: 500, // Cũ 350
       delay: impactDelay - 50,
       ease: 'Quad.easeOut',
       onStart: () => {
-        stripe1_tam.setDepth(50) // Depth cao để đè lên blocker
-        this.scene.game.events.emit('screenShake', { duration: 300, intensity: 0.015 })
+        stripe1_tam.setDepth(50)
+        this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.012 })
       },
       onComplete: () => {
-        this.restoreGemLayerMask(layerMask5); // KHÔI PHỤC MASK CỦA LAYER
+        this.restoreGemLayerMask(layerMask5);
       }
     })
 
-    // 3) Kích hoạt nốt nhạc theo hai hướng
+    // 3) Kích hoạt nốt nhạc
     this.scene.time.delayedCall(impactDelay, () => {
       if (stripe1_tam && stripe1_tam.active) {
         this.playStripeNoteWave(stripe1_tam, true)
@@ -708,19 +736,19 @@ export class PowerupVFXManager {
       }
     })
 
-    // 4) Rung gem (KHÔNG xóa sprite - xóa sẽ do onVFXComplete xử lý)
+    // 4) Rung gem
     affectedGems.forEach(gem => {
       if (!gem || !gem.sprite || !gem.sprite.active) return
       if (gem === stripe1_tam_gem || gem === stripe2_bayvao_gem) return
       const gemSprite = gem.sprite
       const distance = Phaser.Math.Distance.Between(centerPos.x, centerPos.y, gemSprite.x, gemSprite.y)
-      const effectDelay = (distance * 4) + impactDelay
+      const effectDelay = (distance * 6) + impactDelay // Delay lâu hơn
       this.scene.time.delayedCall(effectDelay, () => {
         if (!gemSprite.active) return
         this.scene.tweens.add({
           targets: gemSprite,
           angle: { from: -15, to: 15 },
-          duration: 100,
+          duration: 120,
           yoyo: true,
           repeat: 2,
           onComplete: () => {
@@ -730,12 +758,13 @@ export class PowerupVFXManager {
       })
     })
 
-    // 5) Hoàn tất sau khi nốt nhạc xong
-    this.scene.time.delayedCall(1500 + impactDelay, onComplete)
+    // 5) Hoàn tất
+    this.scene.time.delayedCall(2000 + impactDelay, onComplete)
   }
 
   /**
-   * [VFX ĐÃ SỬA] Hiệu ứng cho COMBO Bomb + Stripe (Hiệu ứng Chiêng + Tù Và)
+   * [VFX ĐÃ SỬA LẠI HOÀN TOÀN] Hiệu ứng cho COMBO Bomb + Stripe 
+   * -> Biến thành "BIG STRIPE" (Nốt nhạc khổng lồ)
    * @param {object} powerupAtPos2 - Powerup ở "vị trí 2" (tâm)
    * @param {object} powerupAtPos1 - Powerup ở "vị trí 1" (bay vào)
    * @param {string} direction - Hướng nổ ('horizontal' hoặc 'vertical')
@@ -743,106 +772,143 @@ export class PowerupVFXManager {
    * @param {function} onComplete - Callback
    */
   playBombStripeComboEffect(powerupAtPos2, powerupAtPos1, direction, affectedGems, onComplete) {
-    const sprite1_tam = powerupAtPos2.sprite; // Sprite ở tâm (vị trí 2)
-    const sprite2_bayvao = powerupAtPos1.sprite; // Sprite bay vào (vị trí 1)
+    // [YÊU CẦU] Thêm âm thanh Stripe (cho hiệu ứng Big Stripe)
+    this.playSound(SOUND_KEYS.STRIPE);
+
+    const sprite1_tam = powerupAtPos2.sprite;
+    const sprite2_bayvao = powerupAtPos1.sprite;
     const centerPos = { x: sprite1_tam.x, y: sprite1_tam.y };
 
-    const flashDelay = 150; // Thời điểm bắt đầu flash
-    const impactDelay = 200; // Thời điểm 2 sprite va chạm
+    const impactDelay = 300; // Bay vào chậm
 
-    // 1. Sprite 2 (bay vào) bay vào Sprite 1 (tâm)
+    // 1. Bay vào
     this.scene.tweens.add({
         targets: sprite2_bayvao,
         x: centerPos.x,
         y: centerPos.y,
         scale: sprite2_bayvao.scale * 0.5,
         alpha: 0,
-        duration: impactDelay, // Va chạm sau 200ms
+        duration: impactDelay,
         ease: 'Quad.easeIn',
         onComplete: () => sprite2_bayvao.setVisible(false)
     });
 
-    // 2. TẠO VFX (Hình chữ nhật 3 ô)
-    const vfxRect = this.addVFXGraphics().setDepth(10);
-    const boardWidth = this.scene.board.getBoardDimensions().width;
-    const boardHeight = this.scene.board.getBoardDimensions().height;
-    const cellSize = this.scene.board.cellSize;
-
-    vfxRect.fillStyle(0xffffff, 0.8);
-    if (direction === 'horizontal') {
-        vfxRect.fillRect(this.scene.board.offsetX, centerPos.y - cellSize * 1.5, boardWidth, cellSize * 3);
-    } else {
-        vfxRect.fillRect(centerPos.x - cellSize * 1.5, this.scene.board.offsetY, cellSize * 3, boardHeight);
-    }
-    vfxRect.setAlpha(0);
-
-    // Animation cho VFX (flash)
-    this.scene.tweens.add({
-        targets: vfxRect,
-        alpha: { from: 0.8, to: 0 },
-        duration: 500,
-        delay: flashDelay, // Bắt đầu flash sớm hơn va chạm 1 chút
-        ease: 'Cubic.easeOut',
-        onComplete: () => {
-            vfxRect.destroy();
-        }
-    });
-
-    // 3. HIỆU ỨNG MỚI: "CHIÊNG" VÀ "TÙ VÀ"
-    const layerMask6 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
-    this.scene.tweens.add({
-        targets: sprite1_tam,
-        angle: { from: -7, to: 7 },
-        duration: 100,
-        yoyo: true,
-        repeat: 3,
-        ease: 'Sine.easeInOut',
-        delay: impactDelay
-    });
+    // 2. Biến hình thành Big Stripe (chậm rãi)
+    const layerMask6 = this.disableGemLayerMask();
+    sprite1_tam.setTexture('gem_stripe');
 
     this.scene.tweens.add({
         targets: sprite1_tam,
-        scale: sprite1_tam.scale * 1.3,
-        duration: 150,
-        yoyo: true,
-        repeat: 2,
-        ease: 'Cubic.easeInOut',
+        scale: sprite1_tam.scale * 4.0,
+        duration: 500, // Cũ 300
         delay: impactDelay,
+        ease: 'Back.easeOut',
+        onStart: () => {
+            sprite1_tam.setDepth(50);
+            this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.012 });
+        },
         onComplete: () => {
-          this.restoreGemLayerMask(layerMask6); // KHÔI PHỤC MASK CỦA LAYER
+            this.spawnGiantNotes(centerPos, direction);
+            
+            // Mờ dần chậm
+            this.scene.tweens.add({
+                targets: sprite1_tam,
+                alpha: 0,
+                duration: 300,
+                onComplete: () => this.restoreGemLayerMask(layerMask6)
+            });
         }
     });
-    this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.012, delay: impactDelay });
 
-    // 4. Rung ngang và mờ các gem bị ảnh hưởng
+    // 3. Rung các gem bị ảnh hưởng
     let maxGemFadeDelay = 0;
     affectedGems.forEach(gem => {
         if (!gem || !gem.sprite || !gem.sprite.active) return;
         if (gem === powerupAtPos1 || gem === powerupAtPos2) return;
         const gemSprite = gem.sprite;
-        const rungDelay = impactDelay + Math.random() * 100;
-        const rungDuration = 60;
-        const rungRepeats = 4;
+        
+        let dist = 0;
+        if (direction === 'horizontal') {
+            dist = Math.abs(gemSprite.x - centerPos.x);
+        } else {
+            dist = Math.abs(gemSprite.y - centerPos.y);
+        }
+        
+        // Sóng lan chậm hơn
+        const waveDelay = impactDelay + 300 + (dist * 0.8);
+
         this.scene.tweens.add({
             targets: gemSprite,
-            x: gemSprite.x + (Math.random() > 0.5 ? 4 : -4),
-            duration: rungDuration,
+            x: gemSprite.x + (Math.random() > 0.5 ? 5 : -5),
+            y: gemSprite.y + (Math.random() > 0.5 ? 5 : -5),
+            duration: 80,
             yoyo: true,
-            repeat: rungRepeats,
-            ease: 'Sine.easeInOut',
-            delay: rungDelay
+            repeat: 5,
+            delay: waveDelay,
+            onComplete: () => {
+                if (gemSprite && gemSprite.active) {
+                    gemSprite.setAngle(0);
+                }
+            }
         });
-        // Trả lại angle về 0 sau khi rung
-        const resetDelay = rungDelay + (rungDuration * (rungRepeats + 1)) + 50;
-        if (resetDelay > maxGemFadeDelay) maxGemFadeDelay = resetDelay;
-        this.scene.time.delayedCall(resetDelay, () => {
-            if (gemSprite && gemSprite.active) gemSprite.setAngle(0);
-        });
+
+        if (waveDelay > maxGemFadeDelay) maxGemFadeDelay = waveDelay;
     });
 
-    // 5. Kết thúc sau khi gem cuối cùng rung xong
-    const totalDuration = maxGemFadeDelay + 100;
+    // 4. Kết thúc
+    const totalDuration = maxGemFadeDelay + 1000;
     this.scene.time.delayedCall(totalDuration, onComplete);
+  }
+
+  /**
+   * [HELPER MỚI] Tạo nốt nhạc KHỔNG LỒ bay ra (Dùng cho Combo Bomb + Stripe)
+   */
+  spawnGiantNotes(startPos, direction) {
+    const noteKeys = ['note1', 'note2', 'note3', 'note4'];
+    const isHorizontal = (direction === 'horizontal');
+
+    // Hàm tạo 1 luồng nốt nhạc khổng lồ (Chill version)
+    const createGiantStream = (dirX, dirY) => {
+        for (let i = 0; i < 5; i++) {
+            const noteKey = Phaser.Utils.Array.GetRandom(noteKeys);
+            
+            const note = this.addVFXImage(startPos.x, startPos.y, noteKey)
+                .setScale(0)
+                .setDepth(45)
+                .setAlpha(1);
+
+            const travelDuration = 1600; // Bay rất chậm (1.6s)
+            const maxDistance = this.scene.board.getBoardDimensions().width * 0.8;
+
+            this.scene.tweens.add({
+                targets: note,
+                x: startPos.x + dirX * maxDistance,
+                y: startPos.y + dirY * maxDistance,
+                scale: 1.5,
+                rotation: Math.random() * 6,
+                duration: travelDuration,
+                delay: i * 200, // Bay nối đuôi thưa hơn
+                ease: 'Quad.easeOut',
+                onComplete: () => {
+                    this.scene.tweens.add({
+                        targets: note,
+                        scale: 2.0,
+                        alpha: 0,
+                        duration: 300,
+                        onComplete: () => note.destroy()
+                    });
+                }
+            });
+        }
+    };
+
+    if (isHorizontal) {
+        createGiantStream(-1, 0);
+        createGiantStream(1, 0);
+    } else {
+        createGiantStream(0, -1);
+        createGiantStream(0, 1);
+    }
   }
 
   /**
@@ -851,21 +917,21 @@ export class PowerupVFXManager {
   playSingleBombVFX(bombSprite) {
     if (!bombSprite || !bombSprite.active) return;
     const originalDepth = bombSprite.depth;
-    const layerMask7 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    const layerMask7 = this.disableGemLayerMask();
     this.scene.tweens.add({
       targets: bombSprite,
       scale: bombSprite.scale * 3,
-      duration: 200,
+      duration: 350, // Cũ 200
       ease: 'Quad.easeOut',
       yoyo: true,
       onStart: () => {
-        bombSprite.setDepth(50); // Depth cao để đè lên blocker
-        this.scene.game.events.emit('screenShake', { duration: 100, intensity: 0.005 });
+        bombSprite.setDepth(50);
+        this.scene.game.events.emit('screenShake', { duration: 200, intensity: 0.005 });
       },
       onComplete: () => {
         if (bombSprite && bombSprite.active) {
           bombSprite.setDepth(originalDepth);
-          this.restoreGemLayerMask(layerMask7); // KHÔI PHỤC MASK CỦA LAYER
+          this.restoreGemLayerMask(layerMask7);
         }
       }
     });
@@ -884,35 +950,34 @@ export class PowerupVFXManager {
     const bombSprite = bombGem.sprite;
     const centerPos = { x: colorBombSprite.x, y: colorBombSprite.y };
 
-    // Bomb bay vào Color Bomb
+    // Bomb bay vào chậm
     this.scene.tweens.add({
       targets: bombSprite,
       x: centerPos.x,
       y: centerPos.y,
       scale: bombSprite.scale * 0.5,
       alpha: 0,
-      duration: 250,
+      duration: 350, // Cũ 250
       ease: 'Quad.easeIn',
       onComplete: () => bombSprite.setVisible(false)
     });
 
-    // Color Bomb rung lắc
-    const layerMask8 = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
+    // Color Bomb phóng to chậm
+    const layerMask8 = this.disableGemLayerMask();
     this.scene.tweens.add({
       targets: colorBombSprite,
       scale: colorBombSprite.scale * 3,
-      duration: 400,
+      duration: 600, // Cũ 400
       ease: 'Quad.easeOut',
       onStart: () => {
-        colorBombSprite.setDepth(50); // Depth cao để đè lên blocker
-        this.scene.game.events.emit('screenShake', { duration: 300, intensity: 0.005 });
+        colorBombSprite.setDepth(50);
+        this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.005 });
       },
       onComplete: () => {
-        this.restoreGemLayerMask(layerMask8); // KHÔI PHỤC MASK CỦA LAYER
+        this.restoreGemLayerMask(layerMask8);
       }
     });
 
-    // Lưu vị trí gốc
     const originalPositions = new Map();
     gemsToTransform.forEach(gem => {
       if (gem && gem.sprite) {
@@ -920,23 +985,21 @@ export class PowerupVFXManager {
       }
     });
 
-    // Loại bỏ 2 quả combo
     gemsToTransform.delete(colorBombGem);
     gemsToTransform.delete(bombGem);
 
-    // Hút vào
+    // Hút vào chậm
     let maxSuckDelay = 0;
-    const suckDuration = 500;
+    const suckDuration = 700; // Cũ 500
     let sucked = 0;
     const total = gemsToTransform.size;
     if (total === 0) {
-      // Không có gem để hút, gọi onComplete ngay
-      this.scene.time.delayedCall(300, onComplete);
+      this.scene.time.delayedCall(500, onComplete);
       return;
     }
     gemsToTransform.forEach(gem => {
       if (!gem || !gem.sprite || !gem.sprite.active) { sucked++; return; }
-      const delay = Math.random() * 200 + 100;
+      const delay = Math.random() * 250 + 150;
       if (delay > maxSuckDelay) maxSuckDelay = delay;
       this.scene.tweens.add({
         targets: gem.sprite,
@@ -962,14 +1025,14 @@ export class PowerupVFXManager {
    */
   startSpitBackBombs(gemsToSpit, originalPositions, affectedGems, centerPos, onComplete) {
     let maxSpitDelay = 0;
-    const spitDuration = 400;
+    const spitDuration = 600; // Cũ 400
     let done = 0;
     const total = gemsToSpit.size;
     gemsToSpit.forEach(gem => {
       if (!gem || !gem.sprite) { done++; return; }
       const oldPos = originalPositions.get(gem);
       if (!oldPos) { done++; return; }
-      const delay = Math.random() * 150;
+      const delay = Math.random() * 200;
       if (delay > maxSpitDelay) maxSpitDelay = delay;
       gem.sprite.setPosition(centerPos.x, centerPos.y);
       gem.sprite.setTexture('gem_bomb');
@@ -989,14 +1052,14 @@ export class PowerupVFXManager {
           }
           done++;
           if (done === total) {
-            // Rung tất cả gem sau một nhịp (KHÔNG xóa sprite)
+            // Rung kết thúc chậm
             affectedGems.forEach(g => {
               if (!g || !g.sprite || !g.sprite.active) return;
-              const d = 500 + Math.random() * 200;
+              const d = 800 + Math.random() * 300;
               this.scene.tweens.add({
                 targets: g.sprite,
                 angle: { from: -10, to: 10 },
-                duration: 80,
+                duration: 100,
                 delay: d,
                 yoyo: true,
                 repeat: 2,
@@ -1006,8 +1069,7 @@ export class PowerupVFXManager {
                 }
               });
             });
-            // Delay ngắn hơn vì chỉ rung, không xóa
-            this.scene.time.delayedCall(900, onComplete);
+            this.scene.time.delayedCall(1500, onComplete);
           }
         }
       });
