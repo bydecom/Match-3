@@ -255,7 +255,7 @@ export class BoardState {
           gem.sprite.x = targetX
           gem.sprite.y = targetY
           gem.sprite.setVisible(true)
-          gem.sprite.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.82)
+          gem.sprite.setDisplaySize(this.cellSize * 0.85, this.cellSize * 0.85)
         }
       }
     }
@@ -373,7 +373,7 @@ export class BoardState {
     const gem = this.gemLayer.add(
       this.scene.make.image({ x, y, key: gemTextureKey, add: false })
     )
-    gem.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.82)
+    gem.setDisplaySize(this.cellSize * 0.85, this.cellSize * 0.85)
       .setInteractive()
       .setDepth(2)
     gem.setData({ row, col, type: gemType, isGem: true })

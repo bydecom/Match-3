@@ -56,7 +56,7 @@ export class BoardCreator {
     )
     // ======================
     
-    gem.setDisplaySize(this.cellSize * 0.8, this.cellSize * 0.8)
+    gem.setDisplaySize(this.cellSize * 0.85, this.cellSize * 0.85)
       .setInteractive()
       .setDepth(2) // Depth này giờ là depth bên trong Layer
     gem.setData({ row, col, type: gemType, isGem: true })
