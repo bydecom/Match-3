@@ -99,6 +99,43 @@ export class Board {
       }
     }
 
+    // Tự động đếm lại số lượng blocker thực tế trên bàn cờ (Rope & Stone)
+    // và cập nhật vào mục tiêu (objective) để đảm bảo "Clear All" hoạt động đúng
+    if (this.levelData.objectives) {
+      // 1. Đồng bộ ROPE
+      const ropeObjective = this.levelData.objectives.find(o => o.type === 'rope')
+      if (ropeObjective) {
+        let actualRopeCount = 0
+        for (let r = 0; r < this.blockerGrid.length; r++) {
+          for (let c = 0; c < this.blockerGrid[r].length; c++) {
+            const blocker = this.blockerGrid[r][c]
+            if (blocker && blocker.type === 'rope') {
+              actualRopeCount++
+            }
+          }
+        }
+        console.log(`[Board] Auto-sync Rope Objective: Config=${ropeObjective.count}, Actual=${actualRopeCount}`)
+        ropeObjective.count = actualRopeCount
+      }
+
+      // 2. Đồng bộ STONE
+      // Stone có thể có 2 máu, nhưng mục tiêu đếm theo SỐ VIÊN ĐÁ chứ không phải số lần đánh
+      const stoneObjective = this.levelData.objectives.find(o => o.type === 'stone')
+      if (stoneObjective) {
+        let actualStoneCount = 0
+        for (let r = 0; r < this.blockerGrid.length; r++) {
+          for (let c = 0; c < this.blockerGrid[r].length; c++) {
+            const blocker = this.blockerGrid[r][c]
+            if (blocker && blocker.type === 'stone') {
+              actualStoneCount++
+            }
+          }
+        }
+        console.log(`[Board] Auto-sync Stone Objective: Config=${stoneObjective.count}, Actual=${actualStoneCount}`)
+        stoneObjective.count = actualStoneCount
+      }
+    }
+
     this.fillEmptyCells()
     
     // DEBUG: Hiển thị mask overlay để quan sát
@@ -117,6 +154,27 @@ export class Board {
         break
       default:
         console.warn('Unknown input type:', inputData.type)
+    }
+  }
+
+  // Xử lý khi blocker (rope) sinh sôi - cập nhật mục tiêu
+  handleBlockerSpawned(type) {
+    if (!this.objectivesStatus) return
+
+    const key = `blocker_${type}` // Ví dụ: blocker_rope
+    
+    if (this.objectivesStatus[key]) {
+      // Tăng số lượng remaining lên 1 (vì người chơi phải phá nhiều hơn)
+      this.objectivesStatus[key].current += 1
+      
+      const remaining = this.objectivesStatus[key].current
+      console.log(`[Board] Blocker spawned (${type}). New remaining: ${remaining}`)
+
+      // Bắn sự kiện để UIScene cập nhật lại số hiển thị
+      this.scene.game.events.emit('objectiveUpdated', { 
+        key: key, 
+        remaining: remaining 
+      })
     }
   }
 

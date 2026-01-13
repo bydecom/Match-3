@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { ObjectiveItem } from '../../ui/ObjectiveItem';
 import PlayerDataManager from '../../managers/PlayerDataManager';
+import AudioManager from '../../managers/AudioManager';
+import { SOUND_KEYS } from '../../utils/SoundAssets';
 
 export class LosePopup extends Phaser.Scene {
   constructor() {
@@ -25,6 +27,12 @@ export class LosePopup extends Phaser.Scene {
     // Tạm dừng các scene bên dưới
     if (this.scene.isActive('GameScene')) this.scene.pause('GameScene');
     if (this.scene.isActive('UIScene')) this.scene.pause('UIScene');
+
+    // Phát âm thanh thua cuộc
+    const sfxVolume = AudioManager.getSoundVolume();
+    if (sfxVolume > 0 && this.cache.audio.exists(SOUND_KEYS.LOSE_GAME)) {
+      this.sound.play(SOUND_KEYS.LOSE_GAME, { volume: sfxVolume });
+    }
 
     // Overlay mờ
     const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)

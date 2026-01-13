@@ -33,6 +33,12 @@ export class RopeBlocker extends BaseBlocker {
     const pool = nonPlanned.length > 0 ? nonPlanned : candidates
     const target = Phaser.Math.RND.pick(pool)
     board.createRopeBlocker(target.row, target.col)
+    
+    // Thông báo cho board biết là có thêm rope mới sinh ra
+    if (board.handleBlockerSpawned) {
+      board.handleBlockerSpawned('rope')
+    }
+    
     if (plannedSpawns) plannedSpawns.add(keyOf(target.row, target.col))
   }
 }

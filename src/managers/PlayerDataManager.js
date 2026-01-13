@@ -150,13 +150,13 @@ class PlayerDataManager {
 
                 "boosters": {
 
-                    "hammer": 9,  // Sửa thành 2
+                    "hammer": 99,  // Sửa thành 2
 
-                    "swap": 9,    // Sửa thành 2
+                    "swap": 99,    // Sửa thành 2
 
-                    "rocket": 9,  // Sửa thành 2
+                    "rocket": 99,  // Sửa thành 2
 
-                    "shuffle": 9  // Sửa thành 2
+                    "shuffle": 99  // Sửa thành 2
 
                 }
 

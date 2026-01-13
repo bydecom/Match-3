@@ -456,7 +456,7 @@ export class SpinPopup extends Phaser.Scene {
             targets: icon,
             alpha: 1,
             y: startY - 150,
-            scale: 0.8,
+            scale: 1.05,
             duration: 700,
             ease: 'Back.Out',
             onComplete: () => {

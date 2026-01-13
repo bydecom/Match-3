@@ -56,7 +56,7 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
         this.add(this.heartIcon);
         
         // Tạo text hiển thị số heart
-        this.heartText = this.scene.add.text(105, 30, this.playerData.currency.lives.toString(), {
+        this.heartText = this.scene.add.text(95, 30, this.playerData.currency.lives.toString(), {
             fontSize: '20px',
             color: '#FF6B6B',
             fontFamily: 'NABILA',

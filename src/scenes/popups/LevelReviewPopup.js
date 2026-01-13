@@ -169,9 +169,13 @@ export class LevelReviewPopup extends Phaser.Scene {
         const baseX = item.position.x;
         const baseY = item.position.y;
 
+        // Tính toán tâm của hình tròn nền
+        const centerX = baseX + 13;
+        const centerY = baseY + 10;
+
         if (count === 0) {
-            item.countDisplay = this.add.image(baseX + 20, baseY + 18, 'add_icon')
-                .setOrigin(1, 1)
+            item.countDisplay = this.add.image(centerX, centerY, 'add_icon')
+                .setOrigin(0.5, 0.5) // Neo giữa-giữa
                 .setScale(0.4)
                 .setDepth(4)
                 .setInteractive({ useHandCursor: true });
@@ -186,14 +190,14 @@ export class LevelReviewPopup extends Phaser.Scene {
                 });
             });
         } else {
-            item.countDisplay = this.add.text(baseX + 20, baseY + 20, `${count}`, {
+            item.countDisplay = this.add.text(centerX, centerY, `${count}`, {
                 fontFamily: 'UTMCookies',
                 fontSize: '18px',
                 color: '#ffffff',
                 stroke: '#000000',
                 fontWeight: 'bold',
                 strokeThickness: 3
-            }).setOrigin(1, 1).setDepth(4);
+            }).setOrigin(0.5, 0.5).setDepth(4); // Neo giữa-giữa
         }
     }
 

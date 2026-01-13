@@ -34,5 +34,5 @@
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
   ],
-  "availableGems": ["red", "green", "blue", "purple", "yellow", "orange"]
+  "availableGems": ["red", "green", "blue", "purple", "yellow"]
 }

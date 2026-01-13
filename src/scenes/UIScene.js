@@ -131,7 +131,7 @@ export class UIScene extends Phaser.Scene {
         posX: 0.7908, posY: 0.9376, scale: 1.2,
         offsets: {
           bgX: 30, bgY: 55,
-          textX: 21, textY: 45,
+          textX: 14, textY: 36, // Điều chỉnh cho setOrigin(0.5, 0.5)
           iconAddX: 21, iconAddY: 43
         }
       },
@@ -141,7 +141,7 @@ export class UIScene extends Phaser.Scene {
         posX: 0.5749, posY: 0.9200, scale: 1.2,
         offsets: {
           bgX: 39, bgY: 61,
-          textX: 30, textY: 51,
+          textX: 23, textY: 42, // Điều chỉnh cho setOrigin(0.5, 0.5)
           iconAddX: 30, iconAddY: 48
         }
       },
@@ -151,7 +151,7 @@ export class UIScene extends Phaser.Scene {
         posX: 0.3903, posY: 0.9102, scale: 1.2,
         offsets: {
           bgX: 39, bgY: 71,
-          textX: 30, textY: 60,
+          textX: 23, textY: 52, // Điều chỉnh cho setOrigin(0.5, 0.5)
           iconAddX: 30, iconAddY: 58
         }
       },
@@ -161,7 +161,7 @@ export class UIScene extends Phaser.Scene {
         posX: 0.1728, posY: 0.9376, scale: 1.2,
         offsets: {
           bgX: 39, bgY: 61,
-          textX:30, textY: 50,
+          textX: 23, textY: 42, // Điều chỉnh cho setOrigin(0.5, 0.5)
           iconAddX: 30, iconAddY: 48
         }
       },
@@ -296,7 +296,7 @@ export class UIScene extends Phaser.Scene {
             strokeThickness: 3,
             fontStyle: 'bold'
         })
-        .setOrigin(1, 1)
+        .setOrigin(0.5, 0.5) // Neo giữa-giữa để số 2 chữ số không bị lệch
         .setDepth(12);
       }
 
@@ -613,22 +613,32 @@ export class UIScene extends Phaser.Scene {
     // ======================================
     
     // Delay để UI cập nhật hoàn tất trước khi hiện popup
-    // Đảm bảo tất cả animation của objective items đã hoàn tất
     this.time.delayedCall(800, () => {
-      // Kiểm tra lại để đảm bảo tất cả nhiệm vụ đã hoàn thành
-      if (this.areAllObjectivesCleared()) {
-        console.log(`[UIScene] Ready to show win popup. Waiting boardBusy=false if needed...`);
-        this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
-      } else {
-        console.log(`[UIScene] Objectives not fully cleared yet, retrying...`);
-        // Nếu chưa hoàn thành, thử lại sau 200ms
-        this.time.delayedCall(200, () => {
-          if (this.areAllObjectivesCleared()) {
-            this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
-          }
-        });
+      // FIX: Bỏ qua kiểm tra lại vì GameScene đã xác nhận thắng rồi
+      // UIScene chỉ có nhiệm vụ hiển thị, không nên chặn nếu UI bị lag chưa cập nhật kịp
+      if (!this.areAllObjectivesCleared()) {
+        console.warn(`[UIScene] UI counters desynced, but forcing Win anyway.`);
+        // Ép cập nhật UI cho đẹp trước khi hiện popup
+        this.forceCompleteObjectives();
       }
+      
+      console.log(`[UIScene] Ready to show win popup. Waiting boardBusy=false if needed...`);
+      this.showWinPopupWhenIdle(levelId, stars, gameScene?.levelData?.objectives);
     });
+  }
+
+  // Ép buộc cập nhật UI objectives cho đẹp khi bị desync
+  forceCompleteObjectives() {
+    if (this.objectiveItems && Array.isArray(this.objectiveItems)) {
+      this.objectiveItems.forEach(item => {
+        if (item.updateProgress) {
+          item.updateProgress(9999); // Ép số về max
+        }
+        if (item.markAsCompleted) {
+          item.markAsCompleted();
+        }
+      });
+    }
   }
 
   // Chỉ hiển thị WinPopup khi boardBusy=false
@@ -878,7 +888,7 @@ export class UIScene extends Phaser.Scene {
           strokeThickness: 3,
           fontStyle: 'bold'
       })
-      .setOrigin(1, 1)
+      .setOrigin(0.5, 0.5) // Neo giữa-giữa để số 2 chữ số không bị lệch
       .setDepth(12);
     }
 

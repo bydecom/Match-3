@@ -2,17 +2,38 @@
 import { GEM_TYPES, GRID_SIZE } from '../../utils/constants'
 
 export class BoardMatcher {
-  // << THÊM HÀM HELPER NÀY >>
+  
+  // 1. Kiểm tra xem ô này có thể tham gia vào Combo nổ hay không
+  // (Dùng cho logic findAllMatches - Rope và Stone vỡ vẫn có thể nổ)
   canMatchAt(row, col) {
     const blocker = this.blockerGrid?.[row]?.[col]
-    if (!blocker) return true // Không có blocker, có thể match
+    if (!blocker) return true 
 
-    // Đá nguyên khối không thể match
+    // Đá nguyên khối (2 máu) không thể match
     if (blocker.type === 'stone' && blocker.health === 2) {
       return false
     }
 
-    // Đá vỡ và dây leo có thể match
+    // Đá vỡ (1 máu) và dây leo (rope) vẫn có thể match tại chỗ (đứng yên nhưng nổ)
+    return true
+  }
+
+  // 2. [MỚI] Kiểm tra xem ô này có thể DI CHUYỂN (Swap) hay không
+  // (Dùng cho logic Hint và Input - Rope và Stone KHÔNG được di chuyển)
+  canMoveAt(row, col) {
+    const blocker = this.blockerGrid?.[row]?.[col]
+    if (!blocker) return true
+
+    // Dây leo giữ chặt gem -> Không thể di chuyển
+    if (blocker.type === 'rope') {
+      return false
+    }
+
+    // Đá (dù là 1 hay 2 máu) đều đè lên gem -> Không thể di chuyển
+    if (blocker.type === 'stone') {
+      return false
+    }
+
     return true
   }
 
@@ -28,6 +49,8 @@ export class BoardMatcher {
       for (let col = 0; col < GRID_SIZE - 2; ) {
         const gem = this.grid[row][col]
         const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB)
+        
+        // Logic Match: Vẫn dùng canMatchAt (vì gem trong Rope vẫn ăn được nếu xếp đúng)
         if (gem && gem.type === 'gem' && !isPowerUp && this.canMatchAt(row, col)) {
           let match = [gem]
           for (let i = col + 1; i < GRID_SIZE; i++) {
@@ -50,6 +73,8 @@ export class BoardMatcher {
       for (let row = 0; row < GRID_SIZE - 2; ) {
         const gem = this.grid[row][col]
         const isPowerUp = gem && (gem.value === GEM_TYPES.BOMB || gem.value === GEM_TYPES.COLOR_BOMB)
+        
+        // Logic Match: Vẫn dùng canMatchAt
         if (gem && gem.type === 'gem' && !isPowerUp && this.canMatchAt(row, col)) {
           let match = [gem]
           for (let i = row + 1; i < GRID_SIZE; i++) {
@@ -93,8 +118,6 @@ export class BoardMatcher {
 
   /**
    * [AUTO SHUFFLE] Kiểm tra xem còn nước đi nào hợp lệ không.
-   * Thuật toán: Duyệt qua từng ô, thử swap ảo với ô bên phải và bên dưới.
-   * @returns {boolean} True nếu còn nước đi, False nếu bế tắc.
    */
   hasPossibleMoves() {
     if (!this.grid || !this.grid.length) return false
@@ -107,12 +130,16 @@ export class BoardMatcher {
       const gem1 = tempGrid[r1][c1]
       const gem2 = tempGrid[r2][c2]
 
-      if (!gem1 || gem1.type !== 'gem' || !this.canMatchAt(r1, c1)) return false
-      if (!gem2 || gem2.type !== 'gem' || !this.canMatchAt(r2, c2)) return false
+      // [SỬA LỖI] Thay canMatchAt bằng canMoveAt
+      // Gem bị khóa (Rope/Stone) không thể đem đi swap
+      if (!gem1 || gem1.type !== 'gem' || !this.canMoveAt(r1, c1)) return false
+      if (!gem2 || gem2.type !== 'gem' || !this.canMoveAt(r2, c2)) return false
 
       tempGrid[r1][c1] = gem2
       tempGrid[r2][c2] = gem1
 
+      // Kiểm tra xem sau khi swap xong, nó có tạo ra match không?
+      // Ở bước check match này thì dùng _checkMatchAt (logic này dùng canMatchAt nội bộ là đúng)
       const hasMatch = this._checkMatchAt(tempGrid, r1, c1) || this._checkMatchAt(tempGrid, r2, c2)
 
       tempGrid[r1][c1] = gem1
@@ -127,7 +154,8 @@ export class BoardMatcher {
         if (isValidSwap(r, c, r + 1, c)) return true
 
         const gem = this.grid[r][c]
-        if (this.isPowerup && this.isPowerup(gem)) return true
+        // Powerup luôn là một nước đi khả thi (nếu click được)
+        if (this.isPowerup && this.isPowerup(gem) && this.canMoveAt(r, c)) return true
       }
     }
 
@@ -136,12 +164,20 @@ export class BoardMatcher {
 
   /**
    * Helper kiểm tra match tại 1 ô cụ thể trong lưới ảo
+   * Hàm này dùng để kiểm tra KẾT QUẢ sau khi swap, nên nó vẫn tuân theo quy tắc Match
    */
   _checkMatchAt(tempGrid, row, col) {
     if (!this.isValidCell || !this.isValidCell(row, col)) return false
 
     const gem = tempGrid[row]?.[col]
     if (!gem || gem.type !== 'gem') return false
+
+    // Ở đây ta giả định tempGrid đã swap xong. 
+    // Việc kiểm tra "gem có bị Rope không" đã được chặn ở đầu vào (isValidSwap).
+    // Nếu gem đã nằm đúng vị trí, nó vẫn có thể match kể cả khi bị Rope (nếu ta cho phép Rope match tại chỗ).
+    // Tuy nhiên, logic Match-3 chuẩn thường là: 
+    // - Rope: Không move được, nhưng nếu có 2 viên cùng màu bên cạnh move tới thì Rope vẫn nổ.
+    // -> Nên _checkMatchAt không cần chặn Rope, chỉ cần isValidSwap chặn Rope là đủ.
 
     const type = gem.value
 
@@ -176,8 +212,6 @@ export class BoardMatcher {
 
   /**
    * [HỆ THỐNG GỢI Ý] Tìm tọa độ cụ thể của một nước đi khả thi (Dùng cho Hint)
-   * Thay vì chỉ trả về true/false, hàm này trả về {r1, c1, r2, c2}
-   * @returns {object|null} Tọa độ nước đi {r1, c1, r2, c2} hoặc null nếu không có
    */
   findPotentialMove() {
     if (!this.grid || !this.grid.length) return null
@@ -191,9 +225,10 @@ export class BoardMatcher {
       const gem1 = tempGrid[r1][c1]
       const gem2 = tempGrid[r2][c2]
 
-      // Chỉ check gem thường và không bị chặn
-      if (!gem1 || gem1.type !== 'gem' || !this.canMatchAt(r1, c1)) return false
-      if (!gem2 || gem2.type !== 'gem' || !this.canMatchAt(r2, c2)) return false
+      // [SỬA LỖI] Thay canMatchAt bằng canMoveAt
+      // Gem bị Rope/Stone đè thì không thể swap để tạo hint được
+      if (!gem1 || gem1.type !== 'gem' || !this.canMoveAt(r1, c1)) return false
+      if (!gem2 || gem2.type !== 'gem' || !this.canMoveAt(r2, c2)) return false
 
       // Swap thử trên grid ảo
       tempGrid[r1][c1] = gem2
@@ -217,14 +252,12 @@ export class BoardMatcher {
         // Kiểm tra swap dọc
         if (isValidSwap(r, c, r + 1, c)) return { r1: r, c1: c, r2: r + 1, c2: c }
         
-        // Hint cho Powerup (nếu có powerup thì click vào nó là ăn)
+        // Hint cho Powerup (nếu có powerup và click được vào nó thì hint)
         const gem = this.grid[r][c]
-        if (this.isPowerup && this.isPowerup(gem)) return { r1: r, c1: c, r2: r, c2: c }
+        if (this.isPowerup && this.isPowerup(gem) && this.canMoveAt(r, c)) return { r1: r, c1: c, r2: r, c2: c }
       }
     }
 
     return null
   }
 }
-
-
