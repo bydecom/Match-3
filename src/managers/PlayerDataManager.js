@@ -50,6 +50,14 @@ class PlayerDataManager {
 
                 this._ensureDataStructure();
 
+                // === RESET TIM VỀ 10 MỖI KHI MỞ GAME ===
+                if (this.userData.currency) {
+                    this.userData.currency.lives = 10;
+                    this._saveToStorage();
+                    console.log("[PlayerDataManager] Đã reset số mạng về 10.");
+                }
+                // ========================================
+
             } else {
 
                 console.warn("[PlayerDataManager] ID exists but data missing. Re-creating...");
@@ -136,7 +144,7 @@ class PlayerDataManager {
 
                 "coins": 10000,
 
-                "lives": 100,  // Sửa thành 10 tim
+                "lives": 10,  // 10 tim mặc định
 
                 "tickets": 100 // Vé quay
 
