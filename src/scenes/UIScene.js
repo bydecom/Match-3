@@ -45,22 +45,22 @@ export class UIScene extends Phaser.Scene {
 
       this.movesLabel = this.add.text(moveX, moveLabelY, 'Moves', {
         fontSize: '24px',
-        fontFamily: 'Arial',
+        fontFamily: 'UTMCookies',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: 6
       })
       .setOrigin(0.5)
       .setDepth(10);
 
       this.movesText = this.add.text(moveX, moveValueY, `${levelData.maxMoves}`, {
         fontSize: '28px',
-        fontFamily: 'Arial',
+        fontFamily: 'UTMCookies',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: 6
       })
       .setOrigin(0.5)
       .setDepth(10);
@@ -99,20 +99,20 @@ export class UIScene extends Phaser.Scene {
 
     this.scoreLabel = this.add.text(scoreX, scoreLabelY, 'Score', {
       fontSize: '24px',
-      fontFamily: 'Arial',
+      fontFamily: 'UTMCookies',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: 6
     }).setOrigin(0.5).setDepth(10);
 
     this.scoreText = this.add.text(scoreX, scoreValueY, '0', {
       fontSize: '28px',
-      fontFamily: 'Arial',
+      fontFamily: 'UTMCookies',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: 6
     }).setOrigin(0.5).setDepth(10);
 
     this.game.events.on('scoreUpdated', this.handleScoreUpdated, this);
@@ -447,6 +447,18 @@ export class UIScene extends Phaser.Scene {
    */
   createObjectivesPanel(levelData) {
     if (!levelData || !levelData.objectives) return;
+
+    // Thêm label "Objectives"
+    const labelX = 122;
+    const labelY = 89;
+    this.objectivesLabel = this.add.text(labelX, labelY, 'Missions', {
+      fontSize: '23px',
+      fontFamily: 'UTMCookies',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6
+    }).setOrigin(0.5).setDepth(10);
 
     // Vị trí bắt đầu của grid nhiệm vụ (ví dụ: góc trên bên trái)
     const startX = 90;
