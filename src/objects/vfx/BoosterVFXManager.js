@@ -375,6 +375,67 @@ playHammerEffect(row, col, onComplete) {
                   this.scene.sound.play(SOUND_KEYS.SHAKE, { volume: sfxVolume });
                 }
 
+                // --- HIỆU ỨNG BỌT NƯỚC ĐỒNG BỘ VỚI HƯỚNG LẮC ---
+                const bubbleY = boardCenterY - 40;
+                const spreadX = 10;
+
+                // Cấu hình: direction = 'left' | 'right'
+                // 1, 5: trái | 4, 7: phải | 2, 3, 6: cả hai hướng
+                const bubbleConfigs = [
+                  { key: 'bubble_particle_1', direction: 'left',  angle: { min: 135, max: 225 } },
+                  { key: 'bubble_particle_2', direction: 'both',  angle: { min: 0, max: 360 } },
+                  { key: 'bubble_particle_3', direction: 'both',  angle: { min: 0, max: 360 } },
+                  { key: 'bubble_particle_4', direction: 'right', angle: { min: -45, max: 45 } },
+                  { key: 'bubble_particle_5', direction: 'left',  angle: { min: 135, max: 225 } },
+                  { key: 'bubble_particle_6', direction: 'both',  angle: { min: 0, max: 360 } },
+                  { key: 'bubble_particle_7', direction: 'right', angle: { min: -45, max: 45 } }
+                ];
+
+                // Tạo emitter với frequency: -1 (không tự động emit, sẽ emit thủ công)
+                const leftEmitters = [];
+                const rightEmitters = [];
+                const allEmitters = [];
+
+                bubbleConfigs.forEach(config => {
+                  // Xác định vị trí X dựa vào hướng
+                  let xConfig;
+                  if (config.direction === 'left') {
+                    xConfig = { min: boardCenterX - spreadX - 15, max: boardCenterX - 5 };
+                  } else if (config.direction === 'right') {
+                    xConfig = { min: boardCenterX + 5, max: boardCenterX + spreadX + 15 };
+                  } else {
+                    xConfig = { min: boardCenterX - spreadX, max: boardCenterX + spreadX };
+                  }
+
+                  const emitter = this.scene.add.particles(0, 0, config.key, {
+                    x: xConfig,
+                    y: { min: bubbleY - 5, max: bubbleY + 10 },
+                    speed: { min: 50, max: 150 },
+                    angle: config.angle,
+                    scale: { start: 0.4, end: 0 },
+                    alpha: { start: 1, end: 0 },
+                    lifespan: 800,
+                    gravityY: -100,
+                    frequency: -1,  // Không tự động emit
+                    quantity: 1
+                  });
+                  emitter.setDepth(16);
+                  allEmitters.push(emitter);
+
+                  if (config.direction === 'left') {
+                    leftEmitters.push(emitter);
+                  } else if (config.direction === 'right') {
+                    rightEmitters.push(emitter);
+                  } else {
+                    // 'both' - thêm vào cả hai nhóm
+                    leftEmitters.push(emitter);
+                    rightEmitters.push(emitter);
+                  }
+                });
+
+                // Biến theo dõi hướng lắc trước đó
+                let lastDirection = null;
+
                 this.scene.tweens.add({
                   targets: shufflePot,
                   angle: { from: -15, to: 15 },
@@ -383,7 +444,28 @@ playHammerEffect(row, col, onComplete) {
                   repeat: 3,
                   ease: 'Sine.easeInOut',
                   delay: 200,
+                  onUpdate: () => {
+                    // Xác định hướng lắc dựa vào góc hiện tại
+                    const currentAngle = shufflePot.angle;
+                    const currentDirection = currentAngle < 0 ? 'left' : 'right';
+
+                    // Chỉ emit khi đổi hướng để tránh spam
+                    if (currentDirection !== lastDirection) {
+                      lastDirection = currentDirection;
+                      
+                      // Emit bọt nước theo hướng tương ứng
+                      const emittersToUse = currentDirection === 'left' ? leftEmitters : rightEmitters;
+                      emittersToUse.forEach(emitter => {
+                        emitter.emitParticle(1);
+                      });
+                    }
+                  },
                   onComplete: () => {
+                    // Hủy tất cả emitter sau khi các hạt cuối cùng biến mất
+                    this.scene.time.delayedCall(800, () => {
+                      allEmitters.forEach(emitter => emitter.destroy());
+                    });
+
                     // *** 5. HIỆU ỨNG NHẢ GEM RA (ĐÃ THÊM LẠI) ***
                     let spitCount = 0;
                     fakeGems.forEach(clone => {

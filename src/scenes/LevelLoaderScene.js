@@ -120,6 +120,11 @@ export class LevelLoaderScene extends Phaser.Scene {
         this.load.image('note2', 'assets/images/vfx/note2.png');
         this.load.image('note3', 'assets/images/vfx/note3.png');
         this.load.image('note4', 'assets/images/vfx/note4.png');
+
+        // Load ảnh bọt nước cho hiệu ứng Shuffle (7 loại)
+        for (let i = 1; i <= 7; i++) {
+            this.load.image(`bubble_particle_${i}`, `assets/images/vfx/booster_shuffle_effect_${i}.png`);
+        }
     }
 
     create() {

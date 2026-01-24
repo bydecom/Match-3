@@ -314,7 +314,11 @@ export class SpinPopup extends Phaser.Scene {
         // << [AUDIO] Phát âm thanh quay - kiểm tra volume từ Setting >>
         const sfxVolume = AudioManager.getSoundVolume();
         if (sfxVolume > 0) {
-            this.sound.play(SOUND_KEYS.SPIN_WHEEL, { volume: sfxVolume });
+            // Âm thanh "tút tút" (effect cũ) - tạm tắt
+            // this.sound.play(SOUND_KEYS.SPIN_WHEEL, { volume: sfxVolume });
+            // Âm thanh nhạc nền khi quay (sẽ dừng khi quay xong)
+            this.spinBgSound = this.sound.add(SOUND_KEYS.SPIN_BACKGROUND_EFFECT, { volume: sfxVolume });
+            this.spinBgSound.play();
         }
 
         // Hiệu ứng lắc lư cho con trỏ trong khi quay
@@ -402,12 +406,17 @@ export class SpinPopup extends Phaser.Scene {
             targets: this.boardContainer,
             // Sử dụng góc đích cuối cùng đã được tính toán chính xác
             angle: finalTargetAngle,
-            duration: 5000, // Kéo dài 5s để đoạn "chậm dần" lết về đích nhìn hồi hộp hơn
+            duration: 8000, // Kéo dài 8s để đoạn "chậm dần" lết về đích nhìn hồi hộp hơn
             ease: 'Quart.easeOut', // Giảm tốc gắt hơn Cubic, tạo cảm giác bánh xe nặng và có ma sát
             onComplete: async () => {
                 pointerTween.stop();
                 this.pointer.setAngle(0);
                 this.isSpinning = false;
+                
+                // Dừng âm thanh nhạc nền quay
+                if (this.spinBgSound && this.spinBgSound.isPlaying) {
+                    this.spinBgSound.stop();
+                }
                 
                 // Cập nhật trạng thái nút spin (có thể disable nếu hết vé)
                 this.updateSpinButtonState();

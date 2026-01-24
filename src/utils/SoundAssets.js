@@ -7,6 +7,7 @@
 
 export const SOUND_KEYS = {
   SPIN_WHEEL: 'spin_effect',
+  SPIN_BACKGROUND_EFFECT: 'spin_background_effect',
   SPIN_COLLECT: 'spin_collect',
   SWAP_GEM: 'swap_sfx',
   WIN_GAME: 'win_game',
@@ -19,9 +20,13 @@ export const SOUND_KEYS = {
 };
 
 export const SOUND_PATHS = [
+  // {
+  //   key: SOUND_KEYS.SPIN_WHEEL,
+  //   path: 'assets/sounds/effect/spin_effect__.m4a'
+  // },
   {
-    key: SOUND_KEYS.SPIN_WHEEL,
-    path: 'assets/sounds/effect/spin_effect.m4a'
+    key: SOUND_KEYS.SPIN_BACKGROUND_EFFECT,
+    path: 'assets/sounds/effect/spin_background_effect.m4a'
   },
   {
     key: SOUND_KEYS.SPIN_COLLECT,
