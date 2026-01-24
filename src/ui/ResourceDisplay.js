@@ -34,7 +34,7 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
     createCoinDisplay() {
         // Tạo coin icon
         this.coinIcon = this.scene.add.image(280, 30, 'coin');
-        this.coinIcon.setScale(0.4);
+        this.coinIcon.setScale(0.4).setDepth(1);
         this.add(this.coinIcon);
         
         // Tạo text hiển thị số coin
@@ -45,14 +45,23 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
             stroke: '#000000',
             strokeThickness: 2
         });
-        this.coinText.setOrigin(0, 0.5);
+        this.coinText.setOrigin(0, 0.5).setDepth(2);
         this.add(this.coinText);
+
+        // Tạo nền và dấu + sau số coin
+        this.coinAddBg = this.scene.add.image(370, 37, 'quantity_background');
+        this.coinAddBg.setScale(0.45).setDepth(3);
+        this.add(this.coinAddBg);
+
+        this.coinAddIcon = this.scene.add.image(370, 33, 'add_icon');
+        this.coinAddIcon.setScale(0.45).setDepth(4);
+        this.add(this.coinAddIcon);
     }
     
     createHeartDisplay() {
         // Tạo heart icon
         this.heartIcon = this.scene.add.image(80, 30, 'heart');
-        this.heartIcon.setScale(0.4);
+        this.heartIcon.setScale(0.4).setDepth(1);
         this.add(this.heartIcon);
         
         // Tạo text hiển thị số heart
@@ -63,8 +72,17 @@ export class ResourceDisplay extends Phaser.GameObjects.Container {
             stroke: '#000000',
             strokeThickness: 2
         });
-        this.heartText.setOrigin(0, 0.5);
+        this.heartText.setOrigin(0, 0.5).setDepth(2);
         this.add(this.heartText);
+
+        // Tạo nền và dấu + sau số heart
+        this.heartAddBg = this.scene.add.image(170, 37, 'quantity_background');
+        this.heartAddBg.setScale(0.45).setDepth(3);
+        this.add(this.heartAddBg);
+
+        this.heartAddIcon = this.scene.add.image(170, 33, 'add_icon');
+        this.heartAddIcon.setScale(0.45).setDepth(4);
+        this.add(this.heartAddIcon);
     }
     createSettingsButton() {
         const { width } = this.scene.scale;
