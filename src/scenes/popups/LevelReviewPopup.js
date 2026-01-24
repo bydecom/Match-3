@@ -35,7 +35,7 @@ export class LevelReviewPopup extends Phaser.Scene {
         // 3. Tạo background UI chính
         const uiBackground = this.add.image(width / 2, height / 2, 'level_review_ui')
             .setOrigin(0.5)
-            .setScale(0.4)
+            .setScale(1)
             .setDepth(2);
 
         // 4. Tạo nút đóng (X) - vị trí tương tự PausePopup

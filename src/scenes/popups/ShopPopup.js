@@ -269,7 +269,7 @@ export class ShopPopup extends Phaser.Scene {
             container.add(priceBg);
 
             // Text giá tiền (Vị trí x: 8 giống với giá giảm)
-            const priceText = this.add.text(8, 56, isPurchased ? 'ĐÃ MUA' : `${item.price}`, {
+            const priceText = this.add.text(8, 56, isPurchased ? 'Sold Out' : `${item.price}`, {
                 fontFamily: 'NABILA',
                 fontSize: isPurchased ? '14px' : '24px',
                 color: isPurchased ? '#999999' : '#ffffff',

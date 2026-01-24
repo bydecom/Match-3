@@ -465,16 +465,16 @@ export class PowerupVFXManager {
       onComplete: () => stripeSprite.setVisible(false)
     })
 
-    // 2. Color Bomb phóng to chậm
+    // 2. Color Bomb phóng to nhẹ (ĐÃ BỎ LẮC LƯ VÀ SCREENSHAKE)
     const layerMask2 = this.disableGemLayerMask();
     this.scene.tweens.add({
       targets: colorBombSprite,
-      scale: colorBombSprite.scale * 3,
-      duration: 600, // Cũ 400
+      scale: colorBombSprite.scale * 1.2, // Chỉ phóng to nhẹ, không quá lớn
+      duration: 600,
       ease: 'Quad.easeOut',
       onStart: () => {
         colorBombSprite.setDepth(50)
-        this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.005 })
+        // ĐÃ BỎ: this.scene.game.events.emit('screenShake', ...)
       },
       onComplete: () => {
         this.restoreGemLayerMask(layerMask2);
@@ -495,9 +495,9 @@ export class PowerupVFXManager {
     gemsToTransform.delete(colorBombGem)
     gemsToTransform.delete(stripeGem)
 
-    // Hút chậm
+    // Hút chậm hơn (tăng từ 700 -> 900)
     let maxSuckDelay = 0
-    const suckDuration = 700 // Cũ 500
+    const suckDuration = 900
     let gemsSuckedCount = 0
     const totalGemsToSuck = gemsToTransform.size
 
@@ -539,7 +539,7 @@ export class PowerupVFXManager {
    */
   startSpitBackStripes(gemsToSpit, originalPositions, affectedGems, centerPos, onComplete) {
     let maxSpitDelay = 0
-    const spitDuration = 600 // Cũ 400
+    const spitDuration = 800 // Tăng từ 600 -> 800 (bay chậm hơn)
     let gemsSpitCount = 0
     const totalGemsToSpit = gemsToSpit.size
 
@@ -555,7 +555,8 @@ export class PowerupVFXManager {
         return
       }
 
-      const delay = Math.random() * 200
+      // Tăng range delay để âm thanh kéo dài (200 -> 500)
+      const delay = Math.random() * 500
       if (delay > maxSpitDelay) maxSpitDelay = delay
 
       gem.sprite.setPosition(centerPos.x, centerPos.y)
@@ -572,6 +573,9 @@ export class PowerupVFXManager {
         ease: 'Cubic.easeOut',
         onComplete: () => {
           if (gem.sprite && gem.sprite.active) {
+            // >>> PHÁT ÂM THANH KHI GEM BIẾN HÌNH THÀNH STRIPE <<<
+            this.playSound(SOUND_KEYS.STRIPE)
+            
             const isHorizontal = Phaser.Math.RND.pick([true, false])
             this.playStripeNoteWave(gem.sprite, isHorizontal)
           }
@@ -988,9 +992,9 @@ export class PowerupVFXManager {
     gemsToTransform.delete(colorBombGem);
     gemsToTransform.delete(bombGem);
 
-    // Hút vào chậm
+    // Hút vào chậm hơn (tăng từ 700 -> 900)
     let maxSuckDelay = 0;
-    const suckDuration = 700; // Cũ 500
+    const suckDuration = 900;
     let sucked = 0;
     const total = gemsToTransform.size;
     if (total === 0) {
@@ -1025,14 +1029,15 @@ export class PowerupVFXManager {
    */
   startSpitBackBombs(gemsToSpit, originalPositions, affectedGems, centerPos, onComplete) {
     let maxSpitDelay = 0;
-    const spitDuration = 600; // Cũ 400
+    const spitDuration = 800; // Tăng từ 600 -> 800 (bay chậm hơn)
     let done = 0;
     const total = gemsToSpit.size;
     gemsToSpit.forEach(gem => {
       if (!gem || !gem.sprite) { done++; return; }
       const oldPos = originalPositions.get(gem);
       if (!oldPos) { done++; return; }
-      const delay = Math.random() * 200;
+      // Tăng range delay để âm thanh kéo dài (200 -> 500)
+      const delay = Math.random() * 500;
       if (delay > maxSpitDelay) maxSpitDelay = delay;
       gem.sprite.setPosition(centerPos.x, centerPos.y);
       gem.sprite.setTexture('gem_bomb');
@@ -1048,6 +1053,9 @@ export class PowerupVFXManager {
         ease: 'Cubic.easeOut',
         onComplete: () => {
           if (gem.sprite && gem.sprite.active) {
+            // >>> PHÁT ÂM THANH KHI GEM BIẾN HÌNH THÀNH BOMB <<<
+            this.playSound(SOUND_KEYS.BOMB);
+            
             this.playSingleBombVFX(gem.sprite);
           }
           done++;

@@ -1,5 +1,7 @@
 // src/objects/board/BoardPowerups.js
 import { GEM_TYPES, GRID_SIZE } from '../../utils/constants'
+import { SOUND_KEYS } from '../../utils/SoundAssets'
+import AudioManager from '../../managers/AudioManager'
 
 export class BoardPowerups {
   // ... (Các hàm isPowerup, transformIntoPowerup, activatePowerupCombo, activatePowerup, etc. không thay đổi)
@@ -116,6 +118,12 @@ export class BoardPowerups {
     const gemsToRemove = new Set()
     const swappedObjectType = swappedObject.value
     if (swappedObjectType === GEM_TYPES.COLOR_BOMB) {
+      // >>> PHÁT ÂM THANH COMBO COLOR BOMB + COLOR BOMB <<<
+      const sfxVolume = AudioManager.getSoundVolume()
+      if (sfxVolume > 0) {
+        this.scene.sound.play(SOUND_KEYS.BOMB, { volume: sfxVolume * 1.2 })
+      }
+      
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
           const destroyedGem = this.damageCell(r, c)
@@ -125,6 +133,12 @@ export class BoardPowerups {
         }
       }
     } else if (swappedObjectType === GEM_TYPES.BOMB) {
+      // >>> PHÁT ÂM THANH COMBO COLOR BOMB + BOMB <<<
+      const sfxVolume = AudioManager.getSoundVolume()
+      if (sfxVolume > 0) {
+        this.scene.sound.play(SOUND_KEYS.BOMB, { volume: sfxVolume })
+      }
+      
       const allGemsToExplode = new Set()
       allGemsToExplode.add(colorBombObject)
       allGemsToExplode.add(swappedObject)
@@ -150,7 +164,71 @@ export class BoardPowerups {
         })
       })
       return
+    } else if (swappedObjectType === GEM_TYPES.STRIPE) {
+      // >>> TRƯỜNG HỢP 3: COLOR BOMB + STRIPE <<<
+      const sfxVolume = AudioManager.getSoundVolume()
+      if (sfxVolume > 0) {
+        this.scene.sound.play(SOUND_KEYS.STRIPE, { volume: sfxVolume })
+      }
+
+      const allGemsToExplode = new Set()
+      allGemsToExplode.add(colorBombObject)
+      allGemsToExplode.add(swappedObject)
+
+      // Chọn màu mục tiêu ngẫu nhiên (vì Stripe không lưu màu gốc)
+      const availableGems = this.levelData.availableGems || Object.values(GEM_TYPES).filter(t => ![GEM_TYPES.BOMB, GEM_TYPES.COLOR_BOMB, GEM_TYPES.STRIPE].includes(t))
+      const targetColor = Phaser.Math.RND.pick(availableGems)
+      
+      const stripesToActivate = []
+
+      // Biến đổi gem cùng màu thành Stripe
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const gem = this.grid[r][c]
+          if (gem && gem.type === 'gem' && gem.value === targetColor) {
+            this.transformIntoPowerup(gem, GEM_TYPES.STRIPE)
+            // Random hướng stripe (ngang/dọc) để đa dạng
+            if (Math.random() > 0.5) gem.sprite.setAngle(90)
+            stripesToActivate.push(gem)
+          }
+        }
+      }
+
+      // Kích hoạt logic xóa hàng/cột cho mỗi stripe
+      stripesToActivate.forEach(stripe => {
+        const stripeRow = stripe.sprite.getData('row')
+        const stripeCol = stripe.sprite.getData('col')
+        const isHorizontal = stripe.sprite.angle === 0
+        
+        if (isHorizontal) {
+          // Xóa toàn bộ hàng
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const destroyedGem = this.damageCell(stripeRow, c)
+            if (destroyedGem) allGemsToExplode.add(destroyedGem)
+          }
+        } else {
+          // Xóa toàn bộ cột
+          for (let r = 0; r < GRID_SIZE; r++) {
+            const destroyedGem = this.damageCell(r, stripeCol)
+            if (destroyedGem) allGemsToExplode.add(destroyedGem)
+          }
+        }
+      })
+
+      this.addWiggleEffect(Array.from(allGemsToExplode), () => {
+        this.removeGemSprites(allGemsToExplode)
+        this.scene.time.delayedCall(300, () => {
+          this.applyGravityAndRefill()
+        })
+      })
+      return
     } else {
+      // >>> PHÁT ÂM THANH COMBO COLOR BOMB + GEM THƯỜNG <<<
+      const sfxVolume = AudioManager.getSoundVolume()
+      if (sfxVolume > 0) {
+        this.scene.sound.play(SOUND_KEYS.SPIN_COLLECT, { volume: sfxVolume })
+      }
+      
       const targetColor = swappedObjectType
       gemsToRemove.add(colorBombObject)
       for (let r = 0; r < GRID_SIZE; r++) {

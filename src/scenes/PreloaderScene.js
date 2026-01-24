@@ -176,7 +176,7 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('notice', 'assets/images/ui/setting/notice.png');
         
         // Load Level Review UI assets
-        this.load.image('level_review_ui', 'assets/images/ui/level_review/UI.png');
+        this.load.image('level_review_ui', 'assets/images/ui/level_review/UI1.png');
         
         // Load Play button
         this.load.image('play_button', 'assets/images/ui/level_review/play.png');
@@ -221,8 +221,8 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('star_off_pgb', 'assets/images/ui/star_off_pgb.png');
         this.load.image('star_on_pgb', 'assets/images/ui/star_on_pgb.png');
         // Victory UI background
-        this.load.image('victory_background', 'assets/images/ui/victory/background.png');
-        this.load.image('lose_background', 'assets/images/ui/lose/background.png');
+        this.load.image('victory_background', 'assets/images/ui/victory/background1.png');
+        this.load.image('lose_background', 'assets/images/ui/lose/background1.png');
         
         // Load loading background images
         this.load.image('loading_background_1', 'assets/screen/loading_1.png');

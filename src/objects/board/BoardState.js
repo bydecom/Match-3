@@ -608,14 +608,14 @@ export class BoardState {
               const isHorizontal = directions.get(gem)
               if (isHorizontal) {
                 for (let c = 0; c < GRID_SIZE; c++) {
-                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
-                  const destroyedGem = this.damageCellIgnoreBlocker(row, c)
+                  // Sử dụng damageCell - blocker bảo vệ gem (giống stripe_single)
+                  const destroyedGem = this.damageCell(row, c)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
               } else {
                 for (let r = 0; r < GRID_SIZE; r++) {
-                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
-                  const destroyedGem = this.damageCellIgnoreBlocker(r, col)
+                  // Sử dụng damageCell - blocker bảo vệ gem (giống stripe_single)
+                  const destroyedGem = this.damageCell(r, col)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
               }
@@ -629,8 +629,8 @@ export class BoardState {
               const c = gem.sprite.getData('col')
               for (let rr = r - 1; rr <= r + 1; rr++) {
                 for (let cc = c - 1; cc <= c + 1; cc++) {
-                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
-                  const destroyedGem = this.damageCellIgnoreBlocker(rr, cc)
+                  // Sử dụng damageCell - blocker bảo vệ gem (giống bomb_single)
+                  const destroyedGem = this.damageCell(rr, cc)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
               }
