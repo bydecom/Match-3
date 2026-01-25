@@ -82,34 +82,33 @@ export class PowerupVFXManager {
     const bombSprite = bombGem.sprite;
     const layerMask = this.disableGemLayerMask(); // TẮT MASK CỦA LAYER
 
-    // CHUỖI HIỆU ỨNG: ZOOM -> LẮC -> BIẾN MẤT (Chill version)
+    // CHUỖI HIỆU ỨNG: ZOOM -> LẮC -> BIẾN MẤT
     this.scene.tweens.chain({
       targets: bombSprite,
       onStart: () => {
         bombSprite.setDepth(50); // Đưa lên trên cùng
-        // Rung nhẹ nhàng hơn nhưng lâu hơn
-        this.scene.game.events.emit('screenShake', { duration: 250, intensity: 0.004 });
+        this.scene.game.events.emit('screenShake', { duration: 200, intensity: 0.004 });
       },
       tweens: [
-        // 1. Phóng to từ từ (Tăng từ 200 -> 350ms)
+        // 1. Phóng to nhanh hơn
         {
           scale: bombSprite.scale * 3.2,
-          duration: 350,
+          duration: 250,
           ease: 'Back.easeOut'
         },
-        // 2. Lắc lư nhẹ (Tăng duration mỗi nhịp từ 60 -> 90ms)
+        // 2. Lắc lư nhẹ
         {
           angle: { from: -10, to: 10 },
-          duration: 90,
+          duration: 60,
           yoyo: true,
-          repeat: 4,
+          repeat: 3,
           ease: 'Sine.easeInOut'
         },
-        // 3. Thu nhỏ (Tăng từ 150 -> 250ms)
+        // 3. Thu nhỏ
         {
           scale: 0,
           alpha: 0,
-          duration: 250,
+          duration: 180,
           ease: 'Quad.easeIn'
         }
       ],
@@ -124,14 +123,14 @@ export class PowerupVFXManager {
       }
     });
 
-    // Hiệu ứng rung các gem bị ảnh hưởng - chậm hơn
+    // Hiệu ứng rung các gem bị ảnh hưởng
     affectedGems.forEach(gem => {
       if (gem !== bombGem && gem.sprite && gem.sprite.active) {
         this.scene.tweens.add({
           targets: gem.sprite,
           angle: { from: -10, to: 10 },
-          duration: 120, // Chậm hơn (cũ 80)
-          delay: 300,    // Đợi bomb to hẳn mới rung (cũ 200)
+          duration: 80,
+          delay: 200,
           yoyo: true,
           repeat: 2,
           ease: 'Sine.easeInOut',
@@ -156,26 +155,26 @@ export class PowerupVFXManager {
     const gemsToSuck = new Set(affectedGems);
     gemsToSuck.delete(colorBombGem);
 
-    // 1. Phóng to và lắc lư (Chill version)
+    // 1. Phóng to và lắc lư (tăng tốc cho color bomb đơn)
     const layerMask = this.disableGemLayerMask();
     this.scene.tweens.chain({
       targets: colorBombSprite,
       onStart: () => {
         colorBombSprite.setDepth(50);
-        this.scene.game.events.emit('screenShake', { duration: 250, intensity: 0.003 });
+        this.scene.game.events.emit('screenShake', { duration: 180, intensity: 0.003 });
       },
       tweens: [
         {
           scale: colorBombSprite.scale * 3,
-          duration: 600, // Phóng to rất từ từ (cũ 400)
+          duration: 320,
           ease: 'Quad.easeOut'
         },
         {
           angle: 5,
-          duration: 150, // Lắc chậm (cũ 100)
+          duration: 80,
           ease: 'Sine.easeInOut',
           yoyo: true,
-          repeat: 2
+          repeat: 1
         }
       ],
       onComplete: () => {
@@ -197,12 +196,11 @@ export class PowerupVFXManager {
     }
 
     let maxDelay = 0;
-    const duration = 800; // Hút từ từ trong 0.8s (cũ 500ms)
+    const duration = 480; // Hút nhanh hơn (cũ 800ms)
 
     // Tạo animation hút cho tất cả các gem
     affectedGems.forEach(gem => {
-        // Random delay giãn ra để gem bay rải rác hơn
-        const delay = Math.random() * 300 + 100;
+        const delay = Math.random() * 180 + 60;
         if (delay > maxDelay) {
             maxDelay = delay;
         }
@@ -219,22 +217,19 @@ export class PowerupVFXManager {
         });
     });
 
-    // --- TÍNH TOÁN THỜI GIAN VÀ PHÁT ÂM THANH ---
     const totalAnimationTime = duration + maxDelay;
     
-    // Âm thanh rải đều hơn
     const sfxVolume = AudioManager.getSoundVolume();
     if (sfxVolume > 0 && this.scene.sound) {
         for (let i = 0; i < 3; i++) {
-            const randomTime = Math.random() * (totalAnimationTime - 100);
+            const randomTime = Math.random() * (totalAnimationTime - 80);
             this.scene.time.delayedCall(randomTime, () => {
                 this.scene.sound.play(SOUND_KEYS.SPIN_COLLECT, { volume: sfxVolume });
             });
         }
     }
     
-    // Nghỉ lâu hơn chút sau khi hút xong
-    const pauseAfterSuck = 300;
+    const pauseAfterSuck = 180;
 
     this.scene.time.delayedCall(totalAnimationTime + pauseAfterSuck, () => {
         if (onComplete) onComplete();
@@ -382,9 +377,9 @@ export class PowerupVFXManager {
                 .setDepth(15)
                 .setAlpha(0.9);
 
-            // Nốt nhạc bay rất chill (~2 giây)
-            const travelDuration = Phaser.Math.Between(1600, 2000);
-            const maxDistance = this.scene.board.cellSize * (4 + Math.random() * 2);
+            // Nốt nhạc bay vừa phải và ra hết rìa board
+            const travelDuration = Phaser.Math.Between(1000, 1200);
+            const maxDistance = this.scene.board.cellSize * (8 + Math.random() * 2); // Bay ra hết rìa
             const offset = (Math.random() - 0.5) * this.scene.board.cellSize * 0.8;
 
             this.scene.tweens.add({
@@ -394,7 +389,7 @@ export class PowerupVFXManager {
                 alpha: 0,
                 scale: 1.1,
                 duration: travelDuration,
-                delay: i * 150, // Xuất hiện thưa hơn
+                delay: i * 80, // Liên tục hơn
                 ease: 'Quad.easeOut',
                 onComplete: () => note.destroy()
             });
@@ -409,21 +404,21 @@ export class PowerupVFXManager {
         createNoteWave({ x: 0, y: -1 });
     }
 
-    // Gem rung trễ hơn để khớp với nốt nhạc bay chậm
+    // Gem rung nhanh hơn, khớp với nốt nhạc bay nhanh
     affectedGems.forEach(gem => {
         if (!gem || !gem.sprite || !gem.sprite.active || gem === stripeGem) return;
         const gemSprite = gem.sprite;
         const distance = Phaser.Math.Distance.Between(startPos.x, startPos.y, gemSprite.x, gemSprite.y);
-        const effectDelay = distance * 6; // Tăng hệ số delay theo khoảng cách
+        const effectDelay = distance * 3; // Giảm hệ số delay
 
         this.scene.time.delayedCall(effectDelay, () => {
              if (!gemSprite.active) return;
              this.scene.tweens.add({
                  targets: gemSprite,
-                 angle: { from: -15, to: 15 },
-                 duration: 120,
+                 angle: { from: -12, to: 12 },
+                 duration: 80,
                  yoyo: true,
-                 repeat: 2,
+                 repeat: 1,
                  onComplete: () => {
                    if (gemSprite && gemSprite.active) gemSprite.setAngle(0);
                  }
@@ -431,8 +426,8 @@ export class PowerupVFXManager {
         });
     });
 
-    // Chờ 2s cho tất cả xong xuôi
-    this.scene.time.delayedCall(2000, onComplete);
+    // Chờ nhanh hơn
+    this.scene.time.delayedCall(1000, onComplete);
   }
 
   /**
@@ -631,8 +626,9 @@ export class PowerupVFXManager {
           .setDepth(15)
           .setAlpha(0.9)
 
-        const travelDuration = Phaser.Math.Between(1600, 2000) // Chill version
-        const maxDistance = this.scene.board.cellSize * (4 + Math.random() * 2)
+        // Nốt nhạc bay vừa phải và ra hết rìa board
+        const travelDuration = Phaser.Math.Between(1000, 1200)
+        const maxDistance = this.scene.board.cellSize * (8 + Math.random() * 2) // Bay ra hết rìa
         const offset = (Math.random() - 0.5) * this.scene.board.cellSize * 0.8
 
         this.scene.tweens.add({
@@ -642,7 +638,7 @@ export class PowerupVFXManager {
           alpha: 0,
           scale: 1.1,
           duration: travelDuration,
-          delay: i * 150, // Thưa hơn
+          delay: i * 80, // Liên tục hơn
           ease: 'Quad.easeOut',
           onComplete: () => note.destroy()
         })
@@ -871,7 +867,7 @@ export class PowerupVFXManager {
     const noteKeys = ['note1', 'note2', 'note3', 'note4'];
     const isHorizontal = (direction === 'horizontal');
 
-    // Hàm tạo 1 luồng nốt nhạc khổng lồ (Chill version)
+    // Hàm tạo 1 luồng nốt nhạc khổng lồ
     const createGiantStream = (dirX, dirY) => {
         for (let i = 0; i < 5; i++) {
             const noteKey = Phaser.Utils.Array.GetRandom(noteKeys);
@@ -881,8 +877,8 @@ export class PowerupVFXManager {
                 .setDepth(45)
                 .setAlpha(1);
 
-            const travelDuration = 1600; // Bay rất chậm (1.6s)
-            const maxDistance = this.scene.board.getBoardDimensions().width * 0.8;
+            const travelDuration = 1100; // Bay vừa phải
+            const maxDistance = this.scene.board.getBoardDimensions().width; // Bay ra hết rìa
 
             this.scene.tweens.add({
                 targets: note,
@@ -891,14 +887,14 @@ export class PowerupVFXManager {
                 scale: 1.5,
                 rotation: Math.random() * 6,
                 duration: travelDuration,
-                delay: i * 200, // Bay nối đuôi thưa hơn
+                delay: i * 100, // Bay nối đuôi nhanh hơn
                 ease: 'Quad.easeOut',
                 onComplete: () => {
                     this.scene.tweens.add({
                         targets: note,
                         scale: 2.0,
                         alpha: 0,
-                        duration: 300,
+                        duration: 200,
                         onComplete: () => note.destroy()
                     });
                 }

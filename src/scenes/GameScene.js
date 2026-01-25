@@ -299,9 +299,13 @@ export class GameScene extends Phaser.Scene {
     // 4. XÓA BỎ LỆNH GỌI setMask CHO CAMERA
     // this.cameras.main.setMask(gemMask) // << XÓA HOẶC CHÚ THÍCH DÒNG NÀY
 
-    // 5. TẠO LAYER RIÊNG CHO VFX (KHÔNG CÓ MASK - để VFX zoom to tự do)
+    // 5. TẠO LAYER RIÊNG CHO VFX
     this.vfxLayer = this.add.layer()
     this.vfxLayer.setDepth(25) // Depth cao hơn gemLayer để VFX hiển thị trên cả
+    // Áp dụng mask bàn cờ để nốt nhạc / VFX không bay ra ngoài phạm vi board
+    if (gemMask) {
+      this.vfxLayer.setMask(gemMask)
+    }
 
     // === KẾT THÚC PHẦN SỬA LỖI ===
 

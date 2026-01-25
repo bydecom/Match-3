@@ -44,7 +44,7 @@ export class UIScene extends Phaser.Scene {
       const moveValueY = moveLabelY + 35;
 
       this.movesLabel = this.add.text(moveX, moveLabelY, 'Moves', {
-        fontSize: '24px',
+        fontSize: '20px',
         fontFamily: 'UTMCookies',
         color: '#ffffff',
         fontStyle: 'bold',
@@ -55,7 +55,7 @@ export class UIScene extends Phaser.Scene {
       .setDepth(10);
 
       this.movesText = this.add.text(moveX, moveValueY, `${levelData.maxMoves}`, {
-        fontSize: '28px',
+        fontSize: '24px',
         fontFamily: 'UTMCookies',
         color: '#ffffff',
         fontStyle: 'bold',
@@ -98,7 +98,7 @@ export class UIScene extends Phaser.Scene {
     const scoreValueY = scoreLabelY + 35;
 
     this.scoreLabel = this.add.text(scoreX, scoreLabelY, 'Score', {
-      fontSize: '24px',
+      fontSize: '20px',
       fontFamily: 'UTMCookies',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -107,7 +107,7 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(10);
 
     this.scoreText = this.add.text(scoreX, scoreValueY, '0', {
-      fontSize: '28px',
+      fontSize: '24px',
       fontFamily: 'UTMCookies',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -452,7 +452,7 @@ export class UIScene extends Phaser.Scene {
     const labelX = 122;
     const labelY = 89;
     this.objectivesLabel = this.add.text(labelX, labelY, 'Missions', {
-      fontSize: '23px',
+      fontSize: '20px',
       fontFamily: 'UTMCookies',
       color: '#ffffff',
       fontStyle: 'bold',

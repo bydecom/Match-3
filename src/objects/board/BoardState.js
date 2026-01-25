@@ -119,7 +119,7 @@ export class BoardState {
     return Object.values(this.objectives).every(obj => (obj?.remaining ?? 0) <= 0);
   }
 
-  // Tính lại số lượng blocker trên toàn bảng và phát sự kiện cập nhật
+  // Tính lại số lượng blocker CÒN TRÊN MAP và đồng bộ vào objective (remaining = 0 mới hoàn thành)
   recalculateBlockerCounts() {
     const counts = {};
     for (let r = 0; r < this.blockerGrid.length; r++) {
@@ -130,10 +130,23 @@ export class BoardState {
         }
       }
     }
+    // Đảm bảo blockerCounts có cả các type có objective dù còn 0 (để UI/matchSummary đúng)
+    const objectiveBlockerTypes = (this.objectives && Object.keys(this.objectives).filter(k => k.startsWith('blocker_')).map(k => k.replace('blocker_', ''))) || [];
+    objectiveBlockerTypes.forEach(t => { if (counts[t] === undefined) counts[t] = 0; });
     this.blockerCounts = counts;
-    Object.keys(counts).forEach(type => {
+    // Đồng bộ objective blocker theo số còn trên map (dây leo sinh sôi thì remaining tăng)
+    const typesToSync = new Set([...Object.keys(counts), ...objectiveBlockerTypes]);
+    typesToSync.forEach(type => {
+      const remaining = counts[type] || 0;
+      const key = `blocker_${type}`;
+      if (this.objectives && this.objectives[key]) {
+        this.objectives[key].remaining = remaining;
+        if (this.scene && this.scene.game && this.scene.game.events) {
+          this.scene.game.events.emit('objectiveUpdated', { key, remaining });
+        }
+      }
       if (this.scene && this.scene.game && this.scene.game.events) {
-        this.scene.game.events.emit('blockerCountUpdated', { type, remaining: counts[type] });
+        this.scene.game.events.emit('blockerCountUpdated', { type, remaining });
       }
     });
   }
@@ -1085,10 +1098,10 @@ export class BoardState {
       if (gemObject.sprite && gemObject.sprite.active) {
         this.scene.tweens.add({
           targets: gemObject.sprite,
-          angle: { from: -15, to: 15 },
+          angle: { from: -10, to: 10 },
           yoyo: true,
-          repeat: 2,
-          duration: 80,
+          repeat: 0,  // Chỉ lắc 1 lần trái-phải rồi hủy
+          duration: 60,
           ease: 'Sine.easeInOut',
           onComplete: () => {
             completedTweens++
@@ -1383,8 +1396,14 @@ applyGravityAndRefill() {
   playFakeGravityEffect(onComplete) {
     // Đánh dấu đang chạy gravity effect (chặn auto match)
     this.isGravityEffectRunning = true
-    
-    const speed = 0.5
+
+    // [FIX] TẠO MASK VÀ ÁP DỤNG NGAY ĐẦU HÀM
+    // Mask che gem nằm ngoài vùng gridLayout (đặc biệt cột giả phía trên)
+    const { mask, graphics } = this.createFakeGravityMask()
+    this.gemLayer.setMask(mask)
+
+    const speed = 0.8  // Tăng tốc độ rơi (0.5 → 0.8)
+    const minDuration = 80  // Duration tối thiểu để không quá nhanh
     let totalTweens = 0
     let tweensCompleted = 0
 
@@ -1392,19 +1411,24 @@ applyGravityAndRefill() {
       tweensCompleted++
       if (tweensCompleted === totalTweens) {
         // Delay nhỏ trước khi hiển thị gem thật (tránh chớp)
-        this.scene.time.delayedCall(50, () => {
+        this.scene.time.delayedCall(30, () => {
           // Destroy tất cả clone sprite
           fakeGems.forEach(clone => {
             if (clone && clone.active) {
               clone.destroy()
             }
           })
-          
+
+          // [FIX] XÓA MASK SAU KHI ANIMATION KẾT THÚC
+          this.gemLayer.clearMask()
+          if (graphics) graphics.destroy()
+          if (mask) mask.destroy()
+
           // Hiển thị lại các gem thật ở vị trí mới
           this.revealRealGems()
           
-          // Delay trước khi auto match (như shuffle)
-          this.scene.time.delayedCall(200, () => {
+          // Delay trước khi auto match (giảm từ 200 → 120)
+          this.scene.time.delayedCall(120, () => {
             // Mở khóa gravity effect
             this.isGravityEffectRunning = false
             
@@ -1456,53 +1480,44 @@ applyGravityAndRefill() {
       }
     }
 
-    // BƯỚC 2: Tạo animation cho từng cột với duration đồng bộ
-    for (let col = 0; col < GRID_SIZE; col++) {
-      const fakeGemsInCol = fakeGems.filter(fg => fg.getData('col') === col)
+    // BƯỚC 2: Tạo animation cho từng gem với duration riêng (không đồng bộ cả cột)
+    fakeGems.forEach(fakeGem => {
+      const distance = Math.abs(fakeGem.getData('endY') - fakeGem.getData('startY'))
+      // Mỗi gem có duration riêng dựa trên khoảng cách rơi của nó
+      const duration = Math.max(minDuration, distance / speed)
       
-      if (fakeGemsInCol.length > 0) {
-        let maxDuration = 0
-
-        // Tính duration lớn nhất cho cả cột
-        fakeGemsInCol.forEach(fakeGem => {
-          const distance = Math.abs(fakeGem.getData('endY') - fakeGem.getData('startY'))
-          const duration = distance / speed
-          if (duration > maxDuration) {
-            maxDuration = duration
-          }
-        })
-
-        totalTweens += fakeGemsInCol.length
-
-        // Tạo animation cho tất cả gem trong cột với cùng duration
-        fakeGemsInCol.forEach(fakeGem => {
-          this.scene.tweens.add({
-            targets: fakeGem,
-            y: fakeGem.getData('endY'),
-            duration: maxDuration,
-            ease: 'Cubic.easeIn',
-            onComplete: () => {
-              onTweenComplete()
-            }
-          })
-        })
-      }
-    }
+      totalTweens++
+      
+      this.scene.tweens.add({
+        targets: fakeGem,
+        y: fakeGem.getData('endY'),
+        duration: duration,
+        ease: 'Cubic.easeIn',
+        onComplete: () => {
+          onTweenComplete()
+        }
+      })
+    })
 
     // Nếu không có animation nào, vẫn cần delay để tránh auto match quá nhanh
     if (totalTweens === 0) {
-      this.scene.time.delayedCall(50, () => {
+      this.scene.time.delayedCall(30, () => {
         // Destroy tất cả clone sprite (nếu có)
         fakeGems.forEach(clone => {
           if (clone && clone.active) {
             clone.destroy()
           }
         })
-        
+
+        // [FIX] XÓA MASK KHI KHÔNG CÓ GÌ RƠI
+        this.gemLayer.clearMask()
+        if (graphics) graphics.destroy()
+        if (mask) mask.destroy()
+
         this.revealRealGems()
         
-        // Delay trước khi auto match (như shuffle)
-        this.scene.time.delayedCall(200, () => {
+        // Delay trước khi auto match (giảm từ 200 → 120)
+        this.scene.time.delayedCall(120, () => {
           // Mở khóa gravity effect
           this.isGravityEffectRunning = false
           
@@ -1545,6 +1560,11 @@ applyGravityAndRefill() {
       ropesSnapshot.forEach(rope => {
         rope.spread(this, plannedSpawns)
       })
+      // Sau khi dây leo sinh sôi: đếm lại toàn bộ còn trên map và cập nhật objective + UI
+      this.recalculateBlockerCounts()
+      if (this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('matchSummary', { blockerCounts: this.blockerCounts })
+      }
     }
     // Reset cờ cho lượt tiếp theo và bật input
     this.ropeDestroyedThisTurn = false

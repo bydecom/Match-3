@@ -17,6 +17,8 @@ export class BoardPowerups {
     gemObject.type = 'gem'
     gemObject.value = powerupType
     gemObject.sprite.setTexture(`gem_${powerupType}`)
+    // Đảm bảo kích thước đồng nhất sau khi đổi texture
+    gemObject.sprite.setDisplaySize(this.cellSize * 0.85, this.cellSize * 0.85)
     gemObject.sprite.setData('type', powerupType)
     console.log(`Transformed gem into ${powerupType} power-up`)
   }
