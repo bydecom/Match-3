@@ -490,12 +490,15 @@ export class UIScene extends Phaser.Scene {
     const { key, remaining } = updateData;
     const item = this.objectiveItems[key];
     
-    if (item) {
+    // --- [SỬA LỖI CRASH] ---
+    // Kiểm tra item có tồn tại và còn scene không
+    if (item && item.scene && item.active) {
       const oldCount = item.currentCount;
       const difference = oldCount - remaining;
       console.log(`[UIScene] Objective updated: ${key} | ${oldCount} → ${remaining} (trừ ${difference})`);
       item.updateCount(remaining);
     }
+    // -----------------------
 
     // UIScene CHỈ CẬP NHẬT UI, KHÔNG TỰ Ý EMIT levelCompleted
     // Sự kiện levelCompleted sẽ được BoardState emit khi boardBusy = false

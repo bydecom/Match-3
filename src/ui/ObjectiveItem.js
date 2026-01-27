@@ -66,6 +66,11 @@ export class ObjectiveItem extends Phaser.GameObjects.Container {
      * @param {number} remainingCount - Số lượng còn lại mới
      */
     updateCount(remainingCount) {
+        // --- [SỬA LỖI CRASH] ---
+        // Kiểm tra xem object, scene và text còn hoạt động không
+        if (!this.scene || !this.countText || !this.countText.active) return;
+        // -----------------------
+
         const previous = this.currentCount;
         const next = Math.max(0, remainingCount);
 
@@ -76,13 +81,16 @@ export class ObjectiveItem extends Phaser.GameObjects.Container {
         this.countText.setText(`${this.currentCount}`);
 
         // Hiệu ứng "pop" nhẹ khi số thay đổi
-        this.scene.tweens.add({
-            targets: this.countText,
-            scale: 1.2,
-            duration: 100,
-            yoyo: true,
-            ease: 'Quad.easeOut'
-        });
+        // Thêm check an toàn cho tween
+        if (this.scene && this.scene.tweens) {
+            this.scene.tweens.add({
+                targets: this.countText,
+                scale: 1.2,
+                duration: 100,
+                yoyo: true,
+                ease: 'Quad.easeOut'
+            });
+        }
 
         if (this.currentCount <= 0) {
             this.markAsCompleted();
@@ -93,16 +101,21 @@ export class ObjectiveItem extends Phaser.GameObjects.Container {
      * Đánh dấu nhiệm vụ đã hoàn thành
      */
     markAsCompleted() {
+        // Check an toàn
+        if (!this.scene || !this.countText || !this.countText.active) return;
+
         this.countText.setVisible(false);
         this.icon.setAlpha(0.5); // Làm mờ icon
 
         // Hiệu ứng xuất hiện cho dấu tick
         this.checkmark.setAlpha(1);
-        this.scene.tweens.add({
-            targets: this.checkmark,
-            scale: 1,
-            duration: 300,
-            ease: 'Bounce.easeOut'
-        });
+        if (this.scene && this.scene.tweens) {
+            this.scene.tweens.add({
+                targets: this.checkmark,
+                scale: 1,
+                duration: 300,
+                ease: 'Bounce.easeOut'
+            });
+        }
     }
 }

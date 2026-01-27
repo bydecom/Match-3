@@ -251,6 +251,10 @@ export class GameScene extends Phaser.Scene {
         this.game.events.emit('scoreUpdated', this.currentScore)
       }
     })
+
+    // Đảm bảo hàm shutdown được gọi đúng 1 lần mỗi lần Scene tắt
+    this.events.off('shutdown', this.shutdown, this)
+    this.events.on('shutdown', this.shutdown, this)
   }
 
   // XÓA HÀM createGameGrid() nếu còn (vì không dùng)
