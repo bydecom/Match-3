@@ -28,27 +28,6 @@ export class Board {
     // << [HINT SYSTEM] Lưu reference đến các tween hint để có thể dừng chúng >>
     this.hintTweens = []
 
-    // --- [IDLE POWERUP] Wrap createGem để tự động thêm hiệu ứng Idle cho Powerup ---
-    // Lưu lại hàm gốc từ các mixin (BoardCreator/BoardPowerups)
-    const originalCreateGem = this.createGem
-
-    // Ghi đè hàm createGem
-    this.createGem = (row, col, type) => {
-      // 1. Gọi hàm tạo gem gốc (dùng .call để giữ context this)
-      const result = originalCreateGem ? originalCreateGem.call(this, row, col, type) : null
-
-      // 2. Lấy gem vừa tạo (nếu hàm gốc không trả về, lấy từ grid)
-      const gem = result || (this.grid[row] ? this.grid[row][col] : null)
-
-      // 3. Nếu là Powerup, thêm hiệu ứng Idle (nhảy + sáng)
-      // Dùng isPowerup(gemObject) từ mixin BoardPowerups
-      if (gem && this.isPowerup && this.isPowerup(gem)) {
-        this.startPowerupIdle(gem)
-      }
-
-      return result
-    }
-
     // Lắp ráp trạng thái ban đầu
     this.initGrid()
     this.selectionFrame = this.createSelectionFrame()
@@ -71,9 +50,9 @@ export class Board {
     gem.idleTween = this.scene.tweens.add({
       targets: gem.sprite,
       // Scale từ baseScale -> baseScale * 1.05 rồi quay lại baseScale (yoyo)
-      scale: baseScale * 1.05,
+      scale: baseScale * 1.01,
       // Nhảy nhẹ bằng cách dịch tâm vẽ xuống 5px (ảnh trông như nhảy lên 5px)
-      displayOriginY: '+=5',
+      displayOriginY: '+=7',
       duration: 700,
       yoyo: true, // Tự động quay về trạng thái gốc (scale & origin)
       repeat: -1,
@@ -111,14 +90,15 @@ export class Board {
         delay
       })
     } else {
-      // Fallback cho Phaser cũ: dùng BlendMode ADD + alpha nhấp nháy
+      // Fallback cho Phaser cũ: dùng BlendMode ADD + alpha nhấp nháy rõ hơn
       gem.sprite.setBlendMode(Phaser.BlendModes.ADD)
       this.scene.tweens.add({
         targets: gem.sprite,
-        alpha: 0.8,
-        duration: 700,
+        alpha: { from: 1, to: 0.4 }, // Chênh lệch alpha lớn để dễ thấy
+        duration: 800,
         yoyo: true,
         repeat: -1,
+        ease: 'Linear',
         delay
       })
     }

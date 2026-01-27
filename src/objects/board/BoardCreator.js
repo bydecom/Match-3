@@ -39,7 +39,15 @@ export class BoardCreator {
 
   createGem(row, col, gemType) {
     const gemSprite = this.createGemAt(row, col, gemType)
-    this.grid[row][col] = { type: 'gem', value: gemType, sprite: gemSprite }
+    const gemObject = { type: 'gem', value: gemType, sprite: gemSprite }
+    this.grid[row][col] = gemObject
+
+    // Nếu là power-up, kích hoạt hiệu ứng Idle ngay khi được tạo
+    if (this.isPowerup && this.isPowerup(gemObject) && this.startPowerupIdle) {
+      this.startPowerupIdle(gemObject)
+    }
+
+    return gemObject
   }
 
   createGemAt(row, col, gemType, startY) {

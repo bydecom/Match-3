@@ -536,13 +536,19 @@ export class BoardState {
     let powerupsToCreate = []
     const activatedPowerups = new Set()
     
+    // [FIX 1] Tạo biến riêng để lưu gem từ Match-3 thường
+    const matchGemsToRemove = new Set()
+    
     // Giữ lại tham chiếu đến các gem bị nổ bởi power-up
     let explosionSet = new Set()
 
     // Luôn xử lý match và lên kế hoạch tạo power-up
     if (initialMatchGroups.length > 0) {
       const { gemsRemoved, powerupsCreated } = this.processMatchGroups(initialMatchGroups, swapPosition)
-      gemsRemoved.forEach(gem => allGemsToRemove.add(gem))
+      gemsRemoved.forEach(gem => {
+          allGemsToRemove.add(gem)
+          matchGemsToRemove.add(gem) // [FIX 2] Lưu gem match-3 vào đây
+      })
       powerupsToCreate = powerupsCreated
     }
 
@@ -552,7 +558,6 @@ export class BoardState {
       explosionSet.forEach(gem => allGemsToRemove.add(gem))
     }
     
-    // << THAY ĐỔI HOÀN TOÀN KHỐI onVFXComplete NÀY >>
     let isActionChainCompleted = false
     const onVFXComplete = () => {
       if (isActionChainCompleted) return
@@ -621,13 +626,11 @@ export class BoardState {
               const isHorizontal = directions.get(gem)
               if (isHorizontal) {
                 for (let c = 0; c < GRID_SIZE; c++) {
-                  // Sử dụng damageCell - blocker bảo vệ gem (giống stripe_single)
                   const destroyedGem = this.damageCell(row, c)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
               } else {
                 for (let r = 0; r < GRID_SIZE; r++) {
-                  // Sử dụng damageCell - blocker bảo vệ gem (giống stripe_single)
                   const destroyedGem = this.damageCell(r, col)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
@@ -642,7 +645,6 @@ export class BoardState {
               const c = gem.sprite.getData('col')
               for (let rr = r - 1; rr <= r + 1; rr++) {
                 for (let cc = c - 1; cc <= c + 1; cc++) {
-                  // Sử dụng damageCell - blocker bảo vệ gem (giống bomb_single)
                   const destroyedGem = this.damageCell(rr, cc)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
@@ -667,13 +669,11 @@ export class BoardState {
               for (let c = 0; c < GRID_SIZE; c++) {
                 const gem = this.grid[r][c]
                 if (gem && gem.type === 'gem' && !this.isPowerup(gem) && gem.value === targetColor) {
-                  // Dùng damageCellIgnoreBlocker - hút gem dù có blocker
                   const destroyedGem = this.damageCellIgnoreBlocker(r, c)
                   if (destroyedGem) finalGemsToRemove.add(destroyedGem)
                 }
               }
             }
-            // Dùng damageCellIgnoreBlocker cho otherGem
             const destroyedOtherGem = this.damageCellIgnoreBlocker(otherGem.sprite.getData('row'), otherGem.sprite.getData('col'))
             if (destroyedOtherGem) finalGemsToRemove.add(destroyedOtherGem)
             break
@@ -700,6 +700,9 @@ export class BoardState {
         // Thêm các power-up gốc vào danh sách xóa
         if (powerupToActivate) finalGemsToRemove.add(powerupToActivate)
         if (otherGem && this.isPowerup(otherGem)) finalGemsToRemove.add(otherGem)
+        
+        // [FIX 3] QUAN TRỌNG: Gộp gem Match-3 vào danh sách xóa cuối cùng
+        matchGemsToRemove.forEach(gem => finalGemsToRemove.add(gem))
         
         this.damageAreasAfterVFX = null
       }
@@ -767,28 +770,22 @@ export class BoardState {
       this.scene.time.delayedCall(150, () => { this.applyGravityAndRefill() })
     }
 
-    // --- BẮT ĐẦU SỬA TỪ KHỐI LOGIC KIỂM TRA POWER-UP ---
     if (powerupToActivate) {
-      // << ĐÂY LÀ ĐIỂM KÍCH HOẠT VÀ ĐẾM >>
       this.trackPowerupActivation(powerupToActivate.value);
-      activatedPowerups.add(powerupToActivate); // Thêm gem object vào Set
+      activatedPowerups.add(powerupToActivate);
 
       if (this.isPowerup(otherGem)) {
         this.trackPowerupActivation(otherGem.value);
-        activatedPowerups.add(otherGem); // Thêm gem object vào Set
+        activatedPowerups.add(otherGem);
       }
         // KIỂM TRA TRƯỚC TIÊN: CÓ PHẢI LÀ COMBO KHÔNG?
         if (this.isPowerup(otherGem)) {
             const type1 = powerupToActivate.value
             const type2 = otherGem.value
 
-            // COMBO BOMB + BOMB
             if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
-                // powerupToActivate là viên gem được chọn (selected)
-                // otherGem là viên gem ở vị trí đích (target)
                 this.powerupVFXManager.playDoubleBombEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
             } 
-            // COMBO COLOR BOMB + STRIPE
             else if (
               (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.STRIPE) ||
               (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.COLOR_BOMB)
@@ -804,7 +801,6 @@ export class BoardState {
                 onVFXComplete
               )
             }
-            // COMBO COLOR BOMB + BOMB
             else if (
               (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.BOMB) ||
               (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.COLOR_BOMB)
@@ -824,7 +820,6 @@ export class BoardState {
                 this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
               }
             }
-            // STRIPE + STRIPE
             else if (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.STRIPE) {
               if (this.powerupVFXManager.playDoubleStripeEffect) {
                 this.powerupVFXManager.playDoubleStripeEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
@@ -832,7 +827,6 @@ export class BoardState {
                 this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
               }
             }
-            // BOMB + STRIPE (VFX theo hướng và độ rộng 3 ô)
             else if (
               (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.STRIPE) ||
               (type1 === GEM_TYPES.STRIPE && type2 === GEM_TYPES.BOMB)
@@ -852,11 +846,9 @@ export class BoardState {
               this.comboVFXDirection = null
             }
             else {
-                // Nếu là các combo khác chưa có VFX, tạm thời dùng hiệu ứng wiggle cũ
                 this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete)
             }
         }
-        // NẾU KHÔNG PHẢI COMBO, MÀ LÀ KÍCH HOẠT ĐƠN
         else {
             if (powerupToActivate.value === GEM_TYPES.BOMB) {
                 this.powerupVFXManager.playBombEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
@@ -865,19 +857,14 @@ export class BoardState {
             } else if (powerupToActivate.value === GEM_TYPES.STRIPE) {
                 this.powerupVFXManager.playStripeEffect(powerupToActivate, allGemsToRemove, onVFXComplete)
             } else {
-                // Trường hợp power-up khác trong tương lai, tạm thời dùng logic cũ
                 onVFXComplete()
             }
         }
     } 
-    // Nếu chỉ là một match-3 thông thường, không có power-up
     else if (allGemsToRemove.size > 0) {
         this.addWiggleEffect(Array.from(allGemsToRemove), onVFXComplete);
     } 
-    // Nếu không có gì để xóa (ví dụ: chỉ tạo power-up)
     else if (powerupsToCreate.length > 0) {
-        // Trường hợp đặc biệt: Chỉ tạo powerup mà không xóa gì (hiếm)
-        // Chúng ta vẫn cần đếm gem đã biến hình.
         onVFXComplete(); 
     } else {
         this.endOfTurn();
