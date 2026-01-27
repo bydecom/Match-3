@@ -28,9 +28,100 @@ export class Board {
     // << [HINT SYSTEM] Lưu reference đến các tween hint để có thể dừng chúng >>
     this.hintTweens = []
 
+    // --- [IDLE POWERUP] Wrap createGem để tự động thêm hiệu ứng Idle cho Powerup ---
+    // Lưu lại hàm gốc từ các mixin (BoardCreator/BoardPowerups)
+    const originalCreateGem = this.createGem
+
+    // Ghi đè hàm createGem
+    this.createGem = (row, col, type) => {
+      // 1. Gọi hàm tạo gem gốc (dùng .call để giữ context this)
+      const result = originalCreateGem ? originalCreateGem.call(this, row, col, type) : null
+
+      // 2. Lấy gem vừa tạo (nếu hàm gốc không trả về, lấy từ grid)
+      const gem = result || (this.grid[row] ? this.grid[row][col] : null)
+
+      // 3. Nếu là Powerup, thêm hiệu ứng Idle (nhảy + sáng)
+      // Dùng isPowerup(gemObject) từ mixin BoardPowerups
+      if (gem && this.isPowerup && this.isPowerup(gem)) {
+        this.startPowerupIdle(gem)
+      }
+
+      return result
+    }
+
     // Lắp ráp trạng thái ban đầu
     this.initGrid()
     this.selectionFrame = this.createSelectionFrame()
+  }
+
+  // --- [IDLE POWERUP] Hiệu ứng Idle: Scale + Nhảy + Glow ---
+  startPowerupIdle(gem) {
+    if (!gem || !gem.sprite) return
+
+    // Tránh tạo trùng lặp
+    if (gem.idleTween) return
+
+    // Random delay để các powerup không nhảy đều tăm tắp
+    const delay = Math.random() * 1000
+
+    // Lấy scale gốc hiện tại (origin/min)
+    const baseScale = gem.sprite.scaleX
+
+    // --- TWEEN 1: Vật lý (Scale + Nhảy bằng displayOriginY) ---
+    gem.idleTween = this.scene.tweens.add({
+      targets: gem.sprite,
+      // Scale từ baseScale -> baseScale * 1.05 rồi quay lại baseScale (yoyo)
+      scale: baseScale * 1.05,
+      // Nhảy nhẹ bằng cách dịch tâm vẽ xuống 5px (ảnh trông như nhảy lên 5px)
+      displayOriginY: '+=5',
+      duration: 700,
+      yoyo: true, // Tự động quay về trạng thái gốc (scale & origin)
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay,
+      onUpdate: (tween) => {
+        // Tự hủy nếu gem không còn active
+        if (!gem.sprite || !gem.sprite.active) {
+          tween.stop()
+          gem.idleTween = null
+          // Dọn dẹp tham chiếu FX nếu có
+          if (gem.glowFX) {
+            gem.glowFX = null
+          }
+        }
+      }
+    })
+
+    // --- TWEEN 2: Hiệu ứng sáng (Glow FX nếu có, fallback BlendMode ADD nếu không) ---
+    if (gem.sprite.preFX && gem.sprite.preFX.addGlow) {
+      // Xóa FX cũ nếu có để tránh chồng chéo
+      gem.sprite.preFX.clear()
+
+      // Tạo Glow FX: màu trắng, ban đầu strength = 0
+      gem.glowFX = gem.sprite.preFX.addGlow(0xffffff, 0, 0, false)
+
+      // Tween độ mạnh hào quang (outerStrength) để tạo nhịp thở
+      this.scene.tweens.add({
+        targets: gem.glowFX,
+        outerStrength: { from: 0, to: 2.5 },
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay
+      })
+    } else {
+      // Fallback cho Phaser cũ: dùng BlendMode ADD + alpha nhấp nháy
+      gem.sprite.setBlendMode(Phaser.BlendModes.ADD)
+      this.scene.tweens.add({
+        targets: gem.sprite,
+        alpha: 0.8,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        delay
+      })
+    }
   }
   // Lấy tọa độ trung tâm của một cell
   getCellPosition(row, col) {

@@ -50,13 +50,26 @@ class PlayerDataManager {
 
                 this._ensureDataStructure();
 
-                // === RESET TIM VỀ 10 MỖI KHI MỞ GAME ===
+                // === [DEMO REPORT MODE] ===
+                // RESET TÀI NGUYÊN ĐỂ DEMO (GIỮ NGUYÊN PROGRESSION)
                 if (this.userData.currency) {
-                    this.userData.currency.lives = 10;
-                    this._saveToStorage();
-                    console.log("[PlayerDataManager] Đã reset số mạng về 10.");
+                    this.userData.currency.coins = 10000;   // Full tiền
+                    this.userData.currency.lives = 10;      // Full mạng
+                    this.userData.currency.tickets = 100;   // Full vé quay
                 }
-                // ========================================
+
+                // RESET KHO ĐỒ (Booster)
+                if (this.userData.inventory && this.userData.inventory.boosters) {
+                    this.userData.inventory.boosters.hammer = 99;
+                    this.userData.inventory.boosters.swap = 99;
+                    this.userData.inventory.boosters.rocket = 99;
+                    this.userData.inventory.boosters.shuffle = 99;
+                }
+
+                // Lưu lại ngay lập tức
+                this._saveToStorage();
+                console.log("[PlayerDataManager] DEMO MODE: Đã reset Coin, Tim, Ticket và Booster!");
+                // ==========================
 
             } else {
 
@@ -116,7 +129,8 @@ class PlayerDataManager {
 
             "userId": userId,
 
-            "username": "Player_" + userId.slice(-4),
+            // Đổi tên nhân vật mặc định thành BAPLUOC
+            "username": "BAPLUOC",
 
             "avatarId": "avatar_001",
 
@@ -276,6 +290,28 @@ class PlayerDataManager {
 
         return this.userData;
 
+    }
+
+    /**
+     * Trả về tên người chơi. Yêu cầu: luôn là "BAPLUOC".
+     * Bỏ qua dữ liệu lưu trong storage để đảm bảo đồng nhất.
+     */
+    getName() {
+        return 'BAPLUOC';
+    }
+
+    /**
+     * Trả về thông tin profile cơ bản của người chơi.
+     * Tên được hard-code là "BAPLUOC" theo yêu cầu.
+     */
+    getUserProfile() {
+        const data = this.userData || {};
+        return {
+            name: 'BAPLUOC',
+            userId: data.userId || null,
+            avatar: data.avatarId || 'avt1',
+            level: data.progression?.highestLevelUnlocked || 1
+        };
     }
 
 

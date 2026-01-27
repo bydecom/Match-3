@@ -353,6 +353,8 @@ export class PreloaderScene extends Phaser.Scene {
         this.load.image('friend_ui_bg', 'assets/images/ui/friend/UI.png');
         this.load.image('friend_item_bg', 'assets/images/ui/friend/item_background.png');
         this.load.image('friend_cover', 'assets/images/ui/friend/cover.png'); // Ảnh che phần dưới
+        // Decor friend (đè lên cover)
+        this.load.image('friend_decor', 'assets/images/ui/friend/friend_decor.png');
         this.load.image('friend_msg_icon', 'assets/images/ui/friend/message_icon.png');
         this.load.image('friend_select_all_text', 'assets/images/ui/friend/select_all.png'); // Chữ Select All
         this.load.image('friend_send_button', 'assets/images/ui/friend/send_all.png');

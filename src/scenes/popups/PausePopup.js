@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import PlayerDataManager from '../../managers/PlayerDataManager';
 import AudioManager from '../../managers/AudioManager';
+import APIManager from '../../managers/APIManager';
 
 export class PausePopup extends Phaser.Scene {
     constructor() {
@@ -40,6 +41,9 @@ export class PausePopup extends Phaser.Scene {
         const uiBackground = this.add.image(width / 2, height / 2, 'pause_ui')
             .setOrigin(0.5)
             .setDepth(2);
+
+        // Gọi load dữ liệu người dùng
+        this.loadUserInfo();
 
         // 4. Tạo nút đóng (X)
         // (Tăng depth để đảm bảo nó ở trên các thanh trượt nếu cần)
@@ -262,6 +266,46 @@ export class PausePopup extends Phaser.Scene {
         }
         if (this.scene.isPaused('UIScene')) {
             this.scene.resume('UIScene');
+        }
+    }
+    async loadUserInfo() {
+        try {
+            const userInfo = await APIManager.getUserInfo();
+            const { userId, username, level } = userInfo;
+
+
+            // Dòng ID lặp lại
+            this.add.text(325, 429, `${userId}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'left'
+            }).setOrigin(0.5).setDepth(5);
+
+            // Dòng Level
+            this.add.text(318, 402, `${level}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'left'
+            }).setOrigin(0.5).setDepth(5);
+
+            // Dòng tên (màu trắng)
+            this.add.text(294, 375, username, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#ffffff',
+                align: 'left'
+            }).setOrigin(0.5).setDepth(5);
+        } catch (error) {
+            console.error('Lỗi khi lấy thông tin người chơi từ API:', error);
+            // Hiển thị giá trị mặc định nếu API lỗi
+            this.add.text(294, 798, 'N/A', {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'left'
+            }).setOrigin(0.5).setDepth(5);
         }
     }
 }

@@ -21,6 +21,11 @@ export class BoardPowerups {
     gemObject.sprite.setDisplaySize(this.cellSize * 0.85, this.cellSize * 0.85)
     gemObject.sprite.setData('type', powerupType)
     console.log(`Transformed gem into ${powerupType} power-up`)
+
+    // Kích hoạt hiệu ứng Idle ngay khi biến hình (nếu Board đã cung cấp hàm)
+    if (this.startPowerupIdle) {
+      this.startPowerupIdle(gemObject)
+    }
   }
 
   activatePowerupCombo(powerup1, powerup2) {

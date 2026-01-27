@@ -88,21 +88,29 @@ export class LosePopup extends Phaser.Scene {
       .setScale(0.35)
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
+
     replayButton.on('pointerdown', () => {
+      // Tắt tương tác ngay để tránh double click / spam
+      replayButton.disableInteractive();
+
       if (PlayerDataManager.getLives() > 0) {
         PlayerDataManager.updateLives(-1);
 
-        if (this.scene.isPaused('GameScene')) {
+        // Thêm delay nhỏ để tránh lỗi WebGL "imagedraw" khi stop/start scene ngay trong pointerdown
+        this.time.delayedCall(100, () => {
+          // Dừng các scene game và UI dưới nền
           this.scene.stop('GameScene');
-        }
-        if (this.scene.isPaused('UIScene')) {
           this.scene.stop('UIScene');
-        }
-        this.scene.stop();
-        this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+
+          // Start lại LevelLoaderScene (tự stop LosePopup hiện tại)
+          this.scene.start('LevelLoaderScene', { levelId: this.levelId });
+        });
       } else {
         console.log('Không đủ mạng để replay!');
         this.scene.launch('ShopPopup');
+
+        // Nếu không đủ mạng thì cho phép bấm lại nút
+        replayButton.setInteractive({ useHandCursor: true });
       }
     });
 

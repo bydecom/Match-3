@@ -14,8 +14,16 @@ class APIManager {
         this.MOCK_USER_SHOP_KEY = 'mockUserShop';
         this.MOCK_PURCHASED_ITEMS_KEY = 'mockPurchasedItems';
         
-        // [TẠM THỜI] Xóa cache shop cũ để thấy item mới ngay lập tức
-        // Sau khi test xong, có thể xóa dòng này đi
+        // === [DEMO REPORT MODE] ===
+        // Xóa cache shop và history mua hàng cũ để mỗi lần vào game là một shop mới
+        try {
+            localStorage.removeItem(this.MOCK_USER_SHOP_KEY);
+            localStorage.removeItem(this.MOCK_PURCHASED_ITEMS_KEY);
+            console.log("[APIManager] DEMO MODE: Đã reset Shop và lịch sử mua hàng.");
+        } catch (e) {
+            console.warn("[APIManager] Không thể reset shop demo (localStorage không khả dụng):", e);
+        }
+        // ==========================
     }
 
     /**
@@ -325,14 +333,16 @@ class APIManager {
             console.error("SERVER SIM: User data not found!");
             return {
                 userId: 'N/A',
-                username: 'Player',
+                // Tên mặc định của nhân vật là BAPLUOC
+                username: 'BAPLUOC',
                 level: 1
             };
         }
 
         const userInfo = {
             userId: userData.userId || 'N/A',
-            username: userData.username || 'Player',
+            // Nếu vì lý do gì đó username trống, fallback về BAPLUOC
+            username: userData.username || 'BAPLUOC',
             level: userData.progression?.highestLevelUnlocked || 1
         };
 
@@ -341,29 +351,41 @@ class APIManager {
     }
 
     /**
-     * Giả lập danh sách bạn bè
+     * Giả lập danh sách bạn bè (mock cứng) và lọc bỏ tên người chơi chính "BAPLUOC".
      */
     async getFriendsList() {
-        // Giả lập delay mạng
-        await this._simulateNetworkDelay(300);
+        // [MÔ PHỎNG DATA DANH SÁCH BẠN BÈ]
+        const mockFriends = [
+            // Danh sách cũ
+            { id: '101', name: 'BUNDAUMANTOM', avatar: 'avt1', level: 15 },
+            { id: '102', name: 'COMCHIENHANH', avatar: 'avt2', level: 12 },
+            { id: '103', name: 'COBENGOKNGECH', avatar: 'avt3', level: 8 },
+            { id: '104', name: 'MEOMEO', avatar: 'avt4', level: 20 },
+            { id: '105', name: 'GAMER_PRO', avatar: 'avt1', level: 55 },
+            { id: '106', name: 'BANHMIQUE', avatar: 'avt2', level: 6 },
 
-        const names = ["BUNDAUMANTOM", "BAPLUOC", "COMCHIENHANH", "COBENGOKNGECH", "MEOMEO", "GAMER_PRO"];
-        const friends = [];
+            // 10 tên mới
+            { id: '107', name: 'TRASUAFULLTOPPING', avatar: 'avt3', level: 18 },
+            { id: '108', name: 'BUNBOHUE', avatar: 'avt4', level: 25 },
+            { id: '109', name: 'GAUBEO_2K', avatar: 'avt1', level: 9 },
+            { id: '110', name: 'NEMCHUARAN', avatar: 'avt2', level: 30 },
+            { id: '111', name: 'HEOMUPMIP', avatar: 'avt3', level: 14 },
+            { id: '112', name: 'TOP1_YASUO', avatar: 'avt4', level: 99 },
+            { id: '113', name: 'PHODACBIET', avatar: 'avt1', level: 42 },
+            { id: '114', name: 'CHUAHEBIETYEU', avatar: 'avt2', level: 2 },
+            { id: '115', name: 'BODAINGOC', avatar: 'avt3', level: 5 },
+            { id: '116', name: 'CAPHESUADA', avatar: 'avt4', level: 21 },
 
-        // Tạo 10 người bạn ngẫu nhiên
-        for (let i = 0; i < 10; i++) {
-            const randomAvt = Phaser.Math.Between(1, 4);
-            const randomName = names[i % names.length] + (i > 5 ? `_${i}` : "");
-            
-            friends.push({
-                id: `270498070${i}`,
-                name: randomName,
-                avatar: `avt${randomAvt}`,
-                level: Phaser.Math.Between(5, 50)
-            });
-        }
+            // Tên người chơi chính (để test lọc)
+            { id: '999', name: 'BAPLUOC', avatar: 'avt1', level: 1 }
+        ];
 
-        return friends;
+        // Lọc bỏ tên người chơi hiện tại ('BAPLUOC') ra khỏi danh sách bạn bè
+        const filteredFriends = mockFriends.filter(friend => friend.name !== 'BAPLUOC');
+
+        // Giả lập delay mạng tương tự các API khác
+        await this._simulateNetworkDelay(500);
+        return filteredFriends;
     }
 }
 

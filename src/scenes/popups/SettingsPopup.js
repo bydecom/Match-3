@@ -285,45 +285,38 @@ export class SettingsPopup extends Phaser.Scene {
             const userInfo = await APIManager.getUserInfo();
             const { userId, username, level } = userInfo;
 
-            // Dòng ID đầu tiên
-            this.add.text(288, 798, `${userId}`, {
-                fontFamily: 'UTMCookies',
-                fontSize: '15px',
-                color: '#b43827',
-                align: 'center'
-            }).setOrigin(0.5).setDepth(5);
 
             // Dòng ID lặp lại
-            this.add.text(345, 428, `${userId}`, {
+            this.add.text(325, 429, `${userId}`, {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#b43827',
-                align: 'center'
+                align: 'left'
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng Level
-            this.add.text(345, 402, `${level}`, {
+            this.add.text(318, 402, `${level}`, {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#b43827',
-                align: 'center'
+                align: 'left'
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng tên (màu trắng)
-            this.add.text(311, 375, username, {
+            this.add.text(294, 375, username, {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#ffffff',
-                align: 'center'
+                align: 'left'
             }).setOrigin(0.5).setDepth(5);
         } catch (error) {
             console.error('Lỗi khi lấy thông tin người chơi từ API:', error);
             // Hiển thị giá trị mặc định nếu API lỗi
-            this.add.text(288, 798, 'N/A', {
+            this.add.text(294, 798, 'N/A', {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#b43827',
-                align: 'center'
+                align: 'left'
             }).setOrigin(0.5).setDepth(5);
         }
     }

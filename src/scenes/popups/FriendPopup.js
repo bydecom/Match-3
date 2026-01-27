@@ -183,6 +183,11 @@ export class FriendPopup extends Phaser.Scene {
         const cover = this.add.image(bg.x, 765, 'friend_cover')
             .setOrigin(0.5).setDepth(4).setScale(0.4); 
 
+        // Decor nằm đè lên cover
+        // Dùng chung toạ độ (bg.x, 765) và scale (0.4) với cover
+        this.add.image(260, 785, 'friend_decor')
+            .setOrigin(0.5).setDepth(4).setScale(0.4);
+
         // 2. Select All Checkbox
         // Khung checkbox (giả sử nằm trong ảnh cover hoặc vẽ thêm nếu cần)
         // Text "Select All" (Dùng ảnh bạn cung cấp)
