@@ -369,10 +369,10 @@ playHammerEffect(row, col, onComplete) {
               if (suckedCount === fakeGems.length) {
                 // 4. Khi đã hút xong, lắc bình
 
-                // << [THÊM MỚI] PHÁT ÂM THANH SHAKE TẠI ĐÂY >>
+                // << [THÊM MỚI] PHÁT ÂM THANH SHAKE TẠI ĐÂY (tăng âm tối thiểu 1.5x) >>
                 const sfxVolume = AudioManager.getSoundVolume();
                 if (sfxVolume > 0 && this.scene.sound) {
-                  this.scene.sound.play(SOUND_KEYS.SHAKE, { volume: sfxVolume });
+                  this.scene.sound.play(SOUND_KEYS.SHAKE, { volume: sfxVolume * 1.5 });
                 }
 
                 // --- HIỆU ỨNG BỌT NƯỚC ĐỒNG BỘ VỚI HƯỚNG LẮC ---

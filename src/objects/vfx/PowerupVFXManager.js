@@ -9,7 +9,8 @@ export class PowerupVFXManager {
   }
 
   // --- Helper để phát âm thanh: Thêm volumeScale và pitch ---
-  playSound(key, volumeScale = 1.0, pitch = 1.0) {
+  // Mặc định tăng 1.5 lần so với âm gốc
+  playSound(key, volumeScale = 1.5, pitch = 1.0) {
     const sfxVolume = AudioManager.getSoundVolume();
     if (sfxVolume > 0 && this.scene.sound) {
       this.scene.sound.play(key, { 
@@ -80,7 +81,7 @@ export class PowerupVFXManager {
    */
   playBombEffect(bombGem, affectedGems, onComplete) {
     // << PHÁT ÂM THANH BOMB >>
-    this.playSound(SOUND_KEYS.BOMB);
+    this.playSound(SOUND_KEYS.BOMB); // = 1.5x âm gốc
 
     const bombSprite = bombGem.sprite;
     
@@ -114,10 +115,10 @@ export class PowerupVFXManager {
           duration: 250,
           ease: 'Back.easeOut'
         },
-        // 2. Lắc lư nhẹ
+        // 2. Lắc lư nhẹ (rút ngắn thời gian)
         {
           angle: { from: -10, to: 10 },
-          duration: 200,
+          duration: 120,
           yoyo: true,
           repeat: 3,
           ease: 'Sine.easeInOut'
@@ -304,7 +305,7 @@ export class PowerupVFXManager {
    */
   playDoubleBombEffect(selectedBomb, targetBomb, affectedGems, onComplete) {
     // [YÊU CẦU] Thêm âm thanh Bomb
-    this.playSound(SOUND_KEYS.BOMB, 1.5, 0.8); 
+    this.playSound(SOUND_KEYS.BOMB, 2.0, 0.8);  // > 1.5x, combo đôi uy lực hơn
 
     const selectedSprite = selectedBomb.sprite
     const targetSprite = targetBomb.sprite
@@ -343,14 +344,13 @@ export class PowerupVFXManager {
       }
     })
 
-    // 2. Phóng to chậm rãi (500ms)
+    // 2. Phóng to chậm rãi (500ms) – giữ bomb sáng rõ như bomb đơn
     const layerMask9 = this.disableGemLayerMask();
     
     this.scene.tweens.add({
       targets: selectedSprite,
       scale: selectedSprite.scale * 4.5,
-      alpha: { from: 1, to: 0.5 },
-      duration: 500, // Cũ 350
+      duration: 350, // Cũ 350
       delay: 250,    // Đợi lâu hơn xíu sau khi va chạm
       ease: 'Quad.easeOut',
       onStart: () => {
@@ -415,7 +415,7 @@ export class PowerupVFXManager {
 
   playStripeEffect(stripeGem, affectedGems, onComplete) {
     // << PHÁT ÂM THANH STRIPE >>
-    this.playSound(SOUND_KEYS.STRIPE);
+    this.playSound(SOUND_KEYS.STRIPE); // = 1.5x âm gốc
 
     const stripeSprite = stripeGem.sprite;
     
@@ -694,7 +694,7 @@ export class PowerupVFXManager {
         onComplete: () => {
           if (gem.sprite && gem.sprite.active) {
             // >>> PHÁT ÂM THANH KHI GEM BIẾN HÌNH THÀNH STRIPE <<<
-            this.playSound(SOUND_KEYS.STRIPE, 1.3, 0.95)
+            this.playSound(SOUND_KEYS.STRIPE, 1.7, 0.95) // > 1.5x cho combo Color Bomb + Stripe
             
             const isHorizontal = Phaser.Math.RND.pick([true, false])
             this.playStripeNoteWave(gem.sprite, isHorizontal)
@@ -815,7 +815,7 @@ export class PowerupVFXManager {
    */
   playDoubleStripeEffect(stripe1_tam_gem, stripe2_bayvao_gem, affectedGems, onComplete) {
     // [YÊU CẦU] Thêm âm thanh Stripe
-    this.playSound(SOUND_KEYS.STRIPE, 1.4, 0.9);
+    this.playSound(SOUND_KEYS.STRIPE, 1.8, 0.9); // > 1.5x, stripe đôi nổi bật hơn
 
     const stripe1_tam = stripe1_tam_gem.sprite
     const stripe2_bayvao = stripe2_bayvao_gem.sprite
@@ -925,7 +925,7 @@ export class PowerupVFXManager {
    */
   playBombStripeComboEffect(powerupAtPos2, powerupAtPos1, direction, affectedGems, onComplete) {
     // [YÊU CẦU] Thêm âm thanh Stripe (cho hiệu ứng Big Stripe)
-    this.playSound(SOUND_KEYS.STRIPE, 1.6, 0.85);
+    this.playSound(SOUND_KEYS.STRIPE, 2.0, 0.85); // Big Stripe to nhất
 
     const sprite1_tam = powerupAtPos2.sprite;    // Gem đứng yên (tâm)
     const sprite2_bayvao = powerupAtPos1.sprite; // Gem bay vào
@@ -1253,7 +1253,7 @@ export class PowerupVFXManager {
         onComplete: () => {
           if (gem.sprite && gem.sprite.active) {
             // >>> PHÁT ÂM THANH KHI GEM BIẾN HÌNH THÀNH BOMB <<<
-            this.playSound(SOUND_KEYS.BOMB, 1.3, 0.9);
+            this.playSound(SOUND_KEYS.BOMB, 1.7, 0.9); // > 1.5x cho combo Color Bomb + Bomb
             
             this.playSingleBombVFX(gem.sprite);
           }
