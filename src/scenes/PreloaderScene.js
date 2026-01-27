@@ -17,56 +17,34 @@ export class PreloaderScene extends Phaser.Scene {
         this.realProgress = 0;
         this.displayProgress = 0;
         this.startTime = 0;
-        
-        // Biến kiểm tra đã tải xong data và thời gian chờ chưa
-        this.isReadyToFinish = false; 
+
+        // Data tải xong chưa?
+        this.isDataLoaded = false;
+        // Timer đã bắt đầu đếm chưa?
+        this.timerStarted = false;
+        // Thời điểm bắt đầu chạy 25% cuối
+        this.phase2StartTime = 0;
         // Biến để đảm bảo chỉ gọi chuyển scene 1 lần
         this.hasTriggeredNextScene = false;
     }
 
     preload() {
         console.log("--- BẮT ĐẦU PRELOAD ---");
-        this.startTime = this.time.now;
-        
+
+        // Tạo giao diện loading
         this.createLoadingScreen();
 
-        const loadCompletePromise = new Promise(resolve => {
-            this.load.on('complete', () => {
-                console.log(">>> SỰ KIỆN: Tải thật đã xong (load.on complete)");
-                resolve();
-            });
+        // Bắt sự kiện load xong toàn bộ tài nguyên
+        this.load.on('complete', () => {
+            console.log(">>> SỰ KIỆN: Data đã tải xong!");
+            this.isDataLoaded = true;
         });
 
         this.loadAssets();
 
-        const minTimePromise = new Promise(resolve => {
-            setTimeout(() => {
-                console.log(">>> SỰ KIỆN: Đã hết thời gian chờ tối thiểu");
-                resolve();
-            }, MIN_LOAD_TIME);
-        });
-
-        // Tải font ngầm - không chặn loading bar
-        // Font sẽ tự hiển thị đúng khi sẵn sàng (progressive rendering)
-        Promise.all([
-            this.waitForFont('UTMCookies'),
-            this.waitForFont('NABILA')
-        ]).then(() => {
-            console.log(">>> SỰ KIỆN: Fonts đã tải xong (không chặn game)");
-        });
-
-        // Chỉ chờ assets và thời gian tối thiểu - KHÔNG chờ font
-        Promise.all([minTimePromise, loadCompletePromise]).then(() => {
-            if (!this.scene.isActive()) {
-                console.log("Promise hoàn thành, nhưng scene không còn hoạt động. Bỏ qua.");
-                return;
-            }
-            
-            console.log("--- DATA READY: Đã tải xong và đủ 2s. Báo hiệu cho Update chạy nốt 25% cuối. ---");
-            
-            // Thay vì gọi startNextScene() trực tiếp, ta bật cờ để update xử lý nốt phần còn lại
-            this.isReadyToFinish = true;
-        });
+        // Font tải ngầm (không ảnh hưởng logic progress bar)
+        this.waitForFont('UTMCookies'); 
+        this.waitForFont('NABILA');
     }
 
     create() {
@@ -76,47 +54,59 @@ export class PreloaderScene extends Phaser.Scene {
     }
    
     update() {
-        // Tính thời gian đã trôi qua
-        const elapsedTime = this.time.now - this.startTime;
-        
-        // Tính % dựa trên thời gian (0.0 -> 1.0 trong vòng 2000ms)
-        const timeRatio = Math.min(1.0, elapsedTime / MIN_LOAD_TIME);
+        if (this.hasTriggeredNextScene) return;
 
-        // Trong 2s đầu, chỉ cho phép chạy tối đa tới 75% (0.75)
-        let targetProgress = timeRatio * 0.75;
-
-        // Nếu đã tải xong data và đã qua 2s (cờ bật), cho phép mục tiêu lên 100% (1.0)
-        if (this.isReadyToFinish) {
-            targetProgress = 1.0;
+        // Chỉ bắt đầu tính giờ khi update thực sự chạy frame đầu tiên
+        if (!this.timerStarted) {
+            this.startTime = this.time.now;
+            this.timerStarted = true;
         }
 
-        // Hiệu ứng lướt (Lerp) để thanh chạy mượt mà đuổi theo target
-        // Tăng tốc độ lerp lên 0.15 để đoạn cuối chạy nhanh hơn chút
-        this.displayProgress += (targetProgress - this.displayProgress) * 0.15;
+        const currentTime = this.time.now;
+        const elapsedTime = currentTime - this.startTime;
+        
+        let targetPercent = 0;
 
-        // Cập nhật crop để lấp đầy thanh progress bar
+        // --- PHASE 1: Chạy từ 0% -> 75% trong 2 giây (2000ms) ---
+        if (elapsedTime <= 2000) {
+            const ratio = elapsedTime / 2000;
+            targetPercent = ratio * 0.75;
+        } 
+        // --- WAIT PHASE: Giữ ở 75% ---
+        // Chạy khi: (Chưa đủ 3s tổng cộng) HOẶC (Data chưa tải xong)
+        else if (elapsedTime <= 3000 || !this.isDataLoaded) {
+            targetPercent = 0.75;
+        }
+        // --- PHASE 2: Chạy từ 75% -> 100% trong 1 giây ---
+        // Chạy khi: (Đã qua 3s) VÀ (Data đã tải xong)
+        else {
+            if (this.phase2StartTime === 0) {
+                this.phase2StartTime = currentTime;
+                console.log(">>> Bắt đầu Phase 2 (25% cuối)");
+            }
+
+            const p2Elapsed = currentTime - this.phase2StartTime;
+            const p2Ratio = Math.min(1.0, p2Elapsed / 1000);
+            
+            targetPercent = 0.75 + (p2Ratio * 0.25);
+        }
+
+        // --- Cập nhật hiển thị ---
+        this.displayProgress = targetPercent;
+
         if (this.progressBar && this.barTextureWidth > 0) {
-            const cropWidth = Math.max(0, Math.min(1, this.displayProgress)) * this.barTextureWidth;
+            const cropWidth = this.displayProgress * this.barTextureWidth;
             this.progressBar.setCrop(0, 0, cropWidth, this.barTextureHeight);
         }
 
-        // Cập nhật text %
         if (this.percentText) {
-            this.percentText.setText(`Loading ${Math.round(this.displayProgress * 100)}%`);
+            this.percentText.setText(`Loading ${Math.floor(this.displayProgress * 100)}%`);
         }
 
-        // Kiểm tra điều kiện chuyển cảnh:
-        // - Thanh hiển thị đã gần đầy (>= 99%)
-        // - Dữ liệu đã sẵn sàng (isReadyToFinish)
-        // - Chưa từng gọi startNextScene trước đó
-        if (this.displayProgress >= 0.99 && this.isReadyToFinish && !this.hasTriggeredNextScene) {
+        // --- Chuyển cảnh ---
+        if (this.displayProgress >= 1 && !this.hasTriggeredNextScene) {
+            console.log("--- HOÀN TẤT LOADING ---");
             this.hasTriggeredNextScene = true;
-
-            // Đảm bảo hiển thị tròn 100% trước khi fade
-            if (this.progressBar) {
-                this.progressBar.setCrop(0, 0, this.barTextureWidth, this.barTextureHeight);
-            }
-
             this.startNextScene();
         }
     }
