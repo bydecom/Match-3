@@ -17,6 +17,11 @@ export class PreloaderScene extends Phaser.Scene {
         this.realProgress = 0;
         this.displayProgress = 0;
         this.startTime = 0;
+        
+        // Biến kiểm tra đã tải xong data và thời gian chờ chưa
+        this.isReadyToFinish = false; 
+        // Biến để đảm bảo chỉ gọi chuyển scene 1 lần
+        this.hasTriggeredNextScene = false;
     }
 
     preload() {
@@ -56,12 +61,11 @@ export class PreloaderScene extends Phaser.Scene {
                 console.log("Promise hoàn thành, nhưng scene không còn hoạt động. Bỏ qua.");
                 return;
             }
-
-            console.log("--- THÀNH CÔNG: Cả 2 Promise đã hoàn thành! Chuẩn bị chuyển scene. ---");
-            if (this.percentText) {
-                this.percentText.setText('Loading 100%');
-            }
-            this.startNextScene();
+            
+            console.log("--- DATA READY: Đã tải xong và đủ 2s. Báo hiệu cho Update chạy nốt 25% cuối. ---");
+            
+            // Thay vì gọi startNextScene() trực tiếp, ta bật cờ để update xử lý nốt phần còn lại
+            this.isReadyToFinish = true;
         });
     }
 
@@ -72,18 +76,48 @@ export class PreloaderScene extends Phaser.Scene {
     }
    
     update() {
+        // Tính thời gian đã trôi qua
         const elapsedTime = this.time.now - this.startTime;
-        const timeProgress = Math.min(1.0, elapsedTime / MIN_LOAD_TIME);
-        const targetProgress = Math.max(timeProgress, this.realProgress);
         
-        if (this.displayProgress < targetProgress) {
-             this.displayProgress += (targetProgress - this.displayProgress) * 0.1;
+        // Tính % dựa trên thời gian (0.0 -> 1.0 trong vòng 2000ms)
+        const timeRatio = Math.min(1.0, elapsedTime / MIN_LOAD_TIME);
+
+        // Trong 2s đầu, chỉ cho phép chạy tối đa tới 75% (0.75)
+        let targetProgress = timeRatio * 0.75;
+
+        // Nếu đã tải xong data và đã qua 2s (cờ bật), cho phép mục tiêu lên 100% (1.0)
+        if (this.isReadyToFinish) {
+            targetProgress = 1.0;
         }
 
-        // Cập nhật crop để lấp đầy thanh progress bar (nhẹ hơn so với GeometryMask)
+        // Hiệu ứng lướt (Lerp) để thanh chạy mượt mà đuổi theo target
+        // Tăng tốc độ lerp lên 0.15 để đoạn cuối chạy nhanh hơn chút
+        this.displayProgress += (targetProgress - this.displayProgress) * 0.15;
+
+        // Cập nhật crop để lấp đầy thanh progress bar
         if (this.progressBar && this.barTextureWidth > 0) {
             const cropWidth = Math.max(0, Math.min(1, this.displayProgress)) * this.barTextureWidth;
             this.progressBar.setCrop(0, 0, cropWidth, this.barTextureHeight);
+        }
+
+        // Cập nhật text %
+        if (this.percentText) {
+            this.percentText.setText(`Loading ${Math.round(this.displayProgress * 100)}%`);
+        }
+
+        // Kiểm tra điều kiện chuyển cảnh:
+        // - Thanh hiển thị đã gần đầy (>= 99%)
+        // - Dữ liệu đã sẵn sàng (isReadyToFinish)
+        // - Chưa từng gọi startNextScene trước đó
+        if (this.displayProgress >= 0.99 && this.isReadyToFinish && !this.hasTriggeredNextScene) {
+            this.hasTriggeredNextScene = true;
+
+            // Đảm bảo hiển thị tròn 100% trước khi fade
+            if (this.progressBar) {
+                this.progressBar.setCrop(0, 0, this.barTextureWidth, this.barTextureHeight);
+            }
+
+            this.startNextScene();
         }
     }
 
