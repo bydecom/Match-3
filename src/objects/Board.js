@@ -33,40 +33,35 @@ export class Board {
     this.selectionFrame = this.createSelectionFrame()
   }
 
-  // --- [IDLE POWERUP] Hiệu ứng Idle: Scale + Nhảy ---
+  // --- [FIX CRASH] Phiên bản Idle an toàn: Tắt hoàn toàn để tránh xung đột ---
   startPowerupIdle(gem) {
-    if (!gem || !gem.sprite) return
+    // [FIX] Nếu gem không hợp lệ, thoát ngay
+    if (!gem || !gem.sprite || !gem.sprite.active) return;
 
-    // Tránh tạo trùng lặp
+    // User đã tắt hiệu ứng glow/tween, giữ hàm trống hoặc return luôn là an toàn nhất
+    return;
+
+    /* CODE CŨ ĐÃ TẮT
     if (gem.idleTween) return
-
-    // Random delay để các powerup không nhảy đều tăm tắp
     const delay = Math.random() * 1000
-
-    // Lấy scale gốc hiện tại (origin/min)
     const baseScale = gem.sprite.scaleX
-
-    // --- TWEEN 1: Vật lý (Scale + Nhảy bằng displayOriginY) ---
     gem.idleTween = this.scene.tweens.add({
       targets: gem.sprite,
-      // Scale từ baseScale -> baseScale * 1.05 rồi quay lại baseScale (yoyo)
-      scale: baseScale * 1.01,
-      // Nhảy nhẹ bằng cách dịch tâm vẽ xuống 5px (ảnh trông như nhảy lên 5px)
-      displayOriginY: '+=7',
+      scale: baseScale * 1.05,
+      displayOriginY: '+=5',
       duration: 700,
-      yoyo: true, // Tự động quay về trạng thái gốc (scale & origin)
+      yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
       delay,
       onUpdate: (tween) => {
-        // Tự hủy nếu gem không còn active
         if (!gem.sprite || !gem.sprite.active) {
           tween.stop()
           gem.idleTween = null
         }
       }
     })
-
+    */
   }
   // Lấy tọa độ trung tâm của một cell
   getCellPosition(row, col) {

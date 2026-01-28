@@ -1024,6 +1024,10 @@ export class BoardState {
     gemsToRemove.forEach(gemObject => {
       // Kiểm tra an toàn
       if (gemObject && gemObject.sprite) {
+        // [QUAN TRỌNG] Dừng tất cả Tween đang chạy trên sprite này (VFX, Idle...)
+        // Để tránh xung đột khi sprite đang biến mất
+        this.scene.tweens.killTweensOf(gemObject.sprite);
+
         const row = gemObject.sprite.getData('row')
         const col = gemObject.sprite.getData('col')
         
@@ -1040,7 +1044,7 @@ export class BoardState {
           duration: 200,
           onComplete: () => {
             // Hủy sprite sau khi animation kết thúc một cách an toàn
-            if (gemObject.sprite && gemObject.sprite.destroy) {
+            if (gemObject.sprite && gemObject.sprite.active) {
                 gemObject.sprite.destroy()
             }
           }

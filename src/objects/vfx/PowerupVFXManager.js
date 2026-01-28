@@ -74,6 +74,36 @@ export class PowerupVFXManager {
   }
 
   /**
+   * Helper: Dọn dẹp sạch sẽ hiệu ứng Idle và Glow trước khi nổ
+   * An toàn hơn: Kiểm tra kỹ tồn tại trước khi truy cập
+   */
+  clearGemEffects(gem) {
+    if (!gem) return;
+
+    // 1. Dừng chuyển động nhấp nhô
+    if (gem.idleTween) {
+      if (gem.idleTween.isPlaying()) gem.idleTween.stop();
+      gem.idleTween = null;
+    }
+
+    // 2. DIỆT TẬN GỐC GLOW FX (Chỉ xử lý nếu tồn tại)
+    if (gem.glowFX) {
+      if (typeof gem.glowFX.destroy === 'function') {
+        gem.glowFX.destroy();
+      } else {
+        gem.glowFX = null;
+      }
+      gem.glowFX = null; // Đảm bảo gán null sau khi destroy
+    }
+    
+    // 3. Reset góc quay về 0
+    if (gem.sprite && gem.sprite.active) {
+      gem.sprite.setAngle(0);
+      gem.sprite.setScale(1); // Reset scale về chuẩn để tránh lỗi tính toán width
+    }
+  }
+
+  /**
    * Hiệu ứng cho Bomb (Match 4) - Đã cập nhật: Zoom -> Lắc -> Nổ
    * @param {object} bombGem - Đối tượng gem Bomb
    * @param {Set<object>} affectedGems - Set các gem bị ảnh hưởng bởi vụ nổ
@@ -167,33 +197,39 @@ export class PowerupVFXManager {
    * @param {Set<object>} affectedGems - Set các gem cùng màu bị hút
    * @param {function} onComplete - Callback
    */
+  /**
+   * Hiệu ứng cho Color Bomb (Match 5)
+   * @param {object} colorBombGem - Đối tượng gem Color Bomb
+   * @param {Set<object>} affectedGems - Set các gem cùng màu bị hút
+   * @param {function} onComplete - Callback
+   */
   playColorBombEffect(colorBombGem, affectedGems, onComplete) {
+    // [FIX CRASH] Kiểm tra an toàn
+    if (!colorBombGem || !colorBombGem.sprite || !colorBombGem.sprite.active) {
+      if (onComplete) onComplete();
+      return;
+    }
+
     const colorBombSprite = colorBombGem.sprite;
     
-    // Dừng idleTween và glowFX trước khi chạy hiệu ứng Color Bomb
-    if (colorBombGem.idleTween) {
-      colorBombGem.idleTween.stop();
-      colorBombGem.idleTween = null;
-    }
-    if (colorBombGem.glowFX) {
-      colorBombGem.glowFX = null;
-    }
-    if (colorBombSprite && colorBombSprite.active) {
-      colorBombSprite.setAngle(0);
-    }
+    // Dọn dẹp hiệu ứng cũ
+    this.clearGemEffects(colorBombGem);
 
     const targetPos = { x: colorBombSprite.x, y: colorBombSprite.y };
-
     const gemsToSuck = new Set(affectedGems);
     gemsToSuck.delete(colorBombGem);
 
-    // 1. Phóng to và lắc lư (tăng tốc cho color bomb đơn)
+    // Tắt mask để zoom to
     const layerMask = this.disableGemLayerMask();
+
     this.scene.tweens.chain({
       targets: colorBombSprite,
       onStart: () => {
-        colorBombSprite.setDepth(50);
-        this.scene.game.events.emit('screenShake', { duration: 180, intensity: 0.003 });
+        // [FIX] Chỉ setDepth nếu sprite còn sống
+        if (colorBombSprite.active) {
+            colorBombSprite.setDepth(50);
+            this.scene.game.events.emit('screenShake', { duration: 180, intensity: 0.003 });
+        }
       },
       tweens: [
         {
@@ -210,10 +246,15 @@ export class PowerupVFXManager {
         }
       ],
       onComplete: () => {
-        // Sau khi zoom xong, bắt đầu hút gem, rồi mới thu nhỏ Color Bomb
+        // Sau khi zoom xong, bắt đầu hút gem
         this.startSuckingGems(gemsToSuck, targetPos, colorBombSprite, () => {
-          colorBombSprite.setDepth(2);
+          // [FIX CRASH] Khôi phục Mask TRƯỚC khi làm bất cứ điều gì khác
           this.restoreGemLayerMask(layerMask);
+          
+          if (colorBombSprite.active) {
+             colorBombSprite.setDepth(2);
+          }
+          
           if (onComplete) onComplete();
         });
       }
