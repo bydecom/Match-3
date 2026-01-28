@@ -33,7 +33,7 @@ export class Board {
     this.selectionFrame = this.createSelectionFrame()
   }
 
-  // --- [IDLE POWERUP] Hiệu ứng Idle: Scale + Nhảy + Glow ---
+  // --- [IDLE POWERUP] Hiệu ứng Idle: Scale + Nhảy ---
   startPowerupIdle(gem) {
     if (!gem || !gem.sprite) return
 
@@ -63,45 +63,10 @@ export class Board {
         if (!gem.sprite || !gem.sprite.active) {
           tween.stop()
           gem.idleTween = null
-          // Dọn dẹp tham chiếu FX nếu có
-          if (gem.glowFX) {
-            gem.glowFX = null
-          }
         }
       }
     })
 
-    // --- TWEEN 2: Hiệu ứng sáng (Glow FX nếu có, fallback BlendMode ADD nếu không) ---
-    if (gem.sprite.preFX && gem.sprite.preFX.addGlow) {
-      // Xóa FX cũ nếu có để tránh chồng chéo
-      gem.sprite.preFX.clear()
-
-      // Tạo Glow FX: màu trắng, ban đầu strength = 0
-      gem.glowFX = gem.sprite.preFX.addGlow(0xffffff, 0, 0, false)
-
-      // Tween độ mạnh hào quang (outerStrength) để tạo nhịp thở
-      this.scene.tweens.add({
-        targets: gem.glowFX,
-        outerStrength: { from: 0, to: 2.5 },
-        duration: 700,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay
-      })
-    } else {
-      // Fallback cho Phaser cũ: dùng BlendMode ADD + alpha nhấp nháy rõ hơn
-      gem.sprite.setBlendMode(Phaser.BlendModes.ADD)
-      this.scene.tweens.add({
-        targets: gem.sprite,
-        alpha: { from: 1, to: 0.4 }, // Chênh lệch alpha lớn để dễ thấy
-        duration: 800,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Linear',
-        delay
-      })
-    }
   }
   // Lấy tọa độ trung tâm của một cell
   getCellPosition(row, col) {
