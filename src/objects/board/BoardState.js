@@ -21,6 +21,9 @@ export class BoardState {
     this.chainLevel = 1; // Đếm chuỗi phản ứng hiện tại
     // << [AUTO SHUFFLE FIX] Đếm số lần shuffle thất bại liên tiếp để tránh vòng lặp vô hạn >>
     this.consecutiveShuffleFailures = 0;
+    // << THÊM MỚI: Hàng đợi power-up chain reaction >>
+    this.powerupChainQueue = []; // Lưu các power-up cần kích hoạt sau
+    this.isProcessingPowerupChain = false; // Cờ đang xử lý chain
     for (let row = 0; row < GRID_SIZE; row++) {
       this.grid[row] = []
       this.blockerGrid[row] = []
@@ -711,6 +714,15 @@ export class BoardState {
         finalGemsToRemove = allGemsToRemove
       }
 
+      // << CHAIN REACTION >> Giữ lại các power-up bị phá cho chain, không xóa ngay
+      if (this.destroyedPowerupsThisActivation && this.destroyedPowerupsThisActivation.length > 0) {
+        this.destroyedPowerupsThisActivation.forEach(info => {
+          if (info && info.gem) {
+            finalGemsToRemove.delete(info.gem)
+          }
+        })
+      }
+      
       isActionChainCompleted = true
 
       // --- Đếm gem thường để cập nhật objective ---
@@ -766,6 +778,17 @@ export class BoardState {
           blockerCounts: this.blockerCounts || {},
           powerups: Array.from(activatedPowerups).map(p => p.value)
         })
+      }
+
+      // << THÊM MỚI: Đưa các power-up bị phá vào hàng đợi chain reaction >>
+      if (this.destroyedPowerupsThisActivation && this.destroyedPowerupsThisActivation.length > 0) {
+        console.log(`⚡ Chain Reaction: ${this.destroyedPowerupsThisActivation.length} power-ups destroyed, adding to queue`)
+        this.destroyedPowerupsThisActivation.forEach(info => {
+          if (info && info.gem && info.gem.sprite && info.gem.sprite.active) {
+            this.powerupChainQueue.push(info)
+          }
+        })
+        this.destroyedPowerupsThisActivation = []
       }
       this.scene.time.delayedCall(150, () => { this.applyGravityAndRefill() })
     }
@@ -1541,6 +1564,13 @@ applyGravityAndRefill() {
   }
 
   endOfTurn() {
+    // << THÊM MỚI: Xử lý power-up chain reaction trước khi kết thúc lượt >>
+    if (this.powerupChainQueue && this.powerupChainQueue.length > 0 && !this.isProcessingPowerupChain) {
+      console.log(`⚡⚡⚡ Processing ${this.powerupChainQueue.length} power-ups from chain reaction`)
+      this.processPowerupChainQueue()
+      return // Không kết thúc lượt ngay, đợi chain xử lý xong
+    }
+
     // Nếu trong lượt không phá rope nào, cho MỖI rope lây lan 1 lần (theo snapshot)
     if (!this.ropeDestroyedThisTurn) {
       const ropesSnapshot = []
@@ -1830,12 +1860,15 @@ applyGravityAndRefill() {
           const stripeRow = powerupGem.sprite.getData('row')
           const stripeCol = powerupGem.sprite.getData('col')
           
-          // Xác định hướng stripe dựa trên vị trí của otherGem (nếu có)
-          let isHorizontal = true
+          // Xác định hướng:
+          // - Nếu là swap chủ động (có otherGem) → theo hướng swap
+          // - Nếu là chain reaction (không có otherGem) → chọn ngẫu nhiên
+          let isHorizontal
           if (otherGem) {
             const otherRow = otherGem.sprite.getData('row')
-            const otherCol = otherGem.sprite.getData('col')
             isHorizontal = (otherRow === stripeRow)
+          } else {
+            isHorizontal = Math.random() > 0.5
           }
           
           // Lưu vùng damage để thực hiện sau VFX
@@ -1859,6 +1892,23 @@ applyGravityAndRefill() {
         }
       }
     }
+
+    // << THÊM MỚI: Thu thập power-ups bị phá để chain reaction >>
+    const destroyedPowerups = []
+    const destroyedPowerupsSet = new Set()
+    resultSet.forEach(gem => {
+      if (!gem || !gem.sprite) return
+      if (!this.isPowerup(gem)) return
+      // Bỏ qua power-up đang kích hoạt và power-up còn lại trong combo
+      if (gem === powerupGem || gem === otherGem) return
+      if (destroyedPowerupsSet.has(gem)) return
+      destroyedPowerupsSet.add(gem)
+      const row = gem.sprite.getData('row')
+      const col = gem.sprite.getData('col')
+      destroyedPowerups.push({ gem, row, col })
+    })
+    this.destroyedPowerupsThisActivation = destroyedPowerups
+
     return resultSet
   }
 
@@ -1903,5 +1953,64 @@ applyGravityAndRefill() {
     if (this.scene && this.scene.game && this.scene.game.events) {
       this.scene.game.events.emit('levelFailed');
     }
+  }
+
+  /**
+   * Xử lý hàng đợi power-up chain reaction.
+   * Lấy power-up đầu tiên trong queue, kích hoạt nó bằng startActionChain,
+   * sau đó tiếp tục với power-up tiếp theo khi lượt chain đó kết thúc.
+   */
+  processPowerupChainQueue() {
+    const MAX_CHAIN_DEPTH = 10
+
+    // Giới hạn độ sâu chain để tránh vòng lặp vô hạn / quá nặng
+    if (this.chainLevel >= MAX_CHAIN_DEPTH) {
+      console.warn('⚠️ Max chain depth reached, stopping chain reaction')
+      this.powerupChainQueue = []
+      this.isProcessingPowerupChain = false
+      // Kết thúc lượt bình thường
+      this.endOfTurn()
+      return
+    }
+
+    if (!this.powerupChainQueue || this.powerupChainQueue.length === 0) {
+      console.log('⚡ Chain reaction completed, ending turn')
+      this.isProcessingPowerupChain = false
+      // Không còn power-up trong queue -> kết thúc lượt
+      this.endOfTurn()
+      return
+    }
+
+    this.isProcessingPowerupChain = true
+
+    // Lấy power-up đầu tiên trong queue
+    const powerupInfo = this.powerupChainQueue.shift()
+    const powerupGem = powerupInfo?.gem
+
+    // Kiểm tra gem còn hợp lệ không
+    if (!powerupGem || !powerupGem.sprite || !powerupGem.sprite.active) {
+      console.log('⚡ Power-up already destroyed, skipping to next in queue')
+      this.processPowerupChainQueue()
+      return
+    }
+
+    const row = powerupGem.sprite.getData('row')
+    const col = powerupGem.sprite.getData('col')
+    const gemInGrid = this.grid?.[row]?.[col]
+
+    if (gemInGrid !== powerupGem) {
+      console.log('⚡ Power-up moved or replaced, skipping to next in queue')
+      this.processPowerupChainQueue()
+      return
+    }
+
+    console.log(`⚡ Activating chained power-up: ${powerupGem.value} at (${row}, ${col})`)
+
+    // Tăng chain level để multiplier điểm cao hơn cho chain
+    this.chainLevel++
+
+    // Kích hoạt power-up như một action chain mới, không có match ban đầu và không có otherGem
+    // Logic VFX, damage, scoring, gravity, auto-match... vẫn dùng chung trong startActionChain
+    this.startActionChain([], powerupGem, null, null)
   }
 }
