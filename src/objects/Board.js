@@ -33,35 +33,40 @@ export class Board {
     this.selectionFrame = this.createSelectionFrame()
   }
 
-  // --- [FIX CRASH] Phiên bản Idle an toàn: Tắt hoàn toàn để tránh xung đột ---
+  // --- [IDLE POWERUP] Đã xóa Glow/BlendMode để fix lỗi màu trên mobile ---
   startPowerupIdle(gem) {
-    // [FIX] Nếu gem không hợp lệ, thoát ngay
-    if (!gem || !gem.sprite || !gem.sprite.active) return;
+    if (!gem || !gem.sprite) return
 
-    // User đã tắt hiệu ứng glow/tween, giữ hàm trống hoặc return luôn là an toàn nhất
-    return;
-
-    /* CODE CŨ ĐÃ TẮT
+    // Tránh tạo trùng lặp
     if (gem.idleTween) return
+
+    // Random delay để các powerup không nhảy đều tăm tắp
     const delay = Math.random() * 1000
+
+    // Lấy scale gốc hiện tại
     const baseScale = gem.sprite.scaleX
+
+    // Chỉ giữ lại hiệu ứng nhún nhảy vật lý
     gem.idleTween = this.scene.tweens.add({
       targets: gem.sprite,
-      scale: baseScale * 1.05,
-      displayOriginY: '+=5',
+      scale: baseScale * 1.01, // Phóng to nhẹ
+      displayOriginY: '+=5',   // Nhún nhẹ
       duration: 700,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
       delay,
       onUpdate: (tween) => {
+        // Tự hủy nếu gem không còn active
         if (!gem.sprite || !gem.sprite.active) {
           tween.stop()
           gem.idleTween = null
         }
       }
     })
-    */
+
+    // ĐÃ XÓA: Phần xử lý preFX.addGlow và BlendMode.ADD
+    // Việc này sẽ đảm bảo màu sắc hiển thị đúng như file ảnh gốc trên mọi thiết bị.
   }
   // Lấy tọa độ trung tâm của một cell
   getCellPosition(row, col) {
