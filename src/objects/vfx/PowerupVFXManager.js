@@ -1,4 +1,5 @@
 // src/objects/vfx/PowerupVFXManager.js
+
 import AudioManager from '../../managers/AudioManager';
 import { SOUND_KEYS } from '../../utils/SoundAssets';
 
@@ -210,11 +211,24 @@ export class PowerupVFXManager {
         }
       ],
       onComplete: () => {
-        // Sau khi zoom xong, bắt đầu hút gem, rồi mới thu nhỏ Color Bomb
-        this.startSuckingGems(gemsToSuck, targetPos, colorBombSprite, () => {
-          colorBombSprite.setDepth(2);
-          this.restoreGemLayerMask(layerMask);
-          if (onComplete) onComplete();
+        // ĐỔI TEXTURE SANG color_bomb_op VÀ LẮC LƯ TRƯỚC KHI HÚT
+        colorBombSprite.setTexture('gem_color_bomb_op');
+        
+        this.scene.tweens.add({
+          targets: colorBombSprite,
+          angle: { from: -8, to: 8 },
+          duration: 150,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            // Sau khi lắc xong, bắt đầu hút gem, rồi mới thu nhỏ Color Bomb
+            this.startSuckingGems(gemsToSuck, targetPos, colorBombSprite, () => {
+              colorBombSprite.setDepth(2);
+              this.restoreGemLayerMask(layerMask);
+              if (onComplete) onComplete();
+            });
+          }
         });
       }
     });
@@ -589,7 +603,7 @@ export class PowerupVFXManager {
     const layerMask2 = this.disableGemLayerMask();
     this.scene.tweens.add({
       targets: colorBombSprite,
-      scale: colorBombSprite.scale * 1.2, // Chỉ phóng to nhẹ, không quá lớn
+      scale: colorBombSprite.scale * 3, // Chỉ phóng to nhẹ, không quá lớn
       duration: 600,
       ease: 'Quad.easeOut',
       onStart: () => {
@@ -597,7 +611,20 @@ export class PowerupVFXManager {
         // ĐÃ BỎ: this.scene.game.events.emit('screenShake', ...)
       },
       onComplete: () => {
-        this.restoreGemLayerMask(layerMask2);
+        // ĐỔI TEXTURE SANG color_bomb_op VÀ LẮC LƯ
+        colorBombSprite.setTexture('gem_color_bomb_op');
+        
+        this.scene.tweens.add({
+          targets: colorBombSprite,
+          angle: { from: -8, to: 8 },
+          duration: 150,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.restoreGemLayerMask(layerMask2);
+          }
+        });
       }
     })
 
@@ -1177,7 +1204,20 @@ export class PowerupVFXManager {
         this.scene.game.events.emit('screenShake', { duration: 400, intensity: 0.005 });
       },
       onComplete: () => {
-        this.restoreGemLayerMask(layerMask8);
+        // ĐỔI TEXTURE SANG color_bomb_op VÀ LẮC LƯ
+        colorBombSprite.setTexture('gem_color_bomb_op');
+        
+        this.scene.tweens.add({
+          targets: colorBombSprite,
+          angle: { from: -8, to: 8 },
+          duration: 150,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.restoreGemLayerMask(layerMask8);
+          }
+        });
       }
     });
 
@@ -1221,6 +1261,246 @@ export class PowerupVFXManager {
         }
       });
     });
+  }
+
+  /**
+   * Hiệu ứng cho COMBO Color Bomb + Color Bomb (Hút tất cả gems trên board)
+   * @param {object} colorBomb1 - Color Bomb thứ nhất
+   * @param {object} colorBomb2 - Color Bomb thứ hai
+   * @param {Set<object>} affectedGems - Set TẤT CẢ gem trên board (trừ 2 color bomb)
+   * @param {function} onComplete - Callback
+   */
+  playDoubleColorBombEffect(colorBomb1, colorBomb2, affectedGems, onComplete) {
+    if (!colorBomb1 || !colorBomb1.sprite || !colorBomb2 || !colorBomb2.sprite) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Phát âm thanh Color Bomb cực mạnh
+    this.playSound(SOUND_KEYS.BOMB, 2.5, 0.7); // Combo mạnh nhất
+
+    const sprite1 = colorBomb1.sprite;
+    const sprite2 = colorBomb2.sprite;
+
+    // Dừng idleTween và glowFX của cả 2 color bomb
+    if (colorBomb1.idleTween) {
+      colorBomb1.idleTween.stop();
+      colorBomb1.idleTween = null;
+    }
+    if (colorBomb1.glowFX) {
+      colorBomb1.glowFX = null;
+    }
+    if (colorBomb2.idleTween) {
+      colorBomb2.idleTween.stop();
+      colorBomb2.idleTween = null;
+    }
+    if (colorBomb2.glowFX) {
+      colorBomb2.glowFX = null;
+    }
+    if (sprite1 && sprite1.active) {
+      sprite1.setAngle(0);
+    }
+    if (sprite2 && sprite2.active) {
+      sprite2.setAngle(0);
+    }
+
+    // Tính điểm giữa 2 color bomb
+    const centerPos = {
+      x: (sprite1.x + sprite2.x) / 2,
+      y: (sprite1.y + sprite2.y) / 2
+    };
+
+    const layerMask = this.disableGemLayerMask();
+
+    // 1. Cả 2 color bomb bay vào nhau (chậm rãi)
+    this.scene.tweens.add({
+      targets: sprite1,
+      x: centerPos.x,
+      y: centerPos.y,
+      scale: sprite1.scale * 2,
+      duration: 400,
+      ease: 'Quad.easeIn',
+      onStart: () => {
+        sprite1.setDepth(50);
+      }
+    });
+
+    this.scene.tweens.add({
+      targets: sprite2,
+      x: centerPos.x,
+      y: centerPos.y,
+      scale: sprite2.scale * 2,
+      duration: 400,
+      ease: 'Quad.easeIn',
+      onStart: () => {
+        sprite2.setDepth(50);
+      },
+      onComplete: () => {
+        // Sau khi va chạm, ẩn sprite2 và để sprite1 tiếp tục hiệu ứng
+        sprite2.setVisible(false);
+
+        // 2. Sprite1 phóng to cực lớn
+        this.scene.tweens.add({
+          targets: sprite1,
+          scale: sprite1.scale * 2.5, // Tổng cộng x5
+          duration: 500,
+          ease: 'Back.easeOut',
+          onStart: () => {
+            this.scene.game.events.emit('screenShake', { 
+              duration: 600, 
+              intensity: 0.015 
+            });
+          },
+          onComplete: () => {
+            // 3. Đổi sang color_bomb_op và lắc lư mạnh
+            sprite1.setTexture('gem_color_bomb_op');
+            
+            this.scene.tweens.add({
+              targets: sprite1,
+              angle: { from: -12, to: 12 },
+              duration: 120,
+              yoyo: true,
+              repeat: 3,
+              ease: 'Sine.easeInOut',
+              onComplete: () => {
+                // 4. Bắt đầu hút TẤT CẢ gems vào
+                this.startMassiveSuck(affectedGems, centerPos, sprite1, () => {
+                  sprite1.setDepth(2);
+                  this.restoreGemLayerMask(layerMask);
+                  if (onComplete) onComplete();
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * [HELPER] Hút hàng loạt gems vào (dùng cho Double Color Bomb)
+   */
+  startMassiveSuck(affectedGems, centerPos, mainSprite, onComplete) {
+    const totalGems = affectedGems.size;
+
+    if (totalGems === 0) {
+      if (mainSprite && mainSprite.active) {
+        this.scene.tweens.add({
+          targets: mainSprite,
+          scale: 0,
+          alpha: 0,
+          duration: 300,
+          ease: 'Back.easeIn',
+          onComplete: () => { if (onComplete) onComplete(); }
+        });
+      } else {
+        if (onComplete) onComplete();
+      }
+      return;
+    }
+
+    let maxDelay = 0;
+    const duration = 600; // Hút nhanh và mạnh mẽ
+
+    // Tạo animation hút cho tất cả gems
+    affectedGems.forEach(gem => {
+      if (!gem || !gem.sprite || !gem.sprite.active) return;
+
+      const delay = Math.random() * 300 + 100; // Random delay để tạo hiệu ứng sóng
+      if (delay > maxDelay) maxDelay = delay;
+
+      // Tạo hiệu ứng particles khi gem bay vào
+      const gemSprite = gem.sprite;
+      
+      this.scene.tweens.add({
+        targets: gemSprite,
+        x: centerPos.x,
+        y: centerPos.y,
+        scale: 0,
+        alpha: 0,
+        rotation: Math.random() * Math.PI * 2, // Xoay ngẫu nhiên
+        duration,
+        delay,
+        ease: 'Cubic.easeIn'
+      });
+    });
+
+    const totalAnimationTime = duration + maxDelay;
+
+    // Âm thanh hút gem liên tục
+    const sfxVolume = AudioManager.getSoundVolume();
+    if (sfxVolume > 0 && this.scene.sound) {
+      for (let i = 0; i < 8; i++) { // Nhiều âm thanh hơn vì hút nhiều gem
+        const randomTime = Math.random() * (totalAnimationTime - 100);
+        this.scene.time.delayedCall(randomTime, () => {
+          this.scene.sound.play(SOUND_KEYS.SPIN_COLLECT, { 
+            volume: sfxVolume * 1.2,
+            pitch: 0.8 + Math.random() * 0.4 // Random pitch để tạo sự đa dạng
+          });
+        });
+      }
+    }
+
+    // Tạo vòng tròn sóng năng lượng lan ra
+    this.createEnergyWaves(centerPos, totalAnimationTime);
+
+    // Sau khi hút xong -> Thu nhỏ Color Bomb -> Gọi onComplete
+    this.scene.time.delayedCall(totalAnimationTime, () => {
+      if (mainSprite && mainSprite.active) {
+        this.scene.tweens.add({
+          targets: mainSprite,
+          scale: 0,
+          alpha: 0,
+          duration: 400,
+          ease: 'Back.easeIn',
+          onStart: () => {
+            // Flash sáng trước khi biến mất
+            this.scene.tweens.add({
+              targets: mainSprite,
+              alpha: { from: 1, to: 0 },
+              duration: 400,
+              ease: 'Quad.easeOut'
+            });
+          },
+          onComplete: () => {
+            if (onComplete) onComplete();
+          }
+        });
+      } else {
+        if (onComplete) onComplete();
+      }
+    });
+  }
+
+  /**
+   * [HELPER] Tạo sóng năng lượng lan ra (dùng cho Double Color Bomb)
+   */
+  createEnergyWaves(centerPos, duration) {
+    const numWaves = 3;
+    const waveInterval = duration / numWaves;
+
+    for (let i = 0; i < numWaves; i++) {
+      this.scene.time.delayedCall(i * waveInterval, () => {
+        const wave = this.addVFXCircle(
+          centerPos.x, 
+          centerPos.y, 
+          this.scene.board.cellSize * 0.3, 
+          0xFFFFFF, 
+          0.8
+        );
+        wave.setStrokeStyle(6, 0xFF00FF); // Màu tím sáng
+        wave.setDepth(45);
+
+        this.scene.tweens.add({
+          targets: wave,
+          radius: this.scene.board.cellSize * 5,
+          alpha: 0,
+          duration: 800,
+          ease: 'Quad.easeOut',
+          onComplete: () => wave.destroy()
+        });
+      });
+    }
   }
 
   /**

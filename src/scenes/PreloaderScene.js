@@ -216,6 +216,7 @@ export class PreloaderScene extends Phaser.Scene {
         // Load power-up images for objectives
         this.load.image(`gem_bomb`, 'assets/images/gameplay/gems/bomb.png');
         this.load.image(`gem_color_bomb`, 'assets/images/gameplay/gems/color_bomb.png');
+        this.load.image(`gem_color_bomb_op`, 'assets/images/gameplay/gems/color_bomb_op.png');
         this.load.image(`gem_stripe`, 'assets/images/gameplay/gems/stripe.png');
         
         // Load blocker images for objectives

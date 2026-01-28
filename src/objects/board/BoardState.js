@@ -783,7 +783,11 @@ export class BoardState {
             const type1 = powerupToActivate.value
             const type2 = otherGem.value
 
-            if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
+            if (type1 === GEM_TYPES.COLOR_BOMB && type2 === GEM_TYPES.COLOR_BOMB) {
+                // COMBO: COLOR_BOMB + COLOR_BOMB (Hút tất cả gems)
+                this.powerupVFXManager.playDoubleColorBombEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
+            }
+            else if (type1 === GEM_TYPES.BOMB && type2 === GEM_TYPES.BOMB) {
                 this.powerupVFXManager.playDoubleBombEffect(powerupToActivate, otherGem, allGemsToRemove, onVFXComplete)
             } 
             else if (
@@ -1901,4 +1905,3 @@ applyGravityAndRefill() {
     }
   }
 }
-
