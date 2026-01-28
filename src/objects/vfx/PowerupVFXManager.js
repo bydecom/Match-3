@@ -169,27 +169,37 @@ export class PowerupVFXManager {
    * @param {function} onComplete - Callback
    */
   playColorBombEffect(colorBombGem, affectedGems, onComplete) {
+    // 1. Kiểm tra Color Bomb chính còn sống không
+    if (!colorBombGem || !colorBombGem.sprite || !colorBombGem.sprite.active) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // 2. Lọc danh sách bị hút: Chỉ giữ gem còn sprite hợp lệ
+    const validAffectedGems = new Set();
+    if (affectedGems) {
+      affectedGems.forEach(gem => {
+        if (gem && gem.sprite && gem.sprite.active) {
+          validAffectedGems.add(gem);
+        }
+      });
+    }
+
     const colorBombSprite = colorBombGem.sprite;
     
-    // Dừng idleTween và glowFX trước khi chạy hiệu ứng Color Bomb
-    if (colorBombGem.idleTween) {
-      colorBombGem.idleTween.stop();
-      colorBombGem.idleTween = null;
-    }
-    if (colorBombGem.glowFX) {
-      colorBombGem.glowFX = null;
-    }
-    if (colorBombSprite && colorBombSprite.active) {
-      colorBombSprite.setAngle(0);
-    }
+    // Dừng các tween cũ
+    if (colorBombGem.idleTween) colorBombGem.idleTween.stop();
+    colorBombGem.idleTween = null;
+    colorBombGem.glowFX = null;
+    colorBombSprite.setAngle(0);
 
     const targetPos = { x: colorBombSprite.x, y: colorBombSprite.y };
-
-    const gemsToSuck = new Set(affectedGems);
+    const gemsToSuck = new Set(validAffectedGems);
     gemsToSuck.delete(colorBombGem);
 
-    // 1. Phóng to và lắc lư (tăng tốc cho color bomb đơn)
     const layerMask = this.disableGemLayerMask();
+
+    // CHUỖI VFX: Zoom -> Đổi Texture -> Lắc -> Hút
     this.scene.tweens.chain({
       targets: colorBombSprite,
       onStart: () => {
@@ -211,20 +221,28 @@ export class PowerupVFXManager {
         }
       ],
       onComplete: () => {
-        // ĐỔI TEXTURE SANG color_bomb_op VÀ LẮC LƯ TRƯỚC KHI HÚT
+        if (!colorBombSprite.active) {
+          this.restoreGemLayerMask(layerMask);
+          if (onComplete) onComplete();
+          return;
+        }
+
+        // Đổi texture và lắc mạnh trước khi hút
         colorBombSprite.setTexture('gem_color_bomb_op');
         
         this.scene.tweens.add({
           targets: colorBombSprite,
           angle: { from: -8, to: 8 },
-          duration: 150,
+          duration: 100,
           yoyo: true,
           repeat: 2,
           ease: 'Sine.easeInOut',
           onComplete: () => {
-            // Sau khi lắc xong, bắt đầu hút gem, rồi mới thu nhỏ Color Bomb
             this.startSuckingGems(gemsToSuck, targetPos, colorBombSprite, () => {
-              colorBombSprite.setDepth(2);
+              if (colorBombSprite.active) {
+                colorBombSprite.setDepth(2);
+                colorBombSprite.setAngle(0);
+              }
               this.restoreGemLayerMask(layerMask);
               if (onComplete) onComplete();
             });
@@ -234,9 +252,10 @@ export class PowerupVFXManager {
     });
   }
 
-  // [UPDATE] Thêm tham số mainSprite để thu nhỏ nó sau khi hút xong
   startSuckingGems(affectedGems, targetPos, mainSprite, onComplete) {
-    const totalGems = affectedGems.size;
+    // Lọc lại một lần nữa cho chắc chắn
+    const validGems = Array.from(affectedGems || []).filter(gem => gem && gem.sprite && gem.sprite.active);
+    const totalGems = validGems.length;
 
     // Trường hợp không có gem nào bị hút
     if (totalGems === 0) {
@@ -257,8 +276,8 @@ export class PowerupVFXManager {
     let maxDelay = 0;
     const duration = 480; // Hút nhanh hơn (cũ 800ms)
 
-    // Tạo animation hút cho tất cả các gem
-    affectedGems.forEach(gem => {
+    // Tạo animation hút cho tất cả các gem hợp lệ
+    validGems.forEach(gem => {
       const delay = Math.random() * 180 + 60;
       if (delay > maxDelay) {
         maxDelay = delay;

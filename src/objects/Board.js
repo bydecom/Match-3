@@ -49,8 +49,8 @@ export class Board {
     // Chỉ giữ lại hiệu ứng nhún nhảy vật lý
     gem.idleTween = this.scene.tweens.add({
       targets: gem.sprite,
-      scale: baseScale * 1.01, // Phóng to nhẹ
-      displayOriginY: '+=5',   // Nhún nhẹ
+      scale: baseScale * 1.05, // Phóng to nhẹ
+      displayOriginY: '+=10',   // Nhún nhẹ
       duration: 700,
       yoyo: true,
       repeat: -1,

@@ -677,8 +677,14 @@ export class BoardState {
                 }
               }
             }
-            const destroyedOtherGem = this.damageCellIgnoreBlocker(otherGem.sprite.getData('row'), otherGem.sprite.getData('col'))
-            if (destroyedOtherGem) finalGemsToRemove.add(destroyedOtherGem)
+
+            // [FIX] Chỉ xử lý otherGem nếu sprite còn hợp lệ
+            if (otherGem && otherGem.sprite && otherGem.sprite.active) {
+              const dRow = otherGem.sprite.getData('row')
+              const dCol = otherGem.sprite.getData('col')
+              const destroyedOtherGem = this.damageCellIgnoreBlocker(dRow, dCol)
+              if (destroyedOtherGem) finalGemsToRemove.add(destroyedOtherGem)
+            }
             break
           }
           case 'stripe_single': {
@@ -1838,8 +1844,32 @@ applyGravityAndRefill() {
           break
         }
         case GEM_TYPES.COLOR_BOMB: {
+          let targetColor
+
           if (otherGem) {
-            const targetColor = otherGem.value
+            // Kích hoạt chủ động: Color Bomb + gem màu cụ thể
+            targetColor = otherGem.value
+          } else {
+            // << CHAIN REACTION >> Không có otherGem: chọn màu ngẫu nhiên đang có trên board
+            const availableColors = []
+            for (let r = 0; r < GRID_SIZE; r++) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const gem = this.grid[r][c]
+                if (gem && gem.type === 'gem' && !this.isPowerup(gem)) {
+                  if (!availableColors.includes(gem.value)) {
+                    availableColors.push(gem.value)
+                  }
+                }
+              }
+            }
+
+            if (availableColors.length > 0) {
+              // Chọn ngẫu nhiên một màu trong các màu đang có
+              targetColor = Phaser.Utils.Array.GetRandom(availableColors)
+            }
+          }
+
+          if (targetColor !== undefined) {
             // Lưu vùng damage để thực hiện sau VFX
             this.damageAreasAfterVFX = { type: 'colorbomb_single', targetColor, otherGem }
             // Tạm thời thêm tất cả gem cùng màu (VFX cần biết)
@@ -1851,7 +1881,9 @@ applyGravityAndRefill() {
                 }
               }
             }
-            resultSet.add(otherGem)
+            if (otherGem) {
+              resultSet.add(otherGem)
+            }
           }
           break
         }
@@ -1957,18 +1989,17 @@ applyGravityAndRefill() {
 
   /**
    * Xử lý hàng đợi power-up chain reaction.
-   * Lấy power-up đầu tiên trong queue, kích hoạt nó bằng startActionChain,
+   * Lấy power-up đầu tiên trong queue, kích hoạt nó, 
    * sau đó tiếp tục với power-up tiếp theo khi lượt chain đó kết thúc.
    */
   processPowerupChainQueue() {
     const MAX_CHAIN_DEPTH = 10
 
-    // Giới hạn độ sâu chain để tránh vòng lặp vô hạn / quá nặng
+    // Giới hạn độ sâu chain
     if (this.chainLevel >= MAX_CHAIN_DEPTH) {
       console.warn('⚠️ Max chain depth reached, stopping chain reaction')
       this.powerupChainQueue = []
       this.isProcessingPowerupChain = false
-      // Kết thúc lượt bình thường
       this.endOfTurn()
       return
     }
@@ -1976,7 +2007,6 @@ applyGravityAndRefill() {
     if (!this.powerupChainQueue || this.powerupChainQueue.length === 0) {
       console.log('⚡ Chain reaction completed, ending turn')
       this.isProcessingPowerupChain = false
-      // Không còn power-up trong queue -> kết thúc lượt
       this.endOfTurn()
       return
     }
@@ -1990,27 +2020,151 @@ applyGravityAndRefill() {
     // Kiểm tra gem còn hợp lệ không
     if (!powerupGem || !powerupGem.sprite || !powerupGem.sprite.active) {
       console.log('⚡ Power-up already destroyed, skipping to next in queue')
+      // Reset cờ để đệ quy hoạt động
+      this.isProcessingPowerupChain = false
       this.processPowerupChainQueue()
       return
     }
 
     const row = powerupGem.sprite.getData('row')
     const col = powerupGem.sprite.getData('col')
-    const gemInGrid = this.grid?.[row]?.[col]
-
-    if (gemInGrid !== powerupGem) {
-      console.log('⚡ Power-up moved or replaced, skipping to next in queue')
-      this.processPowerupChainQueue()
-      return
-    }
 
     console.log(`⚡ Activating chained power-up: ${powerupGem.value} at (${row}, ${col})`)
 
-    // Tăng chain level để multiplier điểm cao hơn cho chain
+    // Tăng chain level
     this.chainLevel++
 
-    // Kích hoạt power-up như một action chain mới, không có match ban đầu và không có otherGem
-    // Logic VFX, damage, scoring, gravity, auto-match... vẫn dùng chung trong startActionChain
-    this.startActionChain([], powerupGem, null, null)
+    // Xác định các gem bị ảnh hưởng bởi power-up này
+    const affectedGems = this.getPowerupActivationSet(powerupGem, null)
+
+    // Callback riêng cho Chain Reaction
+    const onChainVFXComplete = () => {
+      let finalGemsToRemove = new Set()
+
+      // 1. Xác định gem cần xóa dựa trên vùng damage sau VFX
+      if (this.damageAreasAfterVFX) {
+        const area = this.damageAreasAfterVFX
+        switch (area.type) {
+          case 'bomb_single': {
+            const { row, col } = area
+            for (let rr = row - 1; rr <= row + 1; rr++) {
+              for (let cc = col - 1; cc <= col + 1; cc++) {
+                if (rr === row && cc === col) continue
+                const destroyedGem = this.damageCell(rr, cc)
+                if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+              }
+            }
+            break
+          }
+          case 'stripe_single': {
+            const { row, col, isHorizontal } = area
+            if (isHorizontal) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                if (c === col) continue
+                const destroyedGem = this.damageCell(row, c)
+                if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+              }
+            } else {
+              for (let r = 0; r < GRID_SIZE; r++) {
+                if (r === row) continue
+                const destroyedGem = this.damageCell(r, col)
+                if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+              }
+            }
+            break
+          }
+          case 'colorbomb_single': {
+            const { targetColor, otherGem } = area
+            for (let r = 0; r < GRID_SIZE; r++) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const gem = this.grid[r][c]
+                if (gem && gem.type === 'gem' && !this.isPowerup(gem) && gem.value === targetColor) {
+                  const destroyedGem = this.damageCellIgnoreBlocker(r, c)
+                  if (destroyedGem) finalGemsToRemove.add(destroyedGem)
+                }
+              }
+            }
+            if (otherGem && otherGem.sprite && otherGem.sprite.active) {
+              const dRow = otherGem.sprite.getData('row')
+              const dCol = otherGem.sprite.getData('col')
+              const destroyedOtherGem = this.damageCellIgnoreBlocker(dRow, dCol)
+              if (destroyedOtherGem) finalGemsToRemove.add(destroyedOtherGem)
+            }
+            break
+          }
+        }
+        // Thêm chính power-up đang nổ vào danh sách xóa
+        finalGemsToRemove.add(powerupGem)
+        this.damageAreasAfterVFX = null
+      } else {
+        finalGemsToRemove = affectedGems
+      }
+
+      // 2. Loại bỏ các power-up được dành cho chain tiếp theo khỏi danh sách xóa
+      if (this.destroyedPowerupsThisActivation && this.destroyedPowerupsThisActivation.length > 0) {
+        console.log(`⚡ Chain Reaction: Preserving ${this.destroyedPowerupsThisActivation.length} power-ups for next chain step`)
+        this.destroyedPowerupsThisActivation.forEach(info => {
+          if (info && info.gem) {
+            finalGemsToRemove.delete(info.gem)
+          }
+        })
+      }
+
+      // 3. Tính điểm & Cập nhật Objective
+      const gemCounts = {}
+      finalGemsToRemove.forEach(gem => {
+        if (gem && gem.value && !this.isPowerup(gem)) {
+          gemCounts[gem.value] = (gemCounts[gem.value] || 0) + 1
+        }
+      })
+      for (const type in gemCounts) {
+        this.updateObjectiveProgress('gem', type, gemCounts[type])
+      }
+
+      const multiplier = Math.pow(SCORE_VALUES.CHAIN_MULTIPLIER, Math.max(0, this.chainLevel - 1))
+      const totalGemsRemoved = Object.values(gemCounts).reduce((sum, value) => sum + value, 0)
+      let pointsThisTurn = totalGemsRemoved * SCORE_VALUES.GEM_MATCH * multiplier
+      pointsThisTurn += SCORE_VALUES.POWERUP_ACTIVATE_SINGLE * multiplier
+
+      if (pointsThisTurn > 0 && this.scene && this.scene.game && this.scene.game.events) {
+        this.scene.game.events.emit('addScore', pointsThisTurn)
+      }
+
+      // 4. Xóa Gem & Blocker
+      this.removeGemSprites(finalGemsToRemove)
+      this.recalculateBlockerCounts()
+
+      // 5. Thêm các power-up mới bị trúng đạn vào hàng đợi chain
+      if (this.destroyedPowerupsThisActivation && this.destroyedPowerupsThisActivation.length > 0) {
+        this.destroyedPowerupsThisActivation.forEach(info => {
+          if (info && info.gem && info.gem.sprite && info.gem.sprite.active) {
+            this.powerupChainQueue.push(info)
+          }
+        })
+        this.destroyedPowerupsThisActivation = []
+      }
+
+      // [SỬA LỖI QUAN TRỌNG] Tắt cờ xử lý trước khi gọi Gravity để endOfTurn có thể gọi lại hàm này
+      this.isProcessingPowerupChain = false
+
+      // 6. Tiếp tục xử lý
+      this.scene.time.delayedCall(200, () => {
+        this.applyGravityAndRefill()
+      })
+    }
+
+    // Ghi nhận kích hoạt
+    this.trackPowerupActivation(powerupGem.value)
+
+    // Chạy VFX tương ứng
+    if (powerupGem.value === GEM_TYPES.BOMB) {
+      this.powerupVFXManager.playBombEffect(powerupGem, affectedGems, onChainVFXComplete)
+    } else if (powerupGem.value === GEM_TYPES.COLOR_BOMB) {
+      this.powerupVFXManager.playColorBombEffect(powerupGem, affectedGems, onChainVFXComplete)
+    } else if (powerupGem.value === GEM_TYPES.STRIPE) {
+      this.powerupVFXManager.playStripeEffect(powerupGem, affectedGems, onChainVFXComplete)
+    } else {
+      onChainVFXComplete()
+    }
   }
 }
