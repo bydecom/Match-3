@@ -291,7 +291,7 @@ export class PausePopup extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng tên (màu trắng)
-            this.add.text(294, 375, username, {
+            this.add.text(294, 375, 'BAPLUOC', {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#ffffff',

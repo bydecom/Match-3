@@ -285,6 +285,13 @@ export class SettingsPopup extends Phaser.Scene {
             const userInfo = await APIManager.getUserInfo();
             const { userId, username, level } = userInfo;
 
+            // Dòng ID đầu tiên
+            this.add.text(284, 800, `${userId}`, {
+                fontFamily: 'UTMCookies',
+                fontSize: '15px',
+                color: '#b43827',
+                align: 'center'
+            }).setOrigin(0.5).setDepth(5);
 
             // Dòng ID lặp lại
             this.add.text(325, 429, `${userId}`, {
@@ -303,7 +310,7 @@ export class SettingsPopup extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(5);
 
             // Dòng tên (màu trắng)
-            this.add.text(294, 375, username, {
+            this.add.text(294, 375, 'BAPLUOC', {
                 fontFamily: 'UTMCookies',
                 fontSize: '15px',
                 color: '#ffffff',
