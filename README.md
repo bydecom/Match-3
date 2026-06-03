@@ -1,179 +1,240 @@
+# 💎 Match-3 Game Engine - Jungle Gems
+
+A complete framework for building a professional, extensible Match-3 game using **Phaser 3** and **Vite**. The architecture follows modern software design principles as flexible, maintainable, and ready for complex features (power-ups, boosters, custom board shapes, progression systems).
+
+<p align="center">
+  <a href="https://match-3-two.vercel.app/"><strong>▶ Play live on Vercel</strong></a>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/179cf084-f840-477d-b6cd-3f6830cbd28d" alt="Jungle Gems gameplay" width="360" />
+</p>
 
 ---
 
-# 💎 Match-3 Game Engine "Jungle Gems"
+## Table of contents
 
-Dự án này là một bộ khung (engine) hoàn chỉnh để xây dựng một game Match-3 chuyên nghiệp, có chiều sâu, sử dụng **Phaser 3** và **Vite**. Kiến trúc của dự án được xây dựng dựa trên các nguyên tắc thiết kế phần mềm hiện đại, đảm bảo tính linh hoạt, dễ bảo trì và mở rộng cho các tính năng phức tạp trong tương lai.
-
-<img width="1151" height="2048" alt="image" src="https://github.com/user-attachments/assets/179cf084-f840-477d-b6cd-3f6830cbd28d" />
-
-
-## Mục lục
-
-1.  [Tổng quan Kiến trúc](#1-tổng-quan-kiến-trúc)
-2.  [Công nghệ sử dụng](#2-công-nghệ-sử-dụng)
-3.  [Cài đặt & Khởi chạy](#3-cài-đặt--khởi-chạy)
-4.  [Cấu trúc Thư mục Chi tiết](#4-cấu-trúc-thư-mục-chi-tiết)
-5.  [Hướng dẫn Triển khai Tính năng Cốt lõi](#5-hướng-dẫn-triển-khai-tính-năng-cốt-lõi)
-    *   [Thiết kế Màn chơi (Data-Driven)](#thiết-kế-màn-chơi-data-driven)
-    *   [Hệ thống Nhiệm vụ (Objectives)](#hệ-thống-nhiệm-vụ-objectives)
-    *   [Hệ thống Gem Đặc biệt (Power-ups)](#hệ-thống-gem-đặc-biệt-power-ups)
-    *   [Hệ thống Vật phẩm Hỗ trợ (Boosters)](#hệ-thống-vật-phẩm-hỗ-trợ-boosters)
-6.  [Luồng Giao tiếp Sự kiện (Event-Driven Communication)](#6-luồng-giao-tiếp-sự-kiện-event-driven-communication)
-7.  [Lộ trình Phát triển](#7-lộ-trình-phát-triển)
+1. [Architecture overview](#1-architecture-overview)
+2. [Tech stack](#2-tech-stack)
+3. [Installation & running](#3-installation--running)
+4. [Detailed project structure](#4-detailed-project-structure)
+   - [Role of each folder](#role-of-each-folder)
+5. [Core feature implementation guide](#5-core-feature-implementation-guide)
+   - [Level design (data-driven)](#level-design-data-driven)
+   - [Objectives system](#objectives-system)
+   - [Special gems (power-ups)](#special-gems-power-ups)
+   - [Support items (boosters)](#support-items-boosters)
+6. [Event-driven communication](#6-event-driven-communication)
+7. [Development roadmap](#7-development-roadmap)
 
 ---
 
-## 1. Tổng quan Kiến trúc
+## 1. Architecture overview
 
-Dự án tuân thủ 4 nguyên tắc thiết kế chính:
+The project follows four core design principles:
 
-*   **Lập trình Hướng đối tượng (OOP):** Mỗi thành phần trong game (Gem, Blocker, Board) là một class riêng biệt với thuộc tính và phương thức rõ ràng. Chúng ta sử dụng kế thừa để tạo ra các biến thể (ví dụ `RocketGem` kế thừa từ `Gem`).
-*   **Thiết kế Hướng Dữ liệu (Data-Driven):** Toàn bộ thông tin của một màn chơi (bố cục, nhiệm vụ, số lượt đi) được định nghĩa trong các file `JSON` riêng biệt, tách rời hoàn toàn khỏi code logic. Điều này cho phép tạo và chỉnh sửa màn chơi mà không cần can thiệp vào code.
-*   **Tách biệt Trách nhiệm (Separation of Concerns):** Logic game (`GameScene` và `Board`) được tách biệt hoàn toàn khỏi giao diện người dùng (`UIScene`). Chúng giao tiếp với nhau qua một hệ thống sự kiện trung gian.
-*   **Giao tiếp Hướng Sự kiện (Event-Driven):** Các thành phần không gọi trực tiếp lẫn nhau. Thay vào đó, chúng phát ra các sự kiện (ví dụ: `gemsMatched`) và các thành phần khác sẽ lắng nghe và phản ứng lại. Điều này giúp giảm sự phụ thuộc và làm cho code cực kỳ linh hoạt.
+* **Object-oriented programming (OOP):** Every major game piece (gem, blocker, board) is modeled as a class with clear properties and methods. Inheritance is used for variants (e.g. `StoneBlocker` / `RopeBlocker` extend `BaseBlocker`; power-up behavior is centralized in board modules and can be split into dedicated gem classes later).
+* **Data-driven design:** All level data layout, objectives, move limits, star timers is defined in separate **JSON** files, fully decoupled from gameplay logic. Designers can create and tweak levels without touching code.
+* **Separation of concerns:** Game logic (`GameScene` and `Board`) is completely separate from the user interface (`UIScene`). They communicate through a shared event bus - not direct references.
+* **Event-driven communication:** Components do not call each other directly. They **emit** events (e.g. `gemsMatched`) and **listen** for reactions. This reduces coupling and keeps the codebase flexible when adding scenes, UI, or audio.
 
-## 2. Công nghệ sử dụng
+`Board.js` acts as a facade and composes focused modules (`BoardMatcher`, `BoardPowerups`, `BoardInput`, `BoardState`, `BoardCreator`) so core algorithms stay readable as mechanics grow.
 
-*   **Framework:** [Phaser 3](https://phaser.io/)
-*   **Build Tool:** [Vite](https://vitejs.dev/)
-*   **Ngôn ngữ:** JavaScript (ES6+)
+---
 
-## 3. Cài đặt & Khởi chạy
+## 2. Tech stack
 
-**Yêu cầu:** Node.js (phiên bản 16 trở lên).
+* **Framework:** [Phaser 3](https://phaser.io/)
+* **Build tool:** [Vite](https://vitejs.dev/)
+* **Language:** JavaScript (ES6+, ES modules)
+* **Viewport:** 576 × 1024, `Phaser.Scale.FIT`, centered
 
-1.  **Cài đặt dependencies:**
+---
+
+## 3. Installation & running
+
+**Requirements:** Node.js 16+ (18+ LTS recommended).
+
+1. **Install dependencies:**
     ```bash
     npm install
     ```
-2.  **Chạy môi trường phát triển (hot-reload):**
+2. **Run the development server (hot-reload):**
     ```bash
     npm run dev
     ```
-3.  **Build phiên bản production:**
+    Default URL: `http://localhost:5173`
+
+3. **Build for production:**
     ```bash
     npm run build
     ```
-    Game sẽ được đóng gói vào thư mục `dist/`.
+    Output is written to the `dist/` folder.
 
-## 4. Cấu trúc Thư mục Chi tiết
+4. **Preview the production build locally:**
+    ```bash
+    npm run preview
+    ```
+
+**Deploy:** [match-3-two.vercel.app](https://match-3-two.vercel.app/) - use build command `npm run build`, output directory `dist`.
+
+---
+
+## 4. Detailed project structure
 
 ```
 /
 ├── public/
 │   └── assets/
 │       ├── images/
-│       │   ├── ui/             # Các element giao diện (nút bấm, panel, icon)
-│       │   ├── background/     # Hình nền cho các scene
-│       │   ├── gameplay/       # Spritesheet/Atlas cho gem, blockers, power-ups
-│       │   └── map/            # Hình ảnh bản đồ, các icon level
+│       │   ├── ui/             # UI elements (buttons, panels, icons)
+│       │   ├── background/     # Scene backgrounds
+│       │   ├── gameplay/       # Sprites / atlases for gems, blockers, power-ups
+│       │   └── map/            # World map art, level icons
 │       ├── sounds/
 │       ├── fonts/
-│       └── levels/             # File JSON định nghĩa màn chơi
+│       └── levels/             # JSON level definitions (level_1 … level_9)
 ├── src/
-│   ├── scenes/                 # Các màn hình chính của game
-│   │   ├── BootScene.js        #  Tải asset cho Preloader
-│   │   ├── PreloaderScene.js   #  Tải tất cả asset của game & hiển thị loading bar
-│   │   ├── MapScene.js         #  Hiển thị bản đồ thế giới, chọn level
-│   │   ├── GameScene.js        #  Chỉ chứa logic gameplay, bàn cờ
-│   │   ├── UIScene.js          #  Hiển thị UI trên GameScene (điểm, lượt đi...)
-│   │   ├── LeaderboardScene.js #  Hiển thị bảng xếp hạng
-│   │   └── popups/             # Các scene nhỏ hoạt động như popup
+│   ├── scenes/                 # Main game screens
+│   │   ├── BootScene.js        # Minimal boot; assets for Preloader
+│   │   ├── TitleScene.js       # Title / entry screen
+│   │   ├── PreloaderScene.js   # Loads all game assets + loading bar
+│   │   ├── MapScene.js         # World map, level selection
+│   │   ├── LevelLoaderScene.js # Transition / load level data before play
+│   │   ├── GameScene.js        # Gameplay only - board, no HUD chrome
+│   │   ├── UIScene.js          # HUD overlay on GameScene (score, moves, orders…)
+│   │   ├── DemoScene.js        # Optional demo (not main flow)
+│   │   └── popups/             # Small scenes used as popups
 │   │       ├── SettingsPopup.js
+│   │       ├── PausePopup.js
 │   │       ├── WinPopup.js
-│   │       └── LosePopup.js
-│   ├── objects/                # Các đối tượng logic và hình ảnh trong GameScene
-│   │   ├── Board.js            # Lớp quản lý logic bàn cờ
-│   │   ├── gems/               # Các loại gem
-│   │   │   ├── Gem.js          # Lớp gem cơ sở
-│   │   │   └── PowerupGem.js   # Lớp gem đặc biệt (tên lửa, bom...)
-│   │   └── blockers/           # Các loại vật cản
-│   │       ├── StoneBlocker.js
-│   │       └── VineBlocker.js
-│   ├── ui/                     # CÁC COMPONENT GIAO DIỆN TÁI SỬ DỤNG
-│   │   ├── Button.js           # Lớp Button cơ sở (xử lý state, âm thanh)
-│   │   ├── LevelNode.js        # Component cho 1 level trên MapScene
-│   │   ├── PlayerEntry.js      # Component cho 1 hàng trên LeaderboardScene
-│   │   ├── ObjectiveItem.js    # Component cho 1 mục tiêu trong bảng "Order"
-│   │   └── ProgressBar.js      # Thanh progress bar (dùng ở Preloader và trong game)
-│   ├── managers/               # Các lớp quản lý hệ thống toàn cục
-│   │   ├── PlayerDataManager.js# Quản lý dữ liệu người chơi (level đã qua, sao, tiền...)
-│   │   ├── SoundManager.js     # Quản lý phát nhạc nền, SFX
-│   │   ├── SceneManager.js     # Quản lý chuyển cảnh với hiệu ứng
-│   │   └── APIManager.js       # Quản lý gọi API (lấy dữ liệu leaderboard)
-│   ├── utils/                  # Các hàm tiện ích, hằng số
-│   │   ├── constants.js        # Hằng số (GEM_TYPE, SCENE_KEYS...)
-│   │   └── helpers.js          # Các hàm tiện ích chung
-│   └── main.js                 # Điểm khởi đầu, cấu hình Phaser
-...
+│   │       ├── LosePopup.js
+│   │       ├── LevelReviewPopup.js
+│   │       ├── ShopPopup.js
+│   │       ├── SpinPopup.js
+│   │       └── FriendPopup.js
+│   ├── objects/                # Gameplay logic & visuals in GameScene
+│   │   ├── Board.js            # Board facade - wires board modules together
+│   │   ├── board/
+│   │   │   ├── BoardCreator.js # Grid / gem creation from level JSON
+│   │   │   ├── BoardInput.js   # Pointer input, selection, swap
+│   │   │   ├── BoardMatcher.js # Match detection, chains
+│   │   │   ├── BoardPowerups.js# Power-ups, boosters, cell damage
+│   │   │   └── BoardState.js   # State, gravity, refill
+│   │   ├── blockers/           # Obstacle types
+│   │   │   ├── BaseBlocker.js
+│   │   │   ├── StoneBlocker.js
+│   │   │   └── RopeBlocker.js
+│   │   └── vfx/                # Visual effects managers
+│   │       ├── PowerupVFXManager.js
+│   │       ├── BoosterVFXManager.js
+│   │       └── MapVFXManager.js
+│   ├── ui/                     # Reusable UI components
+│   │   ├── LevelNode.js        # One level node on the map
+│   │   ├── ObjectiveItem.js    # One row in the “Order” panel
+│   │   ├── ProgressBar.js      # Loading bar & in-game progress
+│   │   └── ResourceDisplay.js  # Currency / resource display
+│   ├── managers/               # Global systems (scene-agnostic)
+│   │   ├── PlayerDataManager.js# Player progress (levels, stars, coins…) via localStorage
+│   │   ├── AudioManager.js     # Music & SFX (volume persisted in Pause)
+│   │   └── APIManager.js       # API layer (e.g. future leaderboard)
+│   ├── utils/
+│   │   ├── constants.js        # GEM_TYPE, SCENE_KEYS, grid size…
+│   │   ├── helpers.js          # Shared helpers
+│   │   └── SoundAssets.js      # Sound key definitions
+│   └── main.js                 # Phaser config & scene registration
+├── index.html
+├── vite.config.js
+└── CODE_ANALYSIS.md            # Extended technical analysis (Vietnamese)
 ```
+
+### Main scene flow
+
+```
+BootScene → TitleScene → PreloaderScene → MapScene
+    → LevelLoaderScene → GameScene + UIScene (parallel overlay)
+```
+
+Popups are separate Phaser scenes launched on top when needed (pause, win, lose, shop, etc.).
 
 ---
 
-### Giải thích Chi tiết Vai trò của Từng Thư mục
+### Role of each folder
 
-#### 1. `src/scenes/` - Các Màn Hình
+#### 1. `src/scenes/` - Screens
 
-Đây là các "phòng" chính trong ngôi nhà game của bạn. Mỗi file là một màn hình riêng biệt.
+These are the main “rooms” of the game. Each file is one screen or overlay.
 
-*   `BootScene.js`: Scene đầu tiên, siêu nhẹ. Nhiệm vụ duy nhất của nó là tải các tài nguyên cần thiết cho `PreloaderScene` (ví dụ: ảnh thanh loading, logo).
-*   `PreloaderScene.js`: **(Màn hình 4 - Loading)** Tải TẤT CẢ các tài nguyên còn lại của game. Hiển thị thanh tiến trình. Sau khi xong, nó sẽ chuyển đến `MapScene`.
-*   `MapScene.js`: **(Màn hình 3 - Bản đồ Level)**
-    *   Hiển thị bản đồ thế giới có thể cuộn.
-    *   Đọc dữ liệu từ `PlayerDataManager` để biết người chơi đang ở level nào, level nào đã qua, bao nhiêu sao.
-    *   Tạo ra các `LevelNode` (từ thư mục `ui/`) cho người chơi bấm vào.
-    *   Khi người chơi chọn level, nó sẽ tải file JSON tương ứng và khởi động `GameScene` & `UIScene`.
-*   `GameScene.js`: **(Màn hình 1 - Gameplay)**
-    *   Là "sân khấu" chính nhưng **không có UI**.
-    *   Chỉ chứa background và đối tượng `Board`.
-    *   Xử lý toàn bộ logic game: input vuốt/chạm, kiểm tra match, kích hoạt power-up...
-*   `UIScene.js`: **(Màn hình 1 - Giao diện Gameplay)**
-    *   Chạy **song song và đè lên trên** `GameScene`.
-    *   Hiển thị tất cả các yếu tố UI: bảng "Order", điểm số, số lượt đi, thanh progress sao, các nút booster.
-    *   Lắng nghe các sự kiện từ `GameScene` để cập nhật thông tin.
-*   `LeaderboardScene.js`: **(Màn hình 2 - Bảng xếp hạng)**
-    *   Gọi `APIManager` để lấy dữ liệu xếp hạng.
-    *   Sử dụng component `PlayerEntry` (từ `ui/`) để hiển thị danh sách người chơi.
-    *   Xử lý logic chuyển tab (Global, Vietnam, Server).
+* **`BootScene.js`:** First scene, very light. Its only job is to load assets required by `PreloaderScene` (e.g. loading background, logo).
+* **`TitleScene.js`:** Entry / title screen before the full asset load completes the main loop.
+* **`PreloaderScene.js`:** **(Loading screen)** Loads **all** remaining game assets, shows a progress bar, then transitions to `MapScene` (with a minimum display time for polish).
+* **`MapScene.js`:** **(Level map)**
+    * Displays the scrollable world map.
+    * Reads `PlayerDataManager` for current level, unlocked levels, and star counts.
+    * Instantiates `LevelNode` components from `ui/` for the player to tap.
+    * On level select, loads the matching JSON and starts `LevelLoaderScene` → `GameScene` & `UIScene`.
+* **`LevelLoaderScene.js`:** Bridge between map and play, loads level payload and hands off to gameplay scenes.
+* **`GameScene.js`:** **(Gameplay stage)**
+    * The main stage **without** HUD UI.
+    * Contains background, border, and the `Board` instance.
+    * Handles input (swipe / tap), match resolution, power-up activation, win/lose checks.
+* **`UIScene.js`:** **(Gameplay HUD)**
+    * Runs **in parallel**, layered on top of `GameScene`.
+    * Shows orders, score, moves left, star timer, booster buttons.
+    * Listens to game events to refresh the HUD.
+* **`popups/`:** Modal-style scenes `PausePopup` (settings + volume), `WinPopup`, `LosePopup`, `ShopPopup`, etc.
+* **Leaderboard (planned):** A dedicated leaderboard scene can use `APIManager` and a `PlayerEntry`-style UI row component when added.
 
-#### 2. `src/objects/` - Các Đối Tượng Trong Thế Giới Game
+#### 2. `src/objects/` - World objects on the gameplay stage
 
-Đây là các "diễn viên" trên sân khấu `GameScene`.
+These are the “actors” on the `GameScene` stage.
 
-*   `Board.js`: Đạo diễn của màn kịch. Quản lý vị trí, trạng thái của tất cả gem và blocker. Chứa các thuật toán cốt lõi (tìm match, refill...).
-*   `gems/`: Chứa các loại đá quý. Sử dụng kế thừa OOP. `PowerupGem` sẽ kế thừa từ `Gem` và override phương thức `activate()`.
-*   `blockers/`: Chứa các vật cản. Mỗi vật cản là một class riêng, có thể có `health` (số lần cần tác động để phá vỡ).
+* **`Board.js`:** Director of the match. Owns grid state, gems, and blockers; orchestrates match-find, gravity, refill, power-ups, and boosters via board modules.
+* **`board/`:** Split responsibilities to matching, input, power-ups/boosters, creation, and state/gravity so each file stays focused.
+* **`blockers/`:** Obstacle classes. Each type can define `health` or hit rules (how many hits to clear). Stone and Rope are implemented; more types can extend `BaseBlocker`.
+* **`vfx/`:** Dedicated effect managers for power-ups, boosters, and map flourishes keeps `GameScene` thinner.
 
-#### 3. `src/ui/` - Các Mảnh Ghép Giao Diện Tái Sử Dụng (Rất quan trọng!)
+> **Note:** A `gems/` folder with `Gem.js` / `PowerupGem.js` is a natural OOP extension; today, bomb and color-bomb behavior lives primarily in `BoardPowerups.js` with VFX in `PowerupVFXManager.js`.
 
-Thay vì vẽ đi vẽ lại các nút bấm hay các panel, chúng ta tạo ra các "component" có thể tái sử dụng ở nhiều nơi.
+#### 3. `src/ui/` - Reusable UI building blocks
 
-*   `Button.js`: Một lớp cơ sở để tạo nút bấm, tự động xử lý hiệu ứng khi di chuột vào, khi bấm xuống, và phát âm thanh click.
-*   `LevelNode.js`: Một nút level trên bản đồ. Nó tự quản lý trạng thái của mình (khóa, mở, số sao đạt được). `MapScene` sẽ tạo ra nhiều instance của lớp này.
-*   `PlayerEntry.js`: Một hàng trong bảng xếp hạng. Nó nhận dữ liệu (avatar, tên, level, điểm) và tự hiển thị. `LeaderboardScene` chỉ cần tạo ra một danh sách các `PlayerEntry`.
-*   `ObjectiveItem.js`: Một icon mục tiêu (ví dụ: 23 viên đá đỏ) trong bảng "Order" của `UIScene`.
+Instead of redrawing buttons and panels in every scene, shared components are reused.
 
-#### 4. `src/managers/` - Các "Bộ Não" Quản Lý Toàn Cục
+* **`LevelNode.js`:** One map level button locked / unlocked / star display. `MapScene` creates many instances.
+* **`ObjectiveItem.js`:** One objective icon in the “Order” panel (e.g. “collect 20 red gems”). `UIScene` builds the list from level JSON.
+* **`ProgressBar.js`:** Used on the preloader and anywhere a fill bar is needed.
+* **`ResourceDisplay.js`:** Shows coins or other resources where needed.
 
-Đây là các hệ thống chạy ngầm, quản lý các khía cạnh quan trọng của toàn bộ game, không phụ thuộc vào một scene cụ thể nào.
+> **Planned / pattern:** A base `Button` class (hover, press, click SFX) and `PlayerEntry` for leaderboard rows fit the same pattern when those screens land.
 
-*   `PlayerDataManager.js`: Giao tiếp với `localStorage` (hoặc server) để **lưu và tải** tiến trình của người chơi. Các scene như `MapScene` và `UIScene` sẽ hỏi manager này để biết người chơi có bao nhiêu tiền, đã qua level nào.
-*   `SoundManager.js`: Một nơi duy nhất để quản lý tất cả âm thanh. Các scene khác chỉ cần gọi ví dụ `SoundManager.play('click')` thay vì phải tự load và quản lý âm thanh.
-*   `APIManager.js`: Chịu trách nhiệm giao tiếp với server. Nó xử lý việc gửi request, nhận response, và xử lý lỗi. `LeaderboardScene` sẽ sử dụng manager này.
+#### 4. `src/managers/` - Global brains
 
-## 5. Hướng dẫn Triển khai Tính năng Cốt lõi
+Systems that serve the whole game, not tied to a single scene.
 
-### Thiết kế Màn chơi (Data-Driven)
+* **`PlayerDataManager.js`:** Reads/writes `localStorage` (or a future server) for progress which levels are cleared, stars, currency. `MapScene`, `WinPopup`, and `UIScene` query it.
+* **`AudioManager.js`:** Single place for music and SFX. Scenes call e.g. `AudioManager` helpers instead of loading sounds themselves. Volume is adjustable in `PausePopup`.
+* **`APIManager.js`:** HTTP/API wrapper for requests, responses, and errors - intended for leaderboard and online features.
 
-Mỗi màn chơi được định nghĩa trong một file `JSON` tại `public/assets/levels/`.
+---
 
-#### Cấu trúc file `level_x.json`:
+## 5. Core feature implementation guide
+
+### Level design (data-driven)
+
+Each level is a JSON file under `public/assets/levels/`.
+
+#### Example `level_x.json` (current schema)
 
 ```json
 {
   "levelId": 10,
-  "moves": 25,
+  "maxMoves": 25,
+  "starTimes": {
+    "startTime": 120,
+    "threeStars": 90,
+    "twoStars": 60,
+    "oneStar": 30
+  },
   "objectives": [
     { "target": "gem", "type": "red", "count": 20 },
     { "target": "blocker", "type": "stone", "count": 5 }
@@ -186,63 +247,104 @@ Mỗi màn chơi được định nghĩa trong một file `JSON` tại `public/a
     [   7, 4, 1, 2, 3,    7],
     [null, 7, 2, 3, 7, null]
   ],
+  "blockerLayout": [
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0]
+  ],
   "availableGems": ["red", "green", "blue", "purple"]
 }
 ```
 
-*   **`gridLayout`**: Biểu diễn bàn chơi.
-    *   **Số dương (`1`, `2`...)**: Các loại gem hoặc vật cản được đặt sẵn.
-    *   **`0`**: Một ô sẽ được điền bằng gem ngẫu nhiên.
-    *   **`null`**: Một ô "lỗ hổng", không thuộc bàn chơi. **Cách này cho phép tạo ra bất kỳ hình dạng bàn chơi nào (chữ thập, trái tim...).**
+* **`gridLayout`:** Represents the play board.
+    * **Positive integers (`1`, `2`, …):** Pre-placed gem (or encoded) types.
+    * **`0`:** Cell filled with a random gem from `availableGems` at runtime.
+    * **`null`:** A hole not part of the board. Enables arbitrary shapes (cross, heart, irregular maps).
+* **`blockerLayout`:** Parallel matrix for obstacles (stone, rope, etc.).
+* **`maxMoves`:** Move budget (older docs may say `moves` same role).
+* **`starTimes`:** Countdown thresholds for 3 / 2 / 1 stars.
 
-### Hệ thống Nhiệm vụ (Objectives)
+---
 
-Mảng `objectives` trong file JSON định nghĩa điều kiện chiến thắng.
-*   **`target: "gem"`**: Thu thập đủ số lượng gem theo `type` (màu sắc).
-*   **`target: "blocker"`**: Phá đủ số lượng vật cản theo `type` (`stone`, `vine`...).
-*   **Luồng hoạt động**: `Board` phá vỡ đối tượng -> `GameScene` phát sự kiện `objectiveUpdated` -> `UIScene` lắng nghe và cập nhật giao diện.
+### Objectives system
 
-### Hệ thống Gem Đặc biệt (Power-ups)
+The `objectives` array in JSON defines win conditions.
 
-Đây là các gem được tạo ra khi match nhiều hơn 3.
+* **`target: "gem"`:** Collect enough gems of a given `type` (color).
+* **`target: "blocker"`:** Destroy enough blockers of a given `type` (`stone`, `rope`, …).
+* **Flow:** `Board` clears a target → `GameScene` emits `objectiveUpdated` → `UIScene` updates the Order panel and checks completion.
 
-*   **Kiến trúc**: Sử dụng kế thừa trong OOP. `RocketGem`, `BombGem` đều kế thừa từ lớp `Gem` cơ sở.
-*   **Logic**:
-    1.  `Board` sau khi tìm thấy một match (ví dụ: match-4), sẽ không xóa ngay gem ở vị trí đó.
-    2.  Thay vào đó, nó sẽ thay thế một trong các gem đó bằng một instance của `RocketGem`.
-    3.  Khi người chơi match hoặc kích hoạt `RocketGem`, phương thức `activate(board)` của chính `RocketGem` sẽ được gọi để thực thi logic phá hàng/cột.
+---
 
-### Hệ thống Vật phẩm Hỗ trợ (Boosters)
+### Special gems (power-ups)
 
-Đây là các item người chơi chủ động sử dụng (búa, găng tay đổi chỗ...).
+Created when the player makes matches larger than three (or specific patterns).
 
-*   **Luồng hoạt động**:
-    1.  Người chơi bấm vào icon Booster trên `UIScene`.
-    2.  `UIScene` phát sự kiện `boosterSelected` (ví dụ: `hammer`).
-    3.  `GameScene` lắng nghe, chuyển sang "chế độ dùng booster" và thay đổi con trỏ chuột.
-    4.  Người chơi bấm vào một ô trên bàn cờ.
-    5.  `GameScene` nhận tọa độ, gọi `board.useBooster('hammer', row, col)`.
-    6.  `Board` thực thi logic của booster tương ứng.
-    7.  `GameScene` reset lại trạng thái, quay về chế độ chơi bình thường.
+* **Architecture:** OOP-friendly `RocketGem`, `BombGem`, etc. can extend a base `Gem` and override `activate(board)`. **Currently implemented:** Bomb and Color Bomb (plus combos such as Bomb + Bomb clearing a 5×5 area) via `BoardPowerups.js` and `PowerupVFXManager.js`.
+* **Logic (conceptual):**
+    1. After a match (e.g. match-4), `Board` may not remove every matched cell immediately.
+    2. One cell becomes a power-up gem (stripe / bomb / color bomb depending on rules).
+    3. On match or tap, `activate(board)` runs the effect clear row/column, blast area, color clear, etc.
 
-## 6. Luồng Giao tiếp Sự kiện (Event-Driven Communication)
+---
 
-Đây là "mạch máu" của toàn bộ game, giúp các thành phần giao tiếp mà không phụ thuộc trực tiếp vào nhau.
+### Support items (boosters)
 
-| Tên sự kiện | Dữ liệu đi kèm (payload) | Ai phát ra? | Ai lắng nghe? | Mục đích |
+Items the player chooses actively (hammer, swap gloves, rocket, shuffle, …).
+
+* **Flow:**
+    1. Player taps a booster icon on `UIScene`.
+    2. `UIScene` emits `boosterSelected` (e.g. `'hammer'`).
+    3. `GameScene` enters booster mode and updates input/cursor feedback.
+    4. Player taps a board cell.
+    5. `GameScene` calls `board.useBooster('hammer', row, col)` (or equivalent on `BoardPowerups`).
+    6. `Board` runs booster logic; VFX may run via `BoosterVFXManager`.
+    7. `GameScene` resets to normal play mode.
+
+---
+
+## 6. Event-driven communication
+
+This is the “circulatory system” of the game components stay decoupled.
+
+| Event | Payload | Emitted by | Listened by | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
-| **`gemsMatched`** | `{ score, gemType, count }` | `Board` | `UIScene`, `SoundManager` | Cập nhật điểm, phát âm thanh match |
-| **`objectiveUpdated`** | `{ target, type, remaining }` | `GameScene` | `UIScene` | Cập nhật UI nhiệm vụ |
-| **`moveUsed`** | `{ movesLeft }` | `GameScene` | `UIScene` | Cập nhật số lượt đi còn lại |
-| **`boosterSelected`** | `boosterType` (e.g., 'hammer') | `UIScene` | `GameScene` | Báo cho game biết người chơi muốn dùng booster |
-| **`levelWin`** | `{}` | `GameScene` | `UIScene` | Hiển thị màn hình chiến thắng |
-| **`levelLose`** | `{}` | `GameScene` | `UIScene` | Hiển thị màn hình thua cuộc |
+| **`gemsMatched`** | `{ score, gemType, count }` | `Board` / `GameScene` | `UIScene`, `AudioManager` | Update score; play match SFX |
+| **`objectiveUpdated`** | `{ target, type, remaining }` | `GameScene` | `UIScene` | Refresh objective UI |
+| **`moveUsed`** | `{ movesLeft }` | `GameScene` | `UIScene` | Update remaining moves |
+| **`boosterSelected`** | `boosterType` (e.g. `'hammer'`) | `UIScene` | `GameScene` | Enter booster targeting mode |
+| **`levelWin`** | `{}` | `GameScene` | `UIScene` → `WinPopup` | Show victory flow, save progress |
+| **`levelLose`** | `{}` | `GameScene` | `UIScene` → `LosePopup` | Show fail screen |
 
-## 7. Lộ trình Phát triển
+For deeper flow charts (match cascades, combos, damage priority on blockers), see **[CODE_ANALYSIS.md](./CODE_ANALYSIS.md)**.
 
-*   [ ] Hoàn thiện màn hình chọn màn chơi (Level Select Screen).
-*   [ ] Thêm các loại vật cản mới (Băng, Xích, Hộp gỗ...).
-*   [ ] Thêm các loại gem đặc biệt mới (Bom màu, Máy bay giấy...).
-*   [ ] Xây dựng hệ thống lưu game (`localStorage`).
-*   [ ] Tối ưu hóa hiệu năng bằng Texture Atlas và Object Pooling.
-*   [ ] Thêm hiệu ứng hạt (particle effects) cho các vụ nổ thêm hoành tráng.
+---
+
+## 7. Development roadmap
+
+| Item | Status |
+|------|--------|
+| Level select / world map (`MapScene`, `LevelNode`) | ✅ Done |
+| Match-3 core (swap, match, gravity, refill, chains) | ✅ Done |
+| Power-ups (Bomb, Color Bomb) + VFX | ✅ Done |
+| Boosters (Hammer, Swap, Rocket, Shuffle) + VFX | ✅ Done |
+| Blockers (Stone, Rope) | ✅ Done (more types planned) |
+| Save game (`localStorage` via `PlayerDataManager`) | ✅ Done |
+| Live demo on Vercel | ✅ [Play now](https://match-3-two.vercel.app/) |
+| Polish level select UI further | 🔲 In progress |
+| New blockers (ice, chains, crates…) | 🔲 Planned |
+| New power-ups (color bomb variants, paper plane…) | 🔲 Planned |
+| Leaderboard scene + `APIManager` integration | 🔲 Planned |
+| Performance: texture atlases & object pooling | 🔲 Planned |
+| Richer particle effects on explosions | 🔲 Planned |
+
+---
+
+## Further reading
+
+* **[CODE_ANALYSIS.md](./CODE_ANALYSIS.md)** - Module-level breakdown of `Board`, scene lifecycle, constants, and extension notes.
+
+---
+
+<p align="center">
+  Built with Phaser 3 & Vite · <a href="https://match-3-two.vercel.app/">Play now</a>
+</p>
